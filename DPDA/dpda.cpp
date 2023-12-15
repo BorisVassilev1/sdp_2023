@@ -1,4 +1,5 @@
 #include <iostream>
+#include <assert.h>
 #include "dpda.h"
 
 #define s	 0
@@ -19,7 +20,7 @@ void test_anbn_1() {
 	a.qFinal = 2;
 
 	std::string str = "aaaaaabbbbbb";
-	std::cout << a.parse(str) << std::endl;
+	assert(a.parse(str) == true);
 }
 
 void test_arith() {
@@ -34,61 +35,63 @@ void test_arith() {
 	std::vector<char> Sigma = {'i', '+', '(', ')', '.', '#'};
 
 	DPDA a;
-	a.addTransition(s, eps, eps, _f, {'e'});
+	a.addTransition(s, eps, eps, _f, "e");
 
-	for (const auto x : Sigma)
+	for (char x : Sigma)
 		a.addTransition(_f, x, eps, f(x), {});
 
-	for (const auto x : std::vector{'i', '+', '(', ')', '.'})
+	for (char x : {'i', '+', '(', ')', '.'})
 		a.addTransition(f(x), eps, x, _f, {});
 
-	for (const auto x : Sigma) {
-		a.addTransition(f(x), eps, 'e', f(x), {'t', 'E'});
+	for (char x : Sigma) {
+		a.addTransition(f(x), eps, 'e', f(x), "tE");
 	}
-	a.addTransition(f('+'), eps, 'E', f('+'), {'+', 't', 'E'});
+	a.addTransition(f('+'), eps, 'E', f('+'), "+tE");
 
-	for (const auto x : std::vector{')', '#'}) {
+	for (char x : {')', '#'}) {
 		a.addTransition(f(x), '\0', 'E', f(x), {});
 	}
 
-	for (const auto x : Sigma) {
-		a.addTransition(f(x), eps, 't', f(x), {'f', 'T'});
+	for (char x : Sigma) {
+		a.addTransition(f(x), eps, 't', f(x), "fT");
 	}
-	a.addTransition(f('.'), eps, 'T', f('.'), {'.', 'f', 'T'});
+	a.addTransition(f('.'), eps, 'T', f('.'), ".fT");
 
-	for (const auto x : std::vector{'+', ')', '#'}) {
+	for (char x : {'+', ')', '#'}) {
 		a.addTransition(f(x), '\0', 'T', f(x), {});
 	}
-	a.addTransition(f('('), eps, 'f', f('('), {'(', 'e', ')'});
-	a.addTransition(f('i'), eps, 'f', f('i'), {'i'});
+	a.addTransition(f('('), eps, 'f', f('('), "(e)");
+	a.addTransition(f('i'), eps, 'f', f('i'), "i");
 	a.qFinal = f('#');
 
-	// a.printTransitions();
-
 	std::string str1 = "(i+i).i#";
-	std::cout << a.parse(str1) << std::endl;
+	assert(a.parse(str1) == true);
 	std::string str2 = "(i+i).i.(i.(i+.)).(i+i+i)#";
-	std::cout << a.parse(str2) << std::endl;
+	assert(a.parse(str2) == false);
+	std::string str3 = "(i+i).i.(i.(i+i+i+i)).(i+i+i)#";
+	assert(a.parse(str3) == true);
 }
 
 void test_anbn_2() {
 	DPDA a;
-	a.addTransition(s     , eps, eps, _f    , {'S'});
+	a.addTransition(s     , eps, eps, _f    , "S");
 	a.addTransition(_f    , '0', eps, f('0'), {});
 	a.addTransition(f('0'), eps, '0', _f    , {});
 	a.addTransition(_f    , '1', eps, f('1'), {});
 	a.addTransition(f('1'), eps, '1', _f    , {});
-	a.addTransition(f('0'), eps, 'S', f('0'), {'0', 'S', '1'});
+	a.addTransition(f('0'), eps, 'S', f('0'), "0S1");
 	a.addTransition(f('1'), eps, 'S', f('1'), {});
 	a.addTransition(_f    , '#', eps, f('#'), {});
 	a.qFinal = f('#');
 
-	std::string str = "000111#";
-	std::cout << a.parse(str) << std::endl;
+	std::string str1 = "000111#";
+	assert(a.parse(str1) == true);
+    std::string str2 = "001111#";
+    assert(a.parse(str2) == false);
 }
 
 int main() {
-	// test_anbn_1();
-	// test_anbn_2();
+	test_anbn_1();
+	test_anbn_2();
     test_arith();
 }

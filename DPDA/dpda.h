@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <ostream>
 #include <tuple>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -102,7 +103,6 @@ class DPDA {
 			if (!res) {
 				res = transition(current_state, '\0', '\0', stack, offset);
 			}
-			//if (!res) std::cout << std::pair{0, 0} << " failed!" << std::endl;
 		}
 		//printState(current_state, offset, stack, word);
 
@@ -120,7 +120,8 @@ class DPDA {
 		return current_state == qFinal;
 	}
 
-	bool parse(const std::string &word) { return parse(std::vector<Letter>(word.begin(), word.end())); }
+    template<typename U=Letter> requires std::is_convertible_v<U, char>
+	bool parse(const std::string &word){ return parse(std::vector<Letter>(word.begin(), word.end())); }
 
 	bool transition(State &q, Letter a, Letter top, std::vector<Letter> &stack, std::size_t &offset) {
 		std::tuple<State, Letter, Letter> search = {q, a, top};
@@ -143,5 +144,10 @@ class DPDA {
 	void addTransition(State q, Letter a, Letter x, State q1, const std::vector<Letter> &w) {
 		delta.insert(
 			std::make_pair(std::tuple<State, Letter, Letter>{q, a, x}, std::tuple<State, std::vector<Letter>>{q1, w}));
+	}
+
+	template<class U=Letter> requires std::is_convertible_v<Letter, char>
+	void addTransition(State q, Letter a, Letter x, State q1, const std::string &w) {
+		return addTransition(q, a, x, q1, std::vector<Letter>(w.begin(),w.end()));
 	}
 };
