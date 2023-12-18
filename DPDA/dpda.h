@@ -12,45 +12,8 @@
 #include <iostream>
 #include <ranges>
 
-template <int N, typename... Ts>
-using NthTypeOf = typename std::tuple_element<N, std::tuple<Ts...>>::type;
-
-template <class... Args>
-std::ostream &operator<<(std::ostream &out, const std::tuple<Args...> &t);
-template <class A, class B>
-std::ostream &operator<<(std::ostream &out, const std::pair<A, B> &t);
-template <class T>
-std::ostream &operator<<(std::ostream &out, std::vector<T> v);
-
-struct tuple_hash {
-	template <class... Args>
-	std::size_t operator()(const std::tuple<Args...> &t) const {
-		return [&]<std::size_t... p>(std::index_sequence<p...>) {
-			return ((std::hash<NthTypeOf<p, Args...>>{}(std::get<p>(t))) ^ ...);
-		}(std::make_index_sequence<std::tuple_size_v<std::tuple<Args...>>>{});
-	}
-};
-
-template <class... Args>
-std::ostream &operator<<(std::ostream &out, const std::tuple<Args...> &t) {
-	out << "(";
-	[&]<std::size_t... p>(std::index_sequence<p...>) {
-		((out << (p ? ", " : "") << "\'" << std::get<p>(t) << "\'"), ...);
-	}(std::make_index_sequence<std::tuple_size_v<std::tuple<Args...>>>{});
-	return out << ")";
-}
-
-template <class A, class B>
-std::ostream &operator<<(std::ostream &out, const std::pair<A, B> &t) {
-	return out << "(" << t.first << ", " << t.second << ")";
-}
-
-template <class T>
-std::ostream &operator<<(std::ostream &out, std::vector<T> v) {
-	for (const T &x : v)
-		out << x;
-	return out;
-}
+#include "cfg.h"
+#include "hashes.h"
 
 template <class State = std::size_t, class Letter = char>
 class DPDA {
@@ -58,8 +21,23 @@ class DPDA {
 	std::unordered_map<std::tuple<State, Letter, Letter>, std::tuple<State, std::vector<Letter>>, tuple_hash> delta;
 
 	State qFinal = 0;
+	bool enable_print = false;
 
 	DPDA() {}
+
+	DPDA(const CFG<Letter> &grammar) {
+		addTransition(0, Letter::eps, Letter::eps, 1, {grammar.start});
+
+		for(const auto &[a, alpha] : grammar.rules) {
+			addTransition(1, Letter::eps, a, 1, alpha);
+			
+		}
+		
+		for(const auto &t : grammar.terminals)
+			addTransition(1, t, t, 1, {});
+
+		qFinal = 1;
+	}
 
 	void printState(State state, size_t offset, const std::vector<Letter> stack, const std::vector<Letter> &word) {
 		std::cout << "(";
@@ -67,8 +45,10 @@ class DPDA {
 		else std::cout << "f" << char(state - 128);
 
 		std::cout << " , ";
-		for (auto a = word.begin() + offset; a != word.end(); ++a) {
-			std::cout << *a;
+		if(offset < word.size()) {
+		    for (auto a = word.begin() + offset; a != word.end(); ++a) {
+				std::cout << *a;
+			}
 		}
 		std::cout << " , ";
 		for (const auto a : stack) {
@@ -86,31 +66,33 @@ class DPDA {
 	bool parse(const std::vector<Letter> &word) {
 		std::size_t			offset = 0;
 		std::vector<Letter> stack;
-		stack.push_back('Z');
 		State current_state;
 		bool  res = true;
 
-		while ((current_state != qFinal || stack.size() > 1) && res) {
-			const Letter &l = offset < word.size() ? word[offset] : '\0';
-			//printState(current_state, offset, stack, word);
-			res = transition(current_state, l, stack.back(), stack, offset);
-			if (!res) {
+		while ((current_state != qFinal || !stack.empty()) && res) {
+			const Letter &l = offset < word.size() ? word[offset] : Letter::eps;
+			const Letter &s = stack.empty() ? Letter::eps : stack.back();
+			if(enable_print) { printState(current_state, offset, stack, word); }
+
+			res = transition(current_state, l, s, stack, offset);
+			if (!res && s) {
 				res = transition(current_state, l, '\0', stack, offset);
 			}
-			if (!res) {
-				res = transition(current_state, '\0', stack.back(), stack, offset);
+			if (!res && l) {
+				res = transition(current_state, '\0', s, stack, offset);
 			}
-			if (!res) {
+			if (!res && s && l) {
 				res = transition(current_state, '\0', '\0', stack, offset);
 			}
 		}
-		//printState(current_state, offset, stack, word);
+		if(enable_print) { printState(current_state, offset, stack, word); }
 
-		if (current_state != qFinal || !(stack.size() == 1)) {
+		if (current_state != qFinal || !stack.empty()) {
 			for (size_t i = 0; i < word.size(); ++i) {
 				std::cout << word[i];
 			}
 			std::cout << std::endl;
+			if(offset > 0)
 			for (size_t i = 0; i < offset - 1; ++i) {
 				std::cout << " ";
 			}

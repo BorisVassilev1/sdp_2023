@@ -1,17 +1,20 @@
+#include <initializer_list>
 #include <iostream>
+#include <unordered_set>
 #include <assert.h>
+#include <unordered_set>
 #include "dpda.h"
 
 #define s	 0
 #define _f	 1
 #define f(x) x + 128
-#define eps	 '\0'
+#define eps	 Letter::eps
 
 void test_anbn_1() {
 	/*
 	 * S -> aSb | eps
 	 */
-	DPDA a;
+	DPDA<std::size_t, Letter> a;
 	a.addTransition(0, 'a', eps, 0, {'a'});
 	a.addTransition(0, 'a', 'a', 0, {'a', 'a'});
 	a.addTransition(0, 'b', 'a', 1, {});
@@ -24,7 +27,14 @@ void test_anbn_1() {
 }
 
 void test_arith() {
-	/* SIMA = {i, +, (, ), ., #}
+	/* SIGMA = {i, +, (, ), ., #}
+	 *
+	 * e -> e+t | t
+	 * t -> t.f | f
+	 * f -> i | (e)
+	 *
+	 *
+	 * modified:
 	 *  e -> tE
 	 *  E -> eps | +tE
 	 *  t -> FT
@@ -34,7 +44,7 @@ void test_arith() {
 
 	std::vector<char> Sigma = {'i', '+', '(', ')', '.', '#'};
 
-	DPDA a;
+	DPDA<std::size_t, Letter> a;
 	a.addTransition(s, eps, eps, _f, "e");
 
 	for (char x : Sigma)
@@ -49,7 +59,7 @@ void test_arith() {
 	a.addTransition(f('+'), eps, 'E', f('+'), "+tE");
 
 	for (char x : {')', '#'}) {
-		a.addTransition(f(x), '\0', 'E', f(x), {});
+		a.addTransition(f(x), eps, 'E', f(x), {});
 	}
 
 	for (char x : Sigma) {
@@ -58,7 +68,7 @@ void test_arith() {
 	a.addTransition(f('.'), eps, 'T', f('.'), ".fT");
 
 	for (char x : {'+', ')', '#'}) {
-		a.addTransition(f(x), '\0', 'T', f(x), {});
+		a.addTransition(f(x), eps, 'T', f(x), {});
 	}
 	a.addTransition(f('('), eps, 'f', f('('), "(e)");
 	a.addTransition(f('i'), eps, 'f', f('i'), "i");
@@ -73,25 +83,48 @@ void test_arith() {
 }
 
 void test_anbn_2() {
-	DPDA a;
-	a.addTransition(s     , eps, eps, _f    , "S");
-	a.addTransition(_f    , '0', eps, f('0'), {});
-	a.addTransition(f('0'), eps, '0', _f    , {});
-	a.addTransition(_f    , '1', eps, f('1'), {});
-	a.addTransition(f('1'), eps, '1', _f    , {});
+	/*
+	 * S -> aSb | eps
+	 */
+	DPDA<std::size_t, Letter> a;
+	a.addTransition(s, eps, eps, _f, "S");
+	a.addTransition(_f, '0', eps, f('0'), {});
+	a.addTransition(f('0'), eps, '0', _f, {});
+	a.addTransition(_f, '1', eps, f('1'), {});
+	a.addTransition(f('1'), eps, '1', _f, {});
 	a.addTransition(f('0'), eps, 'S', f('0'), "0S1");
 	a.addTransition(f('1'), eps, 'S', f('1'), {});
-	a.addTransition(_f    , '#', eps, f('#'), {});
+	a.addTransition(_f, '#', eps, f('#'), {});
 	a.qFinal = f('#');
 
 	std::string str1 = "000111#";
 	assert(a.parse(str1) == true);
-    std::string str2 = "001111#";
-    assert(a.parse(str2) == false);
+	std::string str2 = "001111#";
+	assert(a.parse(str2) == false);
+}
+#undef eps
+#undef f
+#undef s
+#undef _f
+
+void test_regular_grammar() {
+	CFG<Letter> cfg;
+	cfg.terminals	 = {'a', 'b', 'c', 'd', 'e', '#'};
+	cfg.nonTerminals = {'A', 'B', 'C', 'D', 'E'};
+	cfg.start		 = 'A';
+	cfg.rules.insert({'A', {'a', 'b', 'A'}});
+	cfg.rules.insert({'A', {'#'}});
+
+	DPDA<std::size_t, Letter> a(cfg);
+	a.printTransitions();
+	a.enable_print = true;
+	std::string				  str1 = "#";
+	assert(a.parse(str1) == true);
 }
 
 int main() {
 	test_anbn_1();
 	test_anbn_2();
-    test_arith();
+	test_arith();
+	test_regular_grammar();
 }
