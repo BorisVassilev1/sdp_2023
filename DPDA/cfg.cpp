@@ -1,4 +1,5 @@
 #include "cfg.h"
+#include <assert.h>
 
 int main() {
 	CFG<Letter> g;
@@ -11,8 +12,18 @@ int main() {
 	g.addRule('T', "");
 	g.addRule('T', ".fT");
 	g.addRule('f', "(e)");
+	g.addRule('f', "i");
+	g.start = 'e';
+	g.eof	= '#';
 
-	auto isNullable = g.findNullables();
+	auto nullable = g.findNullables();
 
-	g.findFirsts();
+	auto first = g.findFirsts(nullable);
+
+	assert(g.isFirst('(', {'T', 'e'}, nullable, first) == true);
+	std::cout << g.first({'T', 'e'}, nullable, first) << std::endl;
+
+	auto follow = g.findFollows(nullable, first);
+
+	g.printParseTable(nullable, first, follow);
 }

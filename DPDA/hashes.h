@@ -66,11 +66,20 @@ std::ostream &operator<<(std::ostream &out, std::vector<T> v) {
 		out << x;
 	return out;
 }
+
 template <class T>
 std::ostream &operator<<(std::ostream &out, std::unordered_set<T> v) {
 	out << "( ";
 	for (const T &x : v)
-		out << x;
-	out << " )";
+		out << x << " ";
+	out << ")";
 	return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Letter l) {
+    if(l == Letter::eps) {
+        out << "ε";
+    }
+    else out << char(l);
+    return out;
 }
