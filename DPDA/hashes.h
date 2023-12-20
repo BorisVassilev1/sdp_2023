@@ -2,6 +2,7 @@
 
 #include <tuple>
 #include <ostream>
+#include <unordered_set>
 #include <vector>
 
 class Letter {
@@ -63,5 +64,13 @@ template <class T>
 std::ostream &operator<<(std::ostream &out, std::vector<T> v) {
 	for (const T &x : v)
 		out << x;
+	return out;
+}
+template <class T>
+std::ostream &operator<<(std::ostream &out, std::unordered_set<T> v) {
+	out << "( ";
+	for (const T &x : v)
+		out << x;
+	out << " )";
 	return out;
 }

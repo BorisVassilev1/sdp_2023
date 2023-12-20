@@ -73,6 +73,7 @@ void test_arith() {
 	a.addTransition(f('('), eps, 'f', f('('), "(e)");
 	a.addTransition(f('i'), eps, 'f', f('i'), "i");
 	a.qFinal = f('#');
+    a.enable_print = true;
 
 	std::string str1 = "(i+i).i#";
 	assert(a.parse(str1) == true);
@@ -112,13 +113,13 @@ void test_regular_grammar() {
 	cfg.terminals	 = {'a', 'b', 'c', 'd', 'e', '#'};
 	cfg.nonTerminals = {'A', 'B', 'C', 'D', 'E'};
 	cfg.start		 = 'A';
-	cfg.rules.insert({'A', {'a', 'b', 'A'}});
 	cfg.rules.insert({'A', {'#'}});
+	cfg.rules.insert({'A', {'a', 'b', 'A'}});
 
 	DPDA<std::size_t, Letter> a(cfg);
 	a.printTransitions();
 	a.enable_print = true;
-	std::string				  str1 = "#";
+	std::string				  str1 = "asd#";
 	assert(a.parse(str1) == true);
 }
 
