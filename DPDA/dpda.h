@@ -27,16 +27,33 @@ class DPDA {
 
 	DPDA(const CFG<Letter> &grammar) {
 		addTransition(0, Letter::eps, Letter::eps, 1, {grammar.start});
+		
+		const auto nullable = grammar.findNullables();
+		const auto first = grammar.findFirsts(nullable);
+		const auto follow = grammar.findFollows(nullable, first);
 
-		for(const auto &[a, alpha] : grammar.rules) {
-			addTransition(1, Letter::eps, a, 1, alpha);
-			
+		for (const auto &[A, v] : grammar.rules) {
+			if (v.empty()) {
+				const auto &followA = follow.find(A)->second;
+				for (const auto l : followA) {
+					addTransition(1, l, A, 1, v);
+				}
+			} else {
+				const auto &firstA = grammar.first(v, nullable, first);
+				for (const auto l : firstA) {
+					addTransition(1, l, A, 1, v);
+				}
+			}
+		}
+
+		for(const auto l : grammar.terminals) {
+			addTransition(1, l, l, 1, {});
 		}
 		
-		for(const auto &t : grammar.terminals)
-			addTransition(1, t, t, 1, {});
+		addTransition(1, grammar.eof, Letter::eps, 2, {});
+		
+		qFinal = 2;
 
-		qFinal = 1;
 	}
 
 	void printState(State state, size_t offset, const std::vector<Letter> stack, const std::vector<Letter> &word) {
@@ -112,7 +129,7 @@ class DPDA {
 			//std::cout << search << " failed " << std::endl;
 			return false;
 		}
-		//std::cout << "apply " << *res << std::endl;
+		std::cout << "apply " << *res << std::endl;
 
 		if (top) stack.pop_back();
 		for (const auto &l : std::ranges::views::reverse(std::get<1>(res->second))) {

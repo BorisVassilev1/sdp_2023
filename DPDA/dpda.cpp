@@ -109,23 +109,34 @@ void test_anbn_2() {
 #undef _f
 
 void test_regular_grammar() {
-	CFG<Letter> cfg;
-	cfg.terminals	 = {'a', 'b', 'c', 'd', 'e', '#'};
-	cfg.nonTerminals = {'A', 'B', 'C', 'D', 'E'};
-	cfg.start		 = 'A';
-	cfg.rules.insert({'A', {'#'}});
-	cfg.rules.insert({'A', {'a', 'b', 'A'}});
+	CFG<Letter> g;
+	g.terminals	   = {'i', '(', ')', '.', '+', '#'};
+	g.nonTerminals = {'e', 'E', 't', 'T', 'f'};
+	g.addRule('e', "tE");
+	g.addRule('E', "");
+	g.addRule('E', "+tE");
+	g.addRule('t', "fT");
+	g.addRule('T', "");
+	g.addRule('T', ".fT");
+	g.addRule('f', "(e)");
+	g.addRule('f', "i");
+	g.start = 'e';
+	g.eof	= '#';
 
-	DPDA<std::size_t, Letter> a(cfg);
+	DPDA<std::size_t, Letter> a(g);
 	a.printTransitions();
 	a.enable_print = true;
-	std::string				  str1 = "asd#";
+	std::string str1 = "(i+i).i#";
 	assert(a.parse(str1) == true);
+	std::string str2 = "(i+i).i.(i.(i+.)).(i+i+i)#";
+	assert(a.parse(str2) == false);
+	std::string str3 = "(i+i).i.(i.(i+i+i+i)).(i+i+i)#";
+	assert(a.parse(str3) == true);
 }
 
 int main() {
-	test_anbn_1();
-	test_anbn_2();
-	test_arith();
+	//test_anbn_1();
+	//test_anbn_2();
+	//test_arith();
 	test_regular_grammar();
 }

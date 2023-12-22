@@ -16,14 +16,5 @@ int main() {
 	g.start = 'e';
 	g.eof	= '#';
 
-	auto nullable = g.findNullables();
-
-	auto first = g.findFirsts(nullable);
-
-	assert(g.isFirst('(', {'T', 'e'}, nullable, first) == true);
-	std::cout << g.first({'T', 'e'}, nullable, first) << std::endl;
-
-	auto follow = g.findFollows(nullable, first);
-
-	g.printParseTable(nullable, first, follow);
+	g.printParseTable();
 }

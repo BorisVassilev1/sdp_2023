@@ -17,16 +17,7 @@ class CFG {
 	Letter												 start;
 	Letter												 eof;
 
-	CFG() {}
-
-	void addRule(Letter a, const std::vector<Letter> &w) { rules.insert({a, w}); }
-
-	template <class U = Letter>
-		requires std::is_convertible_v<char, Letter>
-	void addRule(char a, const std::string &w) {
-		addRule(a, std::vector<Letter>(w.begin(), w.end()));
-	}
-
+   public:
 	auto findNullables() const {
 		std::unordered_map<Letter, bool> res;
 
@@ -62,7 +53,7 @@ class CFG {
 		return std::move(res);
 	}
 
-	bool nullable(const std::vector<Letter> &w, const std::unordered_map<Letter, bool> &nullable) {
+	bool nullable(const std::vector<Letter> &w, const std::unordered_map<Letter, bool> &nullable) const {
 		if (w.empty()) return true;
 		for (const auto x : w) {
 			if (nullable.find(x)->second) return true;
@@ -70,7 +61,7 @@ class CFG {
 		return false;
 	}
 
-	auto findFirsts(const std::unordered_map<Letter, bool> &nullable) {
+	auto findFirsts(const std::unordered_map<Letter, bool> &nullable) const {
 		std::unordered_map<Letter, std::unordered_set<Letter>> first;
 
 		for (Letter l : terminals) {
@@ -114,7 +105,7 @@ class CFG {
 	}
 
 	bool isFirst(Letter x, const std::vector<Letter> &w, const std::unordered_map<Letter, bool> &nullable,
-				 const std::unordered_map<Letter, std::unordered_set<Letter>> &first) {
+				 const std::unordered_map<Letter, std::unordered_set<Letter>> &first) const {
 		for (size_t i = 0; i < w.size(); ++i) {
 			if (first.find(w[i])->second.contains(x)) return true;
 			if (!nullable.find(w[i])->second) break;
@@ -123,7 +114,7 @@ class CFG {
 	}
 
 	std::unordered_set<Letter> first(const std::vector<Letter> &w, const std::unordered_map<Letter, bool> &nullable,
-									 const std::unordered_map<Letter, std::unordered_set<Letter>> &first) {
+									 const std::unordered_map<Letter, std::unordered_set<Letter>> &first) const {
 		std::unordered_set<Letter> res;
 		for (size_t i = 0; i < w.size(); ++i) {
 			const auto &firstOfLetter = first.find(w[i])->second;
@@ -136,7 +127,7 @@ class CFG {
 	}
 
 	auto findFollows(const std::unordered_map<Letter, bool>						  &nullable,
-					 const std::unordered_map<Letter, std::unordered_set<Letter>> &first) {
+					 const std::unordered_map<Letter, std::unordered_set<Letter>> &first) const {
 		std::unordered_map<Letter, std::unordered_set<Letter>> follow;
 
 		for (Letter l : nonTerminals) {
@@ -185,9 +176,13 @@ class CFG {
 		return follow;
 	}
 
-	void printParseTable(const std::unordered_map<Letter, bool>						  &nullable,
-						 const std::unordered_map<Letter, std::unordered_set<Letter>> &first,
-						 const std::unordered_map<Letter, std::unordered_set<Letter>> &follow) {
+	CFG() {}
+
+	void printParseTable() const {
+		const auto nullable = findNullables();
+		const auto first	= findFirsts(nullable);
+		const auto follow	= findFollows(nullable, first);
+
 		for (const auto &[A, v] : rules) {
 			if (v.empty()) {
 				const auto &followA = follow.find(A)->second;
@@ -201,5 +196,13 @@ class CFG {
 				}
 			}
 		}
+	}
+
+	void addRule(Letter a, const std::vector<Letter> &w) { rules.insert({a, w}); }
+
+	template <class U = Letter>
+		requires std::is_convertible_v<char, Letter>
+	void addRule(char a, const std::string &w) {
+		addRule(a, std::vector<Letter>(w.begin(), w.end()));
 	}
 };
