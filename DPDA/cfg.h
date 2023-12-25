@@ -1,5 +1,4 @@
 #pragma once
-#include <pthread.h>
 #include <functional>
 #include <type_traits>
 #include <vector>

@@ -7,14 +7,14 @@
 
 #define s	 0
 #define _f	 1
-#define f(x) x + 128
+#define f(x) x + Letter::size
 #define eps	 Letter::eps
 
 void test_anbn_1() {
 	/*
 	 * S -> aSb | eps
 	 */
-	DPDA<std::size_t, Letter> a;
+	DPDA<State, Letter> a;
 	a.addTransition(0, 'a', eps, 0, {'a'});
 	a.addTransition(0, 'a', 'a', 0, {'a', 'a'});
 	a.addTransition(0, 'b', 'a', 1, {});
@@ -44,7 +44,7 @@ void test_arith() {
 
 	std::vector<char> Sigma = {'i', '+', '(', ')', '.', '#'};
 
-	DPDA<std::size_t, Letter> a;
+	DPDA<State, Letter> a;
 	a.addTransition(s, eps, eps, _f, "e");
 
 	for (char x : Sigma)
@@ -87,7 +87,7 @@ void test_anbn_2() {
 	/*
 	 * S -> aSb | eps
 	 */
-	DPDA<std::size_t, Letter> a;
+	DPDA<State, Letter> a;
 	a.addTransition(s, eps, eps, _f, "S");
 	a.addTransition(_f, '0', eps, f('0'), {});
 	a.addTransition(f('0'), eps, '0', _f, {});
@@ -108,7 +108,7 @@ void test_anbn_2() {
 #undef s
 #undef _f
 
-void test_regular_grammar() {
+void test_arith_gen() {
 	CFG<Letter> g;
 	g.terminals	   = {'i', '(', ')', '.', '+', '#'};
 	g.nonTerminals = {'e', 'E', 't', 'T', 'f'};
@@ -123,7 +123,7 @@ void test_regular_grammar() {
 	g.start = 'e';
 	g.eof	= '#';
 
-	DPDA<std::size_t, Letter> a(g);
+	DPDA<State, Letter> a(g);
 	a.printTransitions();
 	a.enable_print = true;
 	std::string str1 = "(i+i).i#";
@@ -134,9 +134,59 @@ void test_regular_grammar() {
 	assert(a.parse(str3) == true);
 }
 
+void test_ll1_1() {
+	CFG<Letter> g;
+	g.terminals	   = {'a', 'b', 'c', 'd', '#'};
+	g.nonTerminals = {'S', 'A', 'B'};
+	g.addRule('S', "aABb");
+	g.addRule('A', "c");
+	g.addRule('A', "");
+	g.addRule('B', "d");
+	g.addRule('B', "");
+	g.start = 'S';
+	g.eof	= '#';
+
+	DPDA<State, Letter> a(g);
+	a.printTransitions();
+	a.enable_print = true;
+	std::string str1 = "acdb#";
+	assert(a.parse(str1) == true);
+}
+
+void test_ll1_2() {
+	CFG<Letter> g;
+	g.terminals	   = {'a', 'b', 'c', 'd', 'e', 'f', '#'};
+	g.nonTerminals = {'S', 'A', 'B', 'C', 'D'};
+	g.addRule('S', "AB");
+	g.addRule('S', "eDa");
+	g.addRule('A', "ab");
+	g.addRule('A', "c");
+	g.addRule('B', "dC");
+	g.addRule('C', "eC");
+	g.addRule('C', "");
+	g.addRule('D', "fD");
+	g.addRule('D', "");
+	g.start = 'S';
+	g.eof	= '#';
+
+	DPDA<State, Letter> a(g);
+	//a.printTransitions();
+	//a.enable_print = true;
+	std::string str1 = "effffa#";
+	assert(a.parse(str1) == true);
+	std::string str2 = "effffb#";
+	assert(a.parse(str2) == false);
+	std::string str3 = "abdeeee#";
+	assert(a.parse(str3) == true);
+	std::string str4 = "abdfeeee#";
+	assert(a.parse(str4) == false);
+}
+
 int main() {
 	//test_anbn_1();
 	//test_anbn_2();
 	//test_arith();
-	test_regular_grammar();
+	//test_arith_gen();
+	//test_ll1_1();
+	test_ll1_2();
 }

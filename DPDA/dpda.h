@@ -32,34 +32,38 @@ class DPDA {
 		const auto first = grammar.findFirsts(nullable);
 		const auto follow = grammar.findFollows(nullable, first);
 
+		auto f = [](const Letter l) -> State { return Letter::size + l; };
+
 		for (const auto &[A, v] : grammar.rules) {
 			if (v.empty()) {
 				const auto &followA = follow.find(A)->second;
 				for (const auto l : followA) {
-					addTransition(1, l, A, 1, v);
+					addTransition(f(l), Letter::eps, A, f(l), v);
 				}
 			} else {
 				const auto &firstA = grammar.first(v, nullable, first);
 				for (const auto l : firstA) {
-					addTransition(1, l, A, 1, v);
+					addTransition(f(l), Letter::eps, A, f(l), v);
 				}
 			}
 		}
 
 		for(const auto l : grammar.terminals) {
-			addTransition(1, l, l, 1, {});
+			addTransition(1   , l          , Letter::eps, f(l), {});
+			if(l != grammar.eof)
+				addTransition(f(l), Letter::eps, l          , 1   , {});
 		}
 		
 		addTransition(1, grammar.eof, Letter::eps, 2, {});
 		
-		qFinal = 2;
+		qFinal = f(grammar.eof);
 
 	}
 
 	void printState(State state, size_t offset, const std::vector<Letter> stack, const std::vector<Letter> &word) {
 		std::cout << "(";
 		if (state < 128) std::cout << state;
-		else std::cout << "f" << char(state - 128);
+		else std::cout << state;
 
 		std::cout << " , ";
 		if(offset < word.size()) {
@@ -83,7 +87,7 @@ class DPDA {
 	bool parse(const std::vector<Letter> &word) {
 		std::size_t			offset = 0;
 		std::vector<Letter> stack;
-		State current_state;
+		State current_state = 0;
 		bool  res = true;
 
 		while ((current_state != qFinal || !stack.empty()) && res) {
@@ -110,10 +114,18 @@ class DPDA {
 			}
 			std::cout << std::endl;
 			if(offset > 0)
-			for (size_t i = 0; i < offset - 1; ++i) {
-				std::cout << " ";
-			}
+				for (size_t i = 0; i < offset - 1; ++i) {
+					std::cout << " ";
+				}
 			std::cout << "^ mistake here" << std::endl;
+			if(!stack.empty() && current_state > Letter::size) {
+				std::cout << "expected " << stack.back() << ", but got " << Letter(current_state - Letter::size)  << std::endl;
+			}
+		} else {
+			for (size_t i = 0; i < word.size(); ++i) {
+				std::cout << word[i];
+			}
+			std::cout << std::endl << "\taccepted" << std::endl;
 		}
 
 		return current_state == qFinal;
@@ -129,7 +141,7 @@ class DPDA {
 			//std::cout << search << " failed " << std::endl;
 			return false;
 		}
-		std::cout << "apply " << *res << std::endl;
+		//std::cout << "apply " << *res << std::endl;
 
 		if (top) stack.pop_back();
 		for (const auto &l : std::ranges::views::reverse(std::get<1>(res->second))) {

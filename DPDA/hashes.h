@@ -13,9 +13,20 @@ public:
 
 	constexpr operator char() const {return val;}
 	static const Letter eps;
+	static const size_t size;
 };
 
 constexpr const Letter Letter::eps = '\0';
+constexpr const size_t Letter::size = 256;
+
+class State {
+	size_t val;
+	public:
+	constexpr State(size_t val) : val(val) {}
+	constexpr State() : val(0) {};
+	
+	constexpr operator size_t() const {return val;}
+};
 
 namespace std {
   template <> struct hash<Letter>
@@ -23,6 +34,14 @@ namespace std {
     size_t operator()(const Letter &x) const
     {
       return hash<char>()(x);
+    }
+  };
+
+  template <> struct hash<State>
+  {
+    size_t operator()(const State &x) const
+    {
+      return hash<size_t>()(x);
     }
   };
 }
@@ -81,5 +100,13 @@ std::ostream &operator<<(std::ostream &out, Letter l) {
         out << "ε";
     }
     else out << char(l);
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, State s) {
+    if(s >= Letter::size) {
+        out << "f" << Letter(s - Letter::size);
+    }
+    else out << size_t(s);
     return out;
 }
