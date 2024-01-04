@@ -30,3 +30,5 @@ doxygen_config.txt
 *.sc
 *.out
 *.gch
+
+Debug/

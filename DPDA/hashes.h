@@ -100,14 +100,14 @@ std::ostream &operator<<(std::ostream &out, std::unordered_set<T> v) {
 	return out;
 }
 
-std::ostream &operator<<(std::ostream &out, Letter l) {
+inline std::ostream &operator<<(std::ostream &out, Letter l) {
 	if (l == Letter::eps) {
 		out << "ε";
 	} else out << char(l);
 	return out;
 }
 
-std::ostream &operator<<(std::ostream &out, State s) {
+inline std::ostream &operator<<(std::ostream &out, State s) {
 	if (s >= Letter::size) {
 		out << "f" << Letter(s - Letter::size);
 	} else out << size_t(s);
@@ -116,7 +116,7 @@ std::ostream &operator<<(std::ostream &out, State s) {
 
 using bits = std::vector<bool>;
 
-void p_tabs(std::ostream &out, const bits &b) {
+inline void p_tabs(std::ostream &out, const bits &b) {
 	for (auto x : b)
 		out << (x ? " \u2502" : "  ");
 }
