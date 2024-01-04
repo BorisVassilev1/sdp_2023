@@ -7,44 +7,49 @@
 
 class Letter {
 	char val;
-public:
+
+   public:
 	constexpr Letter(char val) : val(val) {}
 	constexpr Letter() : val(0) {}
 
-	constexpr operator char() const {return val;}
+	constexpr operator char() const { return val; }
 	static const Letter eps;
 	static const size_t size;
 };
 
-constexpr const Letter Letter::eps = '\0';
+constexpr const Letter Letter::eps	= '\0';
 constexpr const size_t Letter::size = 256;
 
 class State {
 	size_t val;
-	public:
+
+   public:
 	constexpr State(size_t val) : val(val) {}
-	constexpr State() : val(0) {};
-	
-	constexpr operator size_t() const {return val;}
+	constexpr State() : val(0){};
+
+	constexpr operator size_t() const { return val; }
+};
+
+template <class Letter>
+struct ParseNode {
+	Letter							 value;
+	std::vector<ParseNode<Letter> *> children;
+    
+	ParseNode(const Letter value, const std::vector<ParseNode<Letter> *> &children)
+		: value(value), children(children) {}
 };
 
 namespace std {
-  template <> struct hash<Letter>
-  {
-    size_t operator()(const Letter &x) const
-    {
-      return hash<char>()(x);
-    }
-  };
+template <>
+struct hash<Letter> {
+	size_t operator()(const Letter &x) const { return hash<char>()(x); }
+};
 
-  template <> struct hash<State>
-  {
-    size_t operator()(const State &x) const
-    {
-      return hash<size_t>()(x);
-    }
-  };
-}
+template <>
+struct hash<State> {
+	size_t operator()(const State &x) const { return hash<size_t>()(x); }
+};
+}	  // namespace std
 
 template <int N, typename... Ts>
 using NthTypeOf = typename std::tuple_element<N, std::tuple<Ts...>>::type;
@@ -96,17 +101,61 @@ std::ostream &operator<<(std::ostream &out, std::unordered_set<T> v) {
 }
 
 std::ostream &operator<<(std::ostream &out, Letter l) {
-    if(l == Letter::eps) {
-        out << "ε";
-    }
-    else out << char(l);
-    return out;
+	if (l == Letter::eps) {
+		out << "ε";
+	} else out << char(l);
+	return out;
 }
 
 std::ostream &operator<<(std::ostream &out, State s) {
-    if(s >= Letter::size) {
-        out << "f" << Letter(s - Letter::size);
-    }
-    else out << size_t(s);
-    return out;
+	if (s >= Letter::size) {
+		out << "f" << Letter(s - Letter::size);
+	} else out << size_t(s);
+	return out;
+}
+
+using bits = std::vector<bool>;
+
+void p_tabs(std::ostream &out, const bits &b) {
+	for (auto x : b)
+		out << (x ? " \u2502" : "  ");
+}
+
+template <class Letter>
+void p_show(std::ostream &out, const ParseNode<Letter> *r, bits &b) {
+	// https://en.wikipedia.org/wiki/Box-drawing_character
+	if (r) {
+		out << "-" << r->value << std::endl;
+
+		for (size_t i = 0; i + 1 < r->children.size(); ++i) {
+			p_tabs(out, b);
+			out << " \u251c";	  // ├
+			b.push_back(true);
+			p_show(out, r->children[i], b);
+			b.pop_back();
+		}
+
+		if (!r->children.empty()) {
+			p_tabs(out, b);
+			out << " \u2514";	  // └
+			b.push_back(false);
+			p_show(out, r->children.back(), b);
+			b.pop_back();
+		}
+	} else out << " \u25cb" << std::endl;	  // ○
+}
+
+template <class Letter>
+std::ostream &operator<<(std::ostream &out, const ParseNode<Letter> *node) {
+	bits b;
+	p_show(out, node, b);
+	return out;
+}
+
+template <class Letter>
+void deleteParseTree(const ParseNode<Letter> *root) {
+	for (const auto *t : root->children) {
+		deleteParseTree<Letter>(t);
+	}
+	delete root;
 }

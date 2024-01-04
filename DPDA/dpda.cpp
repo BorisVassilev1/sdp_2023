@@ -23,7 +23,7 @@ void test_anbn_1() {
 	a.qFinal = 2;
 
 	std::string str = "aaaaaabbbbbb";
-	assert(a.parse(str) == true);
+	assert(a.recognize(str) == true);
 }
 
 void test_arith() {
@@ -73,14 +73,18 @@ void test_arith() {
 	a.addTransition(f('('), eps, 'f', f('('), "(e)");
 	a.addTransition(f('i'), eps, 'f', f('i'), "i");
 	a.qFinal = f('#');
-    a.enable_print = true;
+    // a.enable_print = true;
 
 	std::string str1 = "(i+i).i#";
-	assert(a.parse(str1) == true);
+	auto pt1 = a.parse(str1);
+	assert(pt1 != nullptr);
+	std::cout << pt1 << std::endl;
+	deleteParseTree(pt1);
+
 	std::string str2 = "(i+i).i.(i.(i+.)).(i+i+i)#";
-	assert(a.parse(str2) == false);
+	assert(a.recognize(str2) == false);
 	std::string str3 = "(i+i).i.(i.(i+i+i+i)).(i+i+i)#";
-	assert(a.parse(str3) == true);
+	assert(a.recognize(str3) == true);
 }
 
 void test_anbn_2() {
@@ -99,9 +103,9 @@ void test_anbn_2() {
 	a.qFinal = f('#');
 
 	std::string str1 = "000111#";
-	assert(a.parse(str1) == true);
+	assert(a.recognize(str1) == true);
 	std::string str2 = "001111#";
-	assert(a.parse(str2) == false);
+	assert(a.recognize(str2) == false);
 }
 #undef eps
 #undef f
@@ -124,14 +128,18 @@ void test_arith_gen() {
 	g.eof	= '#';
 
 	DPDA<State, Letter> a(g);
-	a.printTransitions();
-	a.enable_print = true;
+	// a.printTransitions();
+	// a.enable_print = true;
 	std::string str1 = "(i+i).i#";
-	assert(a.parse(str1) == true);
+	ParseNode<Letter> *pt1 = a.parse(str1);
+	assert(pt1 != nullptr);
+	std::cout << pt1 << std::endl;
+	deleteParseTree(pt1);
+	
 	std::string str2 = "(i+i).i.(i.(i+.)).(i+i+i)#";
-	assert(a.parse(str2) == false);
+	assert(a.recognize(str2) == false);
 	std::string str3 = "(i+i).i.(i.(i+i+i+i)).(i+i+i)#";
-	assert(a.parse(str3) == true);
+	assert(a.recognize(str3) == true);
 }
 
 void test_ll1_1() {
@@ -147,10 +155,13 @@ void test_ll1_1() {
 	g.eof	= '#';
 
 	DPDA<State, Letter> a(g);
-	a.printTransitions();
-	a.enable_print = true;
+	// a.printTransitions();
+	// a.enable_print = true;
 	std::string str1 = "acdb#";
-	assert(a.parse(str1) == true);
+	auto pt1 = a.parse(str1);
+	assert(pt1 != nullptr);
+	std::cout << pt1 << std::endl;
+	deleteParseTree(pt1);
 }
 
 void test_ll1_2() {
@@ -172,21 +183,29 @@ void test_ll1_2() {
 	DPDA<State, Letter> a(g);
 	//a.printTransitions();
 	//a.enable_print = true;
-	std::string str1 = "effffa#";
-	assert(a.parse(str1) == true);
-	std::string str2 = "effffb#";
-	assert(a.parse(str2) == false);
-	std::string str3 = "abdeeee#";
-	assert(a.parse(str3) == true);
-	std::string str4 = "abdfeeee#";
-	assert(a.parse(str4) == false);
+	std::string str1 = "effffb#";
+	std::string str2 = "abdfeeee#";
+	std::string str3 = "effffa#";
+	std::string str4 = "abdeeee#";
+	assert(a.recognize(str1) == false);
+	assert(a.recognize(str2) == false);
+
+	auto pt3 = a.parse(str3);
+	assert(pt3 != nullptr);
+	std::cout << pt3 << std::endl;
+	deleteParseTree(pt3);
+
+	auto pt4 = a.parse(str4);
+	assert(pt4 != nullptr);
+	std::cout << pt4 << std::endl;
+	deleteParseTree(pt4);	
 }
 
 int main() {
-	//test_anbn_1();
-	//test_anbn_2();
-	//test_arith();
-	//test_arith_gen();
-	//test_ll1_1();
+	test_anbn_1();
+	test_anbn_2();
+	test_arith();
+	test_arith_gen();
+	test_ll1_1();
 	test_ll1_2();
 }
