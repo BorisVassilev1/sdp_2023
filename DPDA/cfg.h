@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <iostream>
-#include "hashes.h"
+#include "utils.h"
 
 template <class Letter>
 class CFG {

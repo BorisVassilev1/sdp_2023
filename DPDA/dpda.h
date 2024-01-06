@@ -17,7 +17,7 @@
 #include <ranges>
 
 #include "cfg.h"
-#include "hashes.h"
+#include "utils.h"
 
 template <class State = std::size_t, class Letter = char>
 class DPDA {

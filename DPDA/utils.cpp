@@ -1,4 +1,4 @@
-#include "hashes.h"
+#include "utils.h"
 
 std::ostream &operator<<(std::ostream &out, Letter l) {
 	if (l == Letter::eps) {
