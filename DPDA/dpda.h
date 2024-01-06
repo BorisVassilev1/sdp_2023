@@ -1,8 +1,11 @@
 #pragma once
 
 #include <cstdlib>
+#include <exception>
 #include <memory>
 #include <ostream>
+#include <sstream>
+#include <stdexcept>
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
@@ -37,6 +40,7 @@ class DPDA {
 
 		auto f = [](const Letter l) -> State { return Letter::size + l; };
 
+		try {
 		for (const auto &[A, v] : grammar.rules) {
 			if (v.empty()) {
 				const auto &followA = follow.find(A)->second;
@@ -55,8 +59,9 @@ class DPDA {
 			addTransition(1, l, Letter::eps, f(l), {});
 			if (l != grammar.eof) addTransition(f(l), Letter::eps, l, 1, {});
 		}
-
-		addTransition(1, grammar.eof, Letter::eps, 2, {});
+		} catch (...) {
+			std::throw_with_nested(std::runtime_error("Failed to create parser for grammar"));
+		}
 
 		qFinal = f(grammar.eof);
 	}
@@ -115,20 +120,18 @@ class DPDA {
 		if (!stack.empty() && current_state > Letter::size) {
 			std::cout << "expected a/an " << stack.back() << ", but got " << Letter(current_state - Letter::size)
 					  << std::endl;
-		}
-		else if(stack.empty() && offset == word.size()) {
+		} else if (stack.empty() && offset == word.size()) {
 			std::cout << "unexpected end of file" << std::endl;
-		}
-		else if(current_state > Letter::size) {
+		} else if (current_state > Letter::size) {
 			std::cout << "unexpected " << Letter(current_state - Letter::size) << std::endl;
 		}
 	}
 
 	bool recognize(const std::vector<Letter> &word) {
-		std::size_t								   offset = 0;
-		std::vector<Letter>						   stack;
-		State									   current_state = 0;
-		typename DeltaMap::iterator				   res			 = delta.begin();
+		std::size_t					offset = 0;
+		std::vector<Letter>			stack;
+		State						current_state = 0;
+		typename DeltaMap::iterator res			  = delta.begin();
 
 		while ((current_state != qFinal || !stack.empty()) && res != delta.end()) {
 			const Letter &l = offset < word.size() ? word[offset] : Letter::eps;
@@ -219,13 +222,35 @@ class DPDA {
 	}
 
 	void addTransition(State q, Letter a, Letter x, State q1, const std::vector<Letter> &w) {
-		delta.insert(
-			std::make_pair(std::tuple<State, Letter, Letter>{q, a, x}, std::tuple<State, std::vector<Letter>>{q1, w}));
+		auto to_insert =
+			std::make_pair(std::tuple<State, Letter, Letter>{q, a, x}, std::tuple<State, std::vector<Letter>>{q1, w});
+		auto found = delta.find(to_insert.first);
+		if (found != delta.end()) {
+			std::stringstream s;
+			s << "Failed to add transition: New transition \n"
+			  << to_insert << "\n conflicts with the already existing \n"
+			  << *found << std::endl;
+			throw std::runtime_error(s.str());
+		}
+		delta.insert(to_insert);
 	}
 
 	template <class U = Letter>
 		requires std::is_convertible_v<Letter, char>
 	void addTransition(State q, Letter a, Letter x, State q1, const std::string &w) {
 		return addTransition(q, a, x, q1, std::vector<Letter>(w.begin(), w.end()));
+	}
+
+	void printToStream(std::ostream &out) {
+		out << "digraph {\n overlap = false; splines = true; nodesep = 0.3; layout = dot;\n";
+		for (const auto &p : delta) {
+			out << "\t\"" << std::get<0>(p.first) << "\" -> \"" << std::get<0>(p.second)
+				<< "\" [xlabel = \"" << std::get<1>(p.first) << ", " << std::get<2>(p.first);
+			if(!std::get<1>(p.second).empty()) {
+				out << " / " << std::get<1>(p.second);
+			}
+			out << "\" , minlen = \"3\"];" << std::endl;
+		}
+		out << "}";
 	}
 };

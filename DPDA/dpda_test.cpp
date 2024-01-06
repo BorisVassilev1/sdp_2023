@@ -1,5 +1,6 @@
 #include <initializer_list>
 #include <iostream>
+#include <fstream>
 #include <unordered_set>
 #include <assert.h>
 #include <unordered_set>
@@ -140,6 +141,10 @@ void test_arith_gen() {
 	assert(a.recognize(str2) == false);
 	std::string str3 = "(i+i).i.(i.(i+i+i+i)).(i+i+i)#";
 	assert(a.recognize(str3) == true);
+	
+	std::ofstream out("graph.txt");
+	a.printToStream(out);
+	out.close();
 }
 
 void test_ll1_1() {
@@ -201,6 +206,22 @@ void test_ll1_2() {
 	deleteParseTree(pt4);
 }
 
+void test_ambiguous() {
+	CFG<Letter> g;
+	g.terminals = {'a'};
+	g.nonTerminals = {'S', 'A'};
+	g.start = 'S';
+	g.addRule('S', "A");
+	g.addRule('S', "a");
+	g.addRule('A', "a");
+
+	try {
+		DPDA<State, Letter> a(g);
+	} catch(std::exception &e) {
+		std::cerr << e;
+	}
+}
+
 int main() {
 	test_anbn_1();
 	test_anbn_2();
@@ -208,4 +229,5 @@ int main() {
 	test_arith_gen();
 	test_ll1_1();
 	test_ll1_2();
+	test_ambiguous();
 }

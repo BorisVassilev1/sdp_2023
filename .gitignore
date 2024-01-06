@@ -32,3 +32,5 @@ doxygen_config.txt
 *.gch
 
 Debug/
+graph.txt
+*.svg

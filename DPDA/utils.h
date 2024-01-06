@@ -1,7 +1,7 @@
 #pragma once
 
 #include <tuple>
-#include <ostream>
+#include <iostream>
 #include <unordered_set>
 #include <vector>
 
@@ -34,7 +34,7 @@ template <class Letter>
 struct ParseNode {
 	Letter							 value;
 	std::vector<ParseNode<Letter> *> children;
-    
+
 	ParseNode(const Letter value, const std::vector<ParseNode<Letter> *> &children)
 		: value(value), children(children) {}
 };
@@ -100,29 +100,16 @@ std::ostream &operator<<(std::ostream &out, std::unordered_set<T> v) {
 	return out;
 }
 
-inline std::ostream &operator<<(std::ostream &out, Letter l) {
-	if (l == Letter::eps) {
-		out << "ε";
-	} else out << char(l);
-	return out;
-}
-
-inline std::ostream &operator<<(std::ostream &out, State s) {
-	if (s >= Letter::size) {
-		out << "f" << Letter(s - Letter::size);
-	} else out << size_t(s);
-	return out;
-}
-
+namespace {
 using bits = std::vector<bool>;
 
-inline void p_tabs(std::ostream &out, const bits &b) {
+static inline void p_tabs(std::ostream &out, const bits &b) {
 	for (auto x : b)
 		out << (x ? " \u2502" : "  ");
 }
 
 template <class Letter>
-void p_show(std::ostream &out, const ParseNode<Letter> *r, bits &b) {
+static void p_show(std::ostream &out, const ParseNode<Letter> *r, bits &b) {
 	// https://en.wikipedia.org/wiki/Box-drawing_character
 	if (r) {
 		out << "-" << r->value << std::endl;
@@ -144,6 +131,7 @@ void p_show(std::ostream &out, const ParseNode<Letter> *r, bits &b) {
 		}
 	} else out << " \u25cb" << std::endl;	  // ○
 }
+}	  // namespace
 
 template <class Letter>
 std::ostream &operator<<(std::ostream &out, const ParseNode<Letter> *node) {
@@ -159,3 +147,7 @@ void deleteParseTree(const ParseNode<Letter> *root) {
 	}
 	delete root;
 }
+
+std::ostream &operator<<(std::ostream &out, const std::exception &e);
+std::ostream &operator<<(std::ostream &out, Letter l);
+std::ostream &operator<<(std::ostream &out, State s);
