@@ -21,7 +21,7 @@ class CFG {
 
 	bool nullable(const std::vector<Letter> &w, const std::unordered_map<Letter, bool> &nullable) const;
 
-	auto findFirsts(const std::unordered_map<Letter, bool> &nullable) const;
+	std::unordered_map<Letter, std::unordered_set<Letter>> findFirsts(const std::unordered_map<Letter, bool> &nullable) const;
 
 	bool isFirst(Letter x, const std::vector<Letter> &w, const std::unordered_map<Letter, bool> &nullable,
 				 const std::unordered_map<Letter, std::unordered_set<Letter>> &first) const {

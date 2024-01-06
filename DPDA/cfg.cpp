@@ -45,7 +45,7 @@ bool CFG<Letter>::nullable(const std::vector<Letter> &w, const std::unordered_ma
 	return false;
 }
 template<class Letter>
-auto CFG<Letter>::findFirsts(const std::unordered_map<Letter, bool> &nullable) const {
+std::unordered_map<Letter, std::unordered_set<Letter>> CFG<Letter>::findFirsts(const std::unordered_map<Letter, bool> &nullable) const {
 	std::unordered_map<Letter, std::unordered_set<Letter>> first;
 
 	for (Letter l : terminals) {
