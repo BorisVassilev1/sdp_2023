@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "DPDA/dpda.h"
 
 std::ostream &operator<<(std::ostream &out, Letter l) {
 	if (l == Letter::eps) {

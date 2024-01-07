@@ -4,6 +4,8 @@
 #include <iostream>
 #include <unordered_set>
 #include <vector>
+#include <format>
+#include <string_view>
 
 class Letter {
 	char val;
@@ -151,3 +153,25 @@ void deleteParseTree(const ParseNode<Letter> *root) {
 std::ostream &operator<<(std::ostream &out, const std::exception &e);
 std::ostream &operator<<(std::ostream &out, Letter l);
 std::ostream &operator<<(std::ostream &out, State s);
+
+template <typename Char>
+struct basic_ostream_formatter : std::formatter<std::basic_string_view<Char>, Char> {
+  template <typename T, typename OutputIt>
+  auto format(const T& value, std::basic_format_context<OutputIt, Char>& ctx) const
+      -> OutputIt {
+    std::basic_stringstream<Char> ss;
+    ss << value;
+    return std::formatter<std::basic_string_view<Char>, Char>::format(
+        ss.view(), ctx);
+  }
+};
+
+using ostream_formatter = basic_ostream_formatter<char>;
+template <> struct std::formatter<Letter> : ostream_formatter {};
+template <> struct std::formatter<State> : ostream_formatter {};
+template <> struct std::formatter<std::exception> : ostream_formatter {};
+template <class Letter> struct std::formatter<ParseNode<Letter>> : ostream_formatter {};
+template <class... Args> struct std::formatter<std::tuple<Args...>> : ostream_formatter {};
+template <class A, class B> struct std::formatter<std::pair<A, B>> : ostream_formatter {};
+
+

@@ -1,8 +1,13 @@
 #include <iostream>
 #include <fstream>
 #include <unordered_set>
-#include <assert.h>
 #include <unordered_set>
+#include <DPDA/utils.h>
+#include <DPDA/parser.h>
+
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest.h>
+
 #include "dpda.h"
 
 #define s	 0
@@ -10,7 +15,33 @@
 #define f(x) x + Letter::size
 #define eps	 Letter::eps
 
-void test_anbn_1() {
+#define CHECK_RECOGNIZE(a, str) CHECK(a.recognize(str))
+
+#define CHECK_RECOGNIZE_FALSE(a, str) CHECK_FALSE(a.recognize(str))
+
+#define CHECK_THROWS_PRINT(smt) \
+	try {                       \
+		smt;                    \
+	} catch (const std::exception &e) { std::cerr << e << std::endl; }
+
+#define CHECK_PARSETREE_FALSE(a, str) \
+	std::cerr << str << std::endl;    \
+	CHECK_THROWS_PRINT(a.parse(str));
+
+#define CHECK_PARSETREE__(a, str, p)                \
+	{                                               \
+		std::cout << str << std::endl;              \
+		auto t = a.parse(str);                      \
+		CHECK(t != nullptr);                        \
+		if (p) std::cout << t << std::endl;         \
+		else std::cout << " accepted" << std::endl; \
+		deleteParseTree(t);                         \
+	}
+
+#define CHECK_PARSETREE(a, str)		  CHECK_PARSETREE__(a, str, false);
+#define CHECK_PARSETREE_PRINT(a, str) CHECK_PARSETREE__(a, str, true);
+
+TEST_CASE("a^n.b^n hardcoded") {
 	/*
 	 * S -> aSb | eps
 	 */
@@ -22,11 +53,13 @@ void test_anbn_1() {
 	a.addTransition(1, '\0', eps, 2, {});
 	a.qFinal = 2;
 
-	std::string str = "aaaaaabbbbbb";
-	assert(a.recognize(str) == true);
+	const char *str1 = "aaaaaabbbbbb";
+	const char *str2 = "aaaaabbbbbb";
+	SUBCASE(str1) { CHECK(a.recognize(str1)); }
+	SUBCASE(str2) { CHECK_FALSE(a.recognize(str2)); }
 }
 
-void test_arith() {
+TEST_CASE("arithmetics hardcoded") {
 	/* SIGMA = {i, +, (, ), ., #}
 	 *
 	 * e -> e+t | t
@@ -73,21 +106,24 @@ void test_arith() {
 	a.addTransition(f('('), eps, 'f', f('('), "(e)");
 	a.addTransition(f('i'), eps, 'f', f('i'), "i");
 	a.qFinal = f('#');
-    // a.enable_print = true;
+	// a.enable_print = true;
 
-	std::string str1 = "(i+i).i#";
-	auto pt1 = a.parse(str1);
-	assert(pt1 != nullptr);
-	std::cout << pt1 << std::endl;
-	deleteParseTree(pt1);
+	const char *str1 = "(i+i).i#";
+	SUBCASE(str1) {
+		CHECK_RECOGNIZE(a, str1);
+	}
 
-	std::string str2 = "(i+i).i.(i.(i+.)).(i+i+i)#";
-	assert(a.recognize(str2) == false);
-	std::string str3 = "(i+i).i.(i.(i+i+i+i)).(i+i+i)#";
-	assert(a.recognize(str3) == true);
+	const char *str2 = "(i+i).i.(i.(i+.)).(i+i+i)#";
+	SUBCASE(str2) {
+		CHECK_RECOGNIZE_FALSE(a, str2);
+	}
+	const char *str3 = "(i+i).i.(i.(i+i+i+i)).(i+i+i)#";
+	SUBCASE(str3) {
+		CHECK_RECOGNIZE(a, str3);
+	}
 }
 
-void test_anbn_2() {
+TEST_CASE("0^n.1^n.# hardcoded") {
 	/*
 	 * S -> aSb | eps
 	 */
@@ -102,17 +138,22 @@ void test_anbn_2() {
 	a.addTransition(_f, '#', eps, f('#'), {});
 	a.qFinal = f('#');
 
-	std::string str1 = "000111#";
-	assert(a.recognize(str1) == true);
-	std::string str2 = "001111#";
-	assert(a.recognize(str2) == false);
+	const char *str1 = "000111#";
+	SUBCASE(str1) {
+		CHECK_RECOGNIZE(a, str1);
+	}
+
+	const char *str2 = "001111#";
+	SUBCASE(str2) {
+		CHECK_RECOGNIZE_FALSE(a, str2);
+	}
 }
 #undef eps
 #undef f
 #undef s
 #undef _f
 
-void test_arith_gen() {
+TEST_CASE("arithmetics from grammar") {
 	CFG<Letter> g;
 	g.terminals	   = {'i', '(', ')', '.', '+', '#'};
 	g.nonTerminals = {'e', 'E', 't', 'T', 'f'};
@@ -127,26 +168,39 @@ void test_arith_gen() {
 	g.start = 'e';
 	g.eof	= '#';
 
-	DPDA<State, Letter> a(g);
+	Parser<State, Letter> a(g);
 	// a.printTransitions();
 	// a.enable_print = true;
-	std::string str1 = "(i+i).i#";
-	ParseNode<Letter> *pt1 = a.parse(str1);
-	assert(pt1 != nullptr);
-	std::cout << pt1 << std::endl;
-	deleteParseTree(pt1);
-	
-	std::string str2 = "(i+i).i.(i.(i+.)).(i+i+i)#";
-	assert(a.recognize(str2) == false);
-	std::string str3 = "(i+i).i.(i.(i+i+i+i)).(i+i+i)#";
-	assert(a.recognize(str3) == true);
-	
+	const char *str1 = "(i+i).i#";
+	SUBCASE(str1) {
+		CHECK_RECOGNIZE(a, str1);
+		CHECK_PARSETREE(a, str1);
+	}
+
+	const char *str2 = "(i+i).i.(i.(i+.)).(i+i+i)#";
+	SUBCASE(str2) {
+		CHECK_RECOGNIZE_FALSE(a, str2);
+		CHECK_PARSETREE_FALSE(a, str2);
+	}
+
+	const char *str3 = "(i+i).i.(i.(i+i+i+i)).(i+i+i)#";
+	SUBCASE(str3) {
+		CHECK_RECOGNIZE(a, str3);
+		CHECK_PARSETREE(a, str3);
+	}
+
+	const char *str4 = "(i#";
+	SUBCASE(str4) {
+		CHECK_RECOGNIZE_FALSE(a, str4);
+		CHECK_PARSETREE_FALSE(a, str4);
+	}
+
 	std::ofstream out("graph.txt");
-	a.printToStream(out);
+	a.printToDOT(out);
 	out.close();
 }
 
-void test_ll1_1() {
+TEST_CASE("ll1 finite grammar") {
 	CFG<Letter> g;
 	g.terminals	   = {'a', 'b', 'c', 'd', '#'};
 	g.nonTerminals = {'S', 'A', 'B'};
@@ -158,17 +212,22 @@ void test_ll1_1() {
 	g.start = 'S';
 	g.eof	= '#';
 
-	DPDA<State, Letter> a(g);
+	Parser<State, Letter> a(g);
 	// a.printTransitions();
 	// a.enable_print = true;
-	std::string str1 = "acdb#";
-	auto pt1 = a.parse(str1);
-	assert(pt1 != nullptr);
-	std::cout << pt1 << std::endl;
-	deleteParseTree(pt1);
+	const char *str1 = "acdb#";
+	SUBCASE(str1) {
+		CHECK_RECOGNIZE(a, str1);
+		CHECK_PARSETREE(a, str1);
+	}
+	const char *str2 = "aaaaa#";
+	SUBCASE(str2) {
+		CHECK_RECOGNIZE_FALSE(a, str2);
+		CHECK_PARSETREE_FALSE(a, str2);
+	}
 }
 
-void test_ll1_2() {
+TEST_CASE("ll1 regular grammar") {
 	CFG<Letter> g;
 	g.terminals	   = {'a', 'b', 'c', 'd', 'e', 'f', '#'};
 	g.nonTerminals = {'S', 'A', 'B', 'C', 'D'};
@@ -184,49 +243,44 @@ void test_ll1_2() {
 	g.start = 'S';
 	g.eof	= '#';
 
-	DPDA<State, Letter> a(g);
-	//a.printTransitions();
-	//a.enable_print = true;
-	std::string str1 = "effffb#";
-	std::string str2 = "abdfeeee#";
-	std::string str3 = "effffa#";
-	std::string str4 = "abdeeee#";
-	assert(a.recognize(str1) == false);
-	assert(a.recognize(str2) == false);
+	Parser<State, Letter> a(g);
+	// a.printTransitions();
+	// a.enable_print = true;
+	const char *str1 = "efffb#";
+	SUBCASE(str1) {
+		CHECK_RECOGNIZE_FALSE(a, str1);
+		CHECK_PARSETREE_FALSE(a, str1);
+	}
 
-	auto pt3 = a.parse(str3);
-	assert(pt3 != nullptr);
-	std::cout << pt3 << std::endl;
-	deleteParseTree(pt3);
+	const char *str2 = "abdfeee#";
+	SUBCASE(str2) {
+		CHECK_RECOGNIZE_FALSE(a, str2);
+		CHECK_PARSETREE_FALSE(a, str2);
+	}
 
-	auto pt4 = a.parse(str4);
-	assert(pt4 != nullptr);
-	std::cout << pt4 << std::endl;
-	deleteParseTree(pt4);
+	const char *str3 = "efffa#";
+	SUBCASE(str3) {
+		CHECK_RECOGNIZE(a, str3);
+		CHECK_PARSETREE_PRINT(a, str3);
+	}
+	const char *str4 = "abdeee#";
+	SUBCASE(str4) {
+		CHECK_RECOGNIZE(a, str4);
+		CHECK_PARSETREE(a, str4);
+	}
 }
 
-void test_ambiguous() {
+TEST_CASE("ambiguous grammar") {
 	CFG<Letter> g;
-	g.terminals = {'a'};
+	g.terminals	   = {'a'};
 	g.nonTerminals = {'S', 'A'};
-	g.start = 'S';
+	g.start		   = 'S';
 	g.addRule('S', "A");
 	g.addRule('S', "a");
 	g.addRule('A', "a");
 
-	try {
-		DPDA<State, Letter> a(g);
-	} catch(std::exception &e) {
-		std::cerr << e;
-	}
-}
-
-int main() {
-	test_anbn_1();
-	test_anbn_2();
-	test_arith();
-	test_arith_gen();
-	test_ll1_1();
-	test_ll1_2();
-	test_ambiguous();
+	using Parser = Parser<State, Letter>;
+	Parser *a;
+	CHECK_THROWS_PRINT(a = new Parser(g));
+	(void)a;
 }

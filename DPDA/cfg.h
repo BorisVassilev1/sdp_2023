@@ -11,12 +11,14 @@ template <class Letter>
 class CFG {
    public:
 	std::unordered_multimap<Letter, std::vector<Letter>> rules;
-	std::unordered_set<Letter, std::hash<char>>			 terminals;
-	std::unordered_set<Letter, std::hash<char>>			 nonTerminals;
+	std::unordered_set<Letter, std::hash<Letter>>			 terminals;
+	std::unordered_set<Letter, std::hash<Letter>>			 nonTerminals;
 	Letter												 start;
 	Letter												 eof;
 
    public:
+	CFG(const Letter &start, const Letter &eof) : start(start), eof(eof) {}
+
 	std::unordered_map<Letter, bool> findNullables() const {
 		std::unordered_map<Letter, bool> res;
 
@@ -195,6 +197,15 @@ class CFG {
 					std::cout << A << ", " << l << " ~~> " << A << " -> " << v << std::endl;
 				}
 			}
+		}
+	}
+	
+	void printRules() const {
+		for (const auto &[A, v] : rules) {
+			if (v.empty())
+				std::cout << A << " -> " << Letter::eps << std::endl;
+			else 
+				std::cout << A << " -> " << v << std::endl;
 		}
 	}
 
