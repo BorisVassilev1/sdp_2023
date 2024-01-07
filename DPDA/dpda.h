@@ -1,18 +1,9 @@
 #pragma once
 
-#include <cstdlib>
-#include <exception>
-#include <memory>
-#include <ostream>
 #include <sstream>
-#include <stdexcept>
 #include <tuple>
-#include <type_traits>
 #include <unordered_map>
-#include <utility>
 #include <vector>
-#include <stack>
-#include <assert.h>
 #include <iostream>
 #include <ranges>
 

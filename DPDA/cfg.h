@@ -1,6 +1,6 @@
 #pragma once
+
 #include <functional>
-#include <type_traits>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>

@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.5.0)
 project(sdp_project)
 
-set(COMPILE_ARGS -std=c++20 -Wall -Wextra -Wpedantic -g --pedantic-errors -O3)
-
+set(COMPILE_ARGS -std=c++20 -Wall -Wextra -Wpedantic --pedantic-errors -g)
 
 add_executable(dpda_test 
 	DPDA/cfg.cpp 

@@ -1,4 +1,3 @@
-#include <initializer_list>
 #include <iostream>
 #include <fstream>
 #include <unordered_set>
