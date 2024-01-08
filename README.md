@@ -5,15 +5,15 @@ This project is a library that defines Context-Free Grammar, Deterministic PushD
 
 The main functionality can be described by this example:
 ```cpp
-	CFG<Letter> g;
-	g.terminals	   = {'a', 'b', '#'};
-	g.nonTerminals = {'S'};
-	g.addRule('S', "aSb");
-	g.addRule('S', {});
-	g.start = 'S';
+CFG<Letter> g;
+g.terminals	   = {'a', 'b', '#'};
+g.nonTerminals = {'S'};
+g.addRule('S', "aSb");
+g.addRule('S', {});
+g.start = 'S';
 
-	Parser<State, Letter> a(g);
-	std::cout << a.parse("aabb") << std::endl;
+Parser<State, Letter> a(g);
+std::cout << a.parse("aabb") << std::endl;
 ```
 This produces the following parse-tree:
 ```
