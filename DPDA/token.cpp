@@ -10,6 +10,7 @@ static std::unordered_map<std::size_t, std::string> &getTokenNames() {
 	else return *TokenNames;
 }
 
+// registers a Token with a name
 Token Token::createToken(const std::string &name, std::size_t value) {
 	getTokenNames().insert({value, name});
 	return Token(value);

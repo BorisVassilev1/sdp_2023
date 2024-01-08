@@ -1,32 +1,73 @@
 #pragma once
 
 #include <DPDA/dpda.h>
+#include <concepts>
 #include <memory>
+#include <type_traits>
 
 template <class Letter>
 struct ParseNode {
-	Letter							 value;
+	Letter											value;
 	std::vector<std::unique_ptr<ParseNode<Letter>>> children;
 
-	ParseNode(const Letter value)
-		: value(value) {}
+	ParseNode(const Letter value) : value(value) {}
+};
+
+/**
+ * @brief A custom exception type for errors, emitted while a DPDA is parsing a string
+ */
+class ParseError : public std::exception {
+   protected:
+	std::string msg;
+	std::size_t position;
+
+   public:
+	ParseError(const std::string &msg, std::size_t position)
+		: msg(msg + " at " + std::to_string(position)), position(position) {}
+	ParseError(const char *msg, std::size_t position)
+		: msg(std::string(msg) + " at " + std::to_string(position)), position(position) {}
+
+	virtual ~ParseError() noexcept {}
+
+	virtual const char *what() const noexcept { return msg.c_str(); }
 };
 
 template <class State, class Letter>
 class Parser : public DPDA<State, Letter> {
 	using typename DPDA<State, Letter>::DeltaMap;
-	using DPDA<State, Letter>::delta;
-	using DPDA<State, Letter>::qFinal;
-	using DPDA<State, Letter>::enable_print;
-
 	using DPDA<State, Letter>::printState;
 	using DPDA<State, Letter>::addTransition;
-	using DPDA<State, Letter>::printTransitions;
 	using DPDA<State, Letter>::transition;
 
 	CFG<Letter> g;
 
+	void detectMistake(const std::vector<Letter> &word, std::size_t offset, const std::vector<Letter> &stack,
+					   State current_state) const {
+		size_t		position = offset > 0 ? offset - 1 : 0;
+		std::string msg;
+		if (!stack.empty() && current_state > Letter::size) {
+			msg = std::format("expected a/an {}, but got '{}'", stack.back(), Letter(current_state - Letter::size));
+		} else if (stack.empty() && offset == word.size()) {
+			msg = std::format("unexpected end of file");
+		} else if (current_state > Letter::size) {
+			msg = std::format("unexpected {}", Letter(current_state - Letter::size));
+		} else {
+			msg = "unknown error";
+		}
+		throw ParseError(msg, position);
+	}
+
    public:
+	using DPDA<State, Letter>::delta;
+	using DPDA<State, Letter>::qFinal;
+	using DPDA<State, Letter>::enable_print;
+	using DPDA<State, Letter>::printTransitions;
+
+	/**
+	 * @brief Construct a Parser from an LL(1) grammar. Throws if grammar is not LL(1)
+	 *
+	 * @param grammar
+	 */
 	Parser(const CFG<Letter> &grammar) : g(grammar) {
 		addTransition(0, Letter::eps, Letter::eps, 1, {grammar.start});
 
@@ -60,9 +101,19 @@ class Parser : public DPDA<State, Letter> {
 		qFinal = f(grammar.eof);
 	}
 
-	template <class T, class U>
-		requires std::ranges::random_access_range<T> && std::ranges::random_access_range<U>
-	std::unique_ptr<ParseNode<Letter>> makeParseTree(const U &productions, const T &word, int &k, int &j) {
+	/**
+	 * @brief Constructs a parse tree from a word and a series of productions
+	 *
+	 * @tparam T
+	 * @tparam U
+	 * @param productions
+	 * @param word
+	 * @param k - start index for productions
+	 * @param j - start index for word
+	 * @return requires&&
+	 */
+	std::unique_ptr<ParseNode<Letter>> makeParseTree(const std::vector<typename DeltaMap::value_type> &productions,
+													 const std::vector<Letter> &word, int &k, int &j) const {
 		auto node	 = std::make_unique<ParseNode<Letter>>(std::get<2>(productions[k].first));
 		auto product = std::get<1>(productions[k].second);
 		++k;
@@ -80,27 +131,17 @@ class Parser : public DPDA<State, Letter> {
 		return node;
 	}
 
-	void detectMistake(const std::vector<Letter> &word, std::size_t offset, const std::vector<Letter> &stack,
-					   State current_state) {
-		size_t		position = offset > 0 ? offset - 1 : 0;
-		std::string msg;
-		if (!stack.empty() && current_state > Letter::size) {
-			msg = std::format("expected a/an {}, but got '{}'", stack.back(), Letter(current_state - Letter::size));
-		} else if (stack.empty() && offset == word.size()) {
-			msg = std::format("unexpected end of file");
-		} else if (current_state > Letter::size) {
-			msg = std::format("unexpected {}", Letter(current_state - Letter::size));
-		} else {
-			msg = "unknown error";
-		}
-		throw ParseError(msg, position);
-	}
-
-	std::unique_ptr<ParseNode<Letter>> parse(const std::vector<Letter> &word) {
+	/**
+	 * @brief parses a word and builds its parse tree. If it fails, throws a ParseError
+	 *
+	 * @param word
+	 * @return std::unique_ptr<ParseNode<Letter>>
+	 */
+	std::unique_ptr<ParseNode<Letter>> parse(const std::vector<Letter> &word) const {
 		std::size_t								   offset = 0;
 		std::vector<Letter>						   stack;
 		State									   current_state = 0;
-		typename DeltaMap::iterator				   res			 = delta.begin();
+		typename DeltaMap::const_iterator				   res			 = delta.begin();
 		std::vector<typename DeltaMap::value_type> productions;
 
 		while ((current_state != qFinal || !stack.empty()) && res != delta.end()) {
@@ -131,18 +172,26 @@ class Parser : public DPDA<State, Letter> {
 		return nullptr;
 	}
 
+	/**
+	 * @brief same as the other method, but for strings
+	 *
+	 * @tparam U
+	 * @param word
+	 * @return std::unique_ptr<ParseNode<Letter>>
+	 */
 	template <typename U = Letter>
-	std::unique_ptr<ParseNode<Letter>> parse(const std::string &word) {
+	std::unique_ptr<ParseNode<Letter>> parse(const std::string &word) const {
 		std::vector<Letter> w;
-		for(std::size_t i = 0; i < word.size(); ++i) {
+		for (std::size_t i = 0; i < word.size(); ++i) {
 			w.push_back(Letter(word[i]));
 		}
-		if(word.back() != Letter::eof)
-			w.push_back(Letter::eof);
+		if (word.back() != Letter::eof) w.push_back(Letter::eof);
 		return parse(w);
 	}
 };
 
+// reworked version of
+// https://hbfs.wordpress.com/2016/12/06/pretty-printing-a-tree-in-a-terminal/
 namespace {
 using bits = std::vector<bool>;
 
@@ -182,5 +231,5 @@ std::ostream &operator<<(std::ostream &out, const std::unique_ptr<ParseNode<Lett
 	p_show(out, node.get(), b);
 	return out;
 }
-template <class Letter> struct std::formatter<ParseNode<Letter>> : ostream_formatter {};
-
+template <class Letter>
+struct std::formatter<ParseNode<Letter>> : ostream_formatter {};

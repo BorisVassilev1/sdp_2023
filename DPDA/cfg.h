@@ -7,18 +7,28 @@
 #include <iostream>
 #include "utils.h"
 
+/**
+ * @brief A Context-Free Grammar
+ * 
+ * @tparam Letter - Type of symbols in the alphabet
+ */
 template <class Letter>
 class CFG {
    public:
 	std::unordered_multimap<Letter, std::vector<Letter>> rules;
-	std::unordered_set<Letter, std::hash<Letter>>			 terminals;
-	std::unordered_set<Letter, std::hash<Letter>>			 nonTerminals;
+	std::unordered_set<Letter, std::hash<Letter>>		 terminals;
+	std::unordered_set<Letter, std::hash<Letter>>		 nonTerminals;
 	Letter												 start;
 	Letter												 eof;
 
    public:
 	CFG(const Letter &start, const Letter &eof) : start(start), eof(eof) {}
 
+	/**
+	 * @brief computes if symbols are nullable
+	 * http://ll1academy.cs.ucla.edu/static/LLParsing.pdf
+	 * @return std::unordered_map<Letter, bool>
+	 */
 	std::unordered_map<Letter, bool> findNullables() const {
 		std::unordered_map<Letter, bool> res;
 
@@ -48,12 +58,18 @@ class CFG {
 			}
 		}
 
-		/*for (const Letter l : nonTerminals) {
-			std::cout << l << " : " << res.find(l)->second << std::endl;
-		}*/
 		return std::move(res);
 	}
 
+	/**
+	 * @brief computes if epsilon can be derived from a word \ref{w}.
+	 * http://ll1academy.cs.ucla.edu/static/LLParsing.pdf
+	 *
+	 * @param w - word
+	 * @param nullable - the result from CFG::findNullables
+	 * @return true - if the above statement is true
+	 * @return false - else
+	 */
 	bool nullable(const std::vector<Letter> &w, const std::unordered_map<Letter, bool> &nullable) const {
 		if (w.empty()) return true;
 		for (const auto x : w) {
@@ -62,6 +78,13 @@ class CFG {
 		return false;
 	}
 
+	/**
+	 * @brief finds the FIRST set for all symbols in the grammar
+	 * http://ll1academy.cs.ucla.edu/static/LLParsing.pdf
+	 *
+	 * @param nullable - the result from CFG::findNullables
+	 * @return std::unordered_map<Letter, std::unordered_set<Letter>>
+	 */
 	std::unordered_map<Letter, std::unordered_set<Letter>> findFirsts(
 		const std::unordered_map<Letter, bool> &nullable) const {
 		std::unordered_map<Letter, std::unordered_set<Letter>> first;
@@ -99,13 +122,19 @@ class CFG {
 			}
 		}
 
-		/*for (const Letter l : nonTerminals) {
-			std::cout << l << " -> " << first.find(l)->second << std::endl;
-		}*/
-
 		return first;
 	}
-
+	/**
+	 * @brief checks if x is in the FIRST set for the word w
+	 * http://ll1academy.cs.ucla.edu/static/LLParsing.pdf
+	 *
+	 * @param x
+	 * @param w
+	 * @param nullable
+	 * @param first
+	 * @return true
+	 * @return false
+	 */
 	bool isFirst(Letter x, const std::vector<Letter> &w, const std::unordered_map<Letter, bool> &nullable,
 				 const std::unordered_map<Letter, std::unordered_set<Letter>> &first) const {
 		for (size_t i = 0; i < w.size(); ++i) {
@@ -115,6 +144,14 @@ class CFG {
 		return false;
 	}
 
+	/**
+	 * @brief computes the FIRST set for a word w
+	 * http://ll1academy.cs.ucla.edu/static/LLParsing.pdf
+	 * @param w
+	 * @param nullable
+	 * @param first
+	 * @return std::unordered_set<Letter>
+	 */
 	std::unordered_set<Letter> first(const std::vector<Letter> &w, const std::unordered_map<Letter, bool> &nullable,
 									 const std::unordered_map<Letter, std::unordered_set<Letter>> &first) const {
 		std::unordered_set<Letter> res;
@@ -128,8 +165,16 @@ class CFG {
 		return res;
 	}
 
-	auto findFollows(const std::unordered_map<Letter, bool>						  &nullable,
-					 const std::unordered_map<Letter, std::unordered_set<Letter>> &first) const {
+	/**
+	 * @brief Computes the FOLLOW set for all symbols in the grammar
+	 * http://ll1academy.cs.ucla.edu/static/LLParsing.pdf
+	 * @param nullable
+	 * @param first
+	 * @return std::unordered_map<Letter, std::unordered_set<Letter>>
+	 */
+	std::unordered_map<Letter, std::unordered_set<Letter>> findFollows(
+		const std::unordered_map<Letter, bool>						 &nullable,
+		const std::unordered_map<Letter, std::unordered_set<Letter>> &first) const {
 		std::unordered_map<Letter, std::unordered_set<Letter>> follow;
 
 		for (Letter l : nonTerminals) {
@@ -172,14 +217,14 @@ class CFG {
 			}
 		}
 
-		/*for (const Letter l : nonTerminals) {
-			std::cout << l << " => " << follow.find(l)->second << std::endl;
-		}*/
 		return follow;
 	}
 
 	CFG() {}
 
+	/**
+	 * @brief Computes and prints the parse table to stdout
+	 */
 	void printParseTable() const {
 		const auto nullable = findNullables();
 		const auto first	= findFirsts(nullable);
@@ -199,18 +244,34 @@ class CFG {
 			}
 		}
 	}
-	
+
+	/**
+	 * @brief Prints all rules of the grammar to stdout
+	 */
 	void printRules() const {
 		for (const auto &[A, v] : rules) {
-			if (v.empty())
-				std::cout << A << " -> " << Letter::eps << std::endl;
-			else 
-				std::cout << A << " -> " << v << std::endl;
+			if (v.empty()) std::cout << A << " -> " << Letter::eps << std::endl;
+			else std::cout << A << " -> " << v << std::endl;
 		}
 	}
 
+	/**
+	 * @brief Adds the rule (a -> w) to the grammar, where a is a nonterminal symbol and w is a word
+	 *
+	 * @param a - nonterminal
+	 * @param w - a word
+	 */
 	void addRule(Letter a, const std::vector<Letter> &w) { rules.insert({a, w}); }
 
+	/**
+	 * @brief adds the rule (a -> w) to the grammar. Available only if \ref{Letter} can be implicitly constructed from
+	 * char
+	 *
+	 * @tparam U - dummy
+	 * @param a - a nonterminal symbol
+	 * @param w - a word
+	 * @return requires
+	 */
 	template <class U = Letter>
 		requires std::is_convertible_v<char, Letter>
 	void addRule(char a, const std::string &w) {

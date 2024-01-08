@@ -13,33 +13,39 @@
 #include "cfg.h"
 #include "utils.h"
 
-class ParseError : public std::exception {
-   protected:
-	std::string msg;
-	std::size_t position;
-
-   public:
-	ParseError(const std::string &msg, std::size_t position) : msg(msg + " at " + std::to_string(position)), position(position) {}
-	ParseError(const char *msg, std::size_t position) : msg(std::string(msg) + " at " + std::to_string(position)), position(position) {}
-
-	virtual ~ParseError() noexcept {}
-
-	virtual const char *what() const noexcept { return msg.c_str(); }
+template <class L>
+concept isLetter = requires() {
+	{ L::eps } -> std::same_as<const L&>;
+	{ L::eof } -> std::same_as<const L&>;
+	{ L::size } -> std::same_as<const std::size_t&>;
+	{ new L() };
+	std::is_convertible_v<L, std::size_t>;
 };
 
-template <class State = std::size_t, class Letter = char>
+template <class S>
+concept isState = requires(std::size_t i) {
+	std::is_convertible_v<S, std::size_t>;
+	{new S(i)};
+	{new S()};
+};
+
+/**
+ * @brief A Deterministic PushDown Automaton
+ *
+ * @tparam State - type of the states
+ * @tparam Letter - type of the Symbols in the alphabet
+ */
+template <class State = std::size_t, class Letter = char> requires isState<State> && isLetter<Letter>
 class DPDA {
    public:
 	using DeltaMap =
 		std::unordered_map<std::tuple<State, Letter, Letter>, std::tuple<State, std::vector<Letter>>, tuple_hash>;
-	DeltaMap delta;
+	DeltaMap delta;		/// the transition function
 
-	State qFinal	   = 0;
-	bool  enable_print = false;
-
-	DPDA() {}
-
-	void printState(State state, size_t offset, const std::vector<Letter> stack, const std::vector<Letter> &word) {
+	State qFinal	   = 0;			// the final state
+	bool  enable_print = false;		// if true, the DPDA will print debug info while parsing strings
+   protected:
+	void printState(State state, size_t offset, const std::vector<Letter> stack, const std::vector<Letter> &word) const {
 		std::cout << "(" << state << " , ";
 		if (offset < word.size()) {
 			for (auto a = word.begin() + offset; a != word.end(); ++a) {
@@ -53,17 +59,44 @@ class DPDA {
 		std::cout << ')' << std::endl;
 	}
 
-	void printTransitions() {
+	DeltaMap::const_iterator transition(State &q, Letter a, Letter top, std::vector<Letter> &stack, std::size_t &offset) const {
+		std::tuple<State, Letter, Letter> search = {q, a, top};
+		auto							  res	 = delta.find(search);
+		if (res == delta.end()) { return res; }
+
+		if (top) stack.pop_back();
+		for (const auto &l : std::ranges::views::reverse(std::get<1>(res->second))) {
+			stack.push_back(l);
+		}
+		q = std::get<0>(res->second);
+		if (a != '\0') ++offset;
+		return res;
+	}
+
+   public:
+	DPDA() {}
+
+	/**
+	 * @brief Dumps all the transitions to stdout
+	 */
+	void printTransitions() const {
 		for (const auto &t : delta) {
 			std::cout << t << std::endl;
 		}
 	}
 
-	bool recognize(const std::vector<Letter> &word) {
+	/**
+	 * @brief Runs the automaton on a word and returns true if it is recognized, false otherwise
+	 *
+	 * @param word
+	 * @return true
+	 * @return false
+	 */
+	bool recognize(const std::vector<Letter> &word) const {
 		std::size_t					offset = 0;
 		std::vector<Letter>			stack;
 		State						current_state = 0;
-		typename DeltaMap::iterator res			  = delta.begin();
+		typename DeltaMap::const_iterator res			  = delta.begin();
 
 		while ((current_state != qFinal || !stack.empty()) && res != delta.end()) {
 			const Letter &l = offset < word.size() ? word[offset] : Letter::eps;
@@ -82,50 +115,67 @@ class DPDA {
 		return accepted;
 	}
 
-
-	template <typename U = Letter>
-	bool recognize(const std::string &word) {
+	/**
+	 * @brief Same as the other implementation, but for std::string
+	 * 
+	 * @tparam U - dummy
+	 * @param word 
+	 * @return requires 
+	 */
+	template <typename U = Letter> requires std::is_constructible_v<Letter, char>
+	bool recognize(const std::string &word) const {
 		std::vector<Letter> w;
-		for(std::size_t i = 0; i < word.size(); ++i) {
+		for (std::size_t i = 0; i < word.size(); ++i) {
 			w.push_back(Letter(word[i]));
 		}
 		return recognize(w);
 	}
 
-	DeltaMap::iterator transition(State &q, Letter a, Letter top, std::vector<Letter> &stack, std::size_t &offset) {
-		std::tuple<State, Letter, Letter> search = {q, a, top};
-		auto							  res	 = delta.find(search);
-		if (res == delta.end()) { return res; }
-
-		if (top) stack.pop_back();
-		for (const auto &l : std::ranges::views::reverse(std::get<1>(res->second))) {
-			stack.push_back(l);
-		}
-		q = std::get<0>(res->second);
-		if (a != '\0') ++offset;
-		return res;
-	}
-
+	/**
+	 * @brief adds the transition ((q, a, x), (q1, w)) to the automaton
+	 * 
+	 * @param q 
+	 * @param a 
+	 * @param x 
+	 * @param q1 
+	 * @param w 
+	 */
 	void addTransition(State q, Letter a, Letter x, State q1, const std::vector<Letter> &w) {
 		auto to_insert =
 			std::make_pair(std::tuple<State, Letter, Letter>{q, a, x}, std::tuple<State, std::vector<Letter>>{q1, w});
 		auto found = delta.find(to_insert.first);
 		if (found != delta.end()) {
-			throw std::runtime_error(std::format("Failed to add transition: New transition {} conflicts with {}",
-				to_insert, *found
-			));
+			throw std::runtime_error(
+				std::format("Failed to add transition: New transition {} conflicts with {}", to_insert, *found));
 		}
 		delta.insert(to_insert);
 	}
 
+	/**
+	 * @brief Same as other impklementation, but for std::string
+	 * 
+	 * @tparam U 
+	 * @param q 
+	 * @param a 
+	 * @param x 
+	 * @param q1 
+	 * @param w 
+	 * @return requires 
+	 */
 	template <class U = Letter>
 		requires std::is_convertible_v<Letter, char>
 	void addTransition(State q, Letter a, Letter x, State q1, const std::string &w) {
 		return addTransition(q, a, x, q1, std::vector<Letter>(w.begin(), w.end()));
 	}
 
-	void printToDOT(std::ostream &out) {
+	/**
+	 * @brief Prints the automaton in the DOT language for graphviz to draw it
+	 * 
+	 * @param out 
+	 */
+	void printAsDOT(std::ostream &out) const {
 		out << "digraph {\n overlap = false; splines = true; nodesep = 0.3; layout = dot;\n";
+		out << "node [shape=doublecircle];\"" << qFinal << "\";\nnode [shape=circle];\n";
 		for (const auto &p : delta) {
 			out << "\t\"" << std::get<0>(p.first) << "\" -> \"" << std::get<0>(p.second) << "\" [xlabel = \""
 				<< std::get<1>(p.first) << ", " << std::get<2>(p.first);

@@ -5,6 +5,10 @@
 #include <format>
 #include <DPDA/utils.h>
 
+/**
+ * @brief A Token with a name
+ * 
+ */
 struct Token {
 	std::size_t value;
 
@@ -35,7 +39,6 @@ struct hash<Token> {
 };
 }	  // namespace std
 
+std::ostream &operator<<(std::ostream &out, const Token &v);
 template <>
 struct std::formatter<Token> : ostream_formatter {};
-
-std::ostream &operator<<(std::ostream &out, const Token &v);

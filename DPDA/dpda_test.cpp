@@ -195,7 +195,7 @@ TEST_CASE("arithmetics from grammar") {
 	}
 
 	std::ofstream out("graph.txt");
-	a.printToDOT(out);
+	a.printAsDOT(out);
 	out.close();
 }
 
@@ -243,8 +243,8 @@ TEST_CASE("ll1 regular grammar") {
 	g.eof	= '#';
 
 	Parser<State, Letter> a(g);
-	// a.printTransitions();
-	// a.enable_print = true;
+	//a.printTransitions();
+	//a.enable_print = true;
 	const char *str1 = "efffb#";
 	SUBCASE(str1) {
 		CHECK_RECOGNIZE_FALSE(a, str1);

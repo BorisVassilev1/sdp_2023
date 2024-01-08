@@ -7,6 +7,10 @@
 #include <format>
 #include <string_view>
 
+/**
+ * @brief A simple Letter class
+ * 
+ */
 class Letter {
 	char val;
 
@@ -24,6 +28,10 @@ constexpr const Letter Letter::eps	= '\0';
 constexpr const Letter Letter::eof	= '#';
 constexpr const size_t Letter::size = 256;
 
+/**
+ * @brief A simple Letter class
+ * 
+ */
 class State {
 	size_t val;
 
