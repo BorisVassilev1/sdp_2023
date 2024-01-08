@@ -4,7 +4,7 @@
 This project is a library that defines Context-Free Grammar, Deterministic PushDown Automaton, and Parser (Parse-Tree builder) as C++ classes.
 
 The main functionality can be described by this example:
-```c++
+```cpp
 	CFG<Letter> g;
 	g.terminals	   = {'a', 'b', '#'};
 	g.nonTerminals = {'S'};
