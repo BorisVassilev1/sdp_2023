@@ -19,7 +19,7 @@ class CFG {
 	std::unordered_set<Letter, std::hash<Letter>>		 terminals;
 	std::unordered_set<Letter, std::hash<Letter>>		 nonTerminals;
 	Letter												 start;
-	Letter												 eof;
+	Letter												 eof = Letter::eof;
 
    public:
 	CFG(const Letter &start, const Letter &eof) : start(start), eof(eof) {}

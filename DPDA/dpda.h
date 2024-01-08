@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <exception>
 #include <format>
 #include <sstream>
@@ -13,15 +14,16 @@
 #include "cfg.h"
 #include "utils.h"
 
+/// a concept for classes that can be Letter in a DPDA<State, Letter>
 template <class L>
 concept isLetter = requires() {
 	{ L::eps } -> std::same_as<const L&>;
 	{ L::eof } -> std::same_as<const L&>;
-	{ L::size } -> std::same_as<const std::size_t&>;
-	{ new L() };
+	{ L::size } -> std::convertible_to<const std::size_t&>;
 	std::is_convertible_v<L, std::size_t>;
 };
 
+/// a concept for classes that can be State in a DPDA<State, Letter>
 template <class S>
 concept isState = requires(std::size_t i) {
 	std::is_convertible_v<S, std::size_t>;

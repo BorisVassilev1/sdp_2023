@@ -269,6 +269,18 @@ TEST_CASE("ll1 regular grammar") {
 	}
 }
 
+TEST_CASE("a^n.b^n") {
+	CFG<Letter> g;
+	g.terminals	   = {'a', 'b', '#'};
+	g.nonTerminals = {'S'};
+	g.addRule('S', "aSb");
+	g.addRule('S', {});
+	g.start = 'S';
+
+	Parser<State, Letter> a(g);
+	std::cout << a.parse("aabb") << std::endl;
+}
+
 TEST_CASE("ambiguous grammar") {
 	CFG<Letter> g;
 	g.terminals	   = {'a'};
