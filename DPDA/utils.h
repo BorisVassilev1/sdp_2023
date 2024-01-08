@@ -16,10 +16,12 @@ class Letter {
 
 	constexpr operator char() const { return val; }
 	static const Letter eps;
+	static const Letter eof;
 	static const size_t size;
 };
 
 constexpr const Letter Letter::eps	= '\0';
+constexpr const Letter Letter::eof	= '#';
 constexpr const size_t Letter::size = 256;
 
 class State {
@@ -30,15 +32,6 @@ class State {
 	constexpr State() : val(0){};
 
 	constexpr operator size_t() const { return val; }
-};
-
-template <class Letter>
-struct ParseNode {
-	Letter							 value;
-	std::vector<ParseNode<Letter> *> children;
-
-	ParseNode(const Letter value, const std::vector<ParseNode<Letter> *> &children)
-		: value(value), children(children) {}
 };
 
 namespace std {
@@ -102,54 +95,6 @@ std::ostream &operator<<(std::ostream &out, std::unordered_set<T> v) {
 	return out;
 }
 
-namespace {
-using bits = std::vector<bool>;
-
-static inline void p_tabs(std::ostream &out, const bits &b) {
-	for (auto x : b)
-		out << (x ? " \u2502" : "  ");
-}
-
-template <class Letter>
-static void p_show(std::ostream &out, const ParseNode<Letter> *r, bits &b) {
-	// https://en.wikipedia.org/wiki/Box-drawing_character
-	if (r) {
-		out << "-" << r->value << std::endl;
-
-		for (size_t i = 0; i + 1 < r->children.size(); ++i) {
-			p_tabs(out, b);
-			out << " \u251c";	  // ├
-			b.push_back(true);
-			p_show(out, r->children[i], b);
-			b.pop_back();
-		}
-
-		if (!r->children.empty()) {
-			p_tabs(out, b);
-			out << " \u2514";	  // └
-			b.push_back(false);
-			p_show(out, r->children.back(), b);
-			b.pop_back();
-		}
-	} else out << " \u25cb" << std::endl;	  // ○
-}
-}	  // namespace
-
-template <class Letter>
-std::ostream &operator<<(std::ostream &out, const ParseNode<Letter> *node) {
-	bits b;
-	p_show(out, node, b);
-	return out;
-}
-
-template <class Letter>
-void deleteParseTree(const ParseNode<Letter> *root) {
-	for (const auto *t : root->children) {
-		deleteParseTree<Letter>(t);
-	}
-	delete root;
-}
-
 std::ostream &operator<<(std::ostream &out, const std::exception &e);
 std::ostream &operator<<(std::ostream &out, Letter l);
 std::ostream &operator<<(std::ostream &out, State s);
@@ -170,7 +115,6 @@ using ostream_formatter = basic_ostream_formatter<char>;
 template <> struct std::formatter<Letter> : ostream_formatter {};
 template <> struct std::formatter<State> : ostream_formatter {};
 template <> struct std::formatter<std::exception> : ostream_formatter {};
-template <class Letter> struct std::formatter<ParseNode<Letter>> : ostream_formatter {};
 template <class... Args> struct std::formatter<std::tuple<Args...>> : ostream_formatter {};
 template <class A, class B> struct std::formatter<std::pair<A, B>> : ostream_formatter {};
 

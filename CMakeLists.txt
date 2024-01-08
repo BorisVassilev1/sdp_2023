@@ -23,6 +23,7 @@ add_test(NAME dpda_test
 add_executable(language 
 	DPDA/language.cpp
 	DPDA/utils.cpp
+	DPDA/token.cpp
 )
 target_compile_options(language PRIVATE ${COMPILE_ARGS})
 target_link_options(language PRIVATE ${COMPILE_ARGS})

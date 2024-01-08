@@ -35,7 +35,6 @@
 		CHECK(t != nullptr);                        \
 		if (p) std::cout << t << std::endl;         \
 		else std::cout << " accepted" << std::endl; \
-		deleteParseTree(t);                         \
 	}
 
 #define CHECK_PARSETREE(a, str)		  CHECK_PARSETREE__(a, str, false);

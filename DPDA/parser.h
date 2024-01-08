@@ -1,4 +1,16 @@
+#pragma once
+
 #include <DPDA/dpda.h>
+#include <memory>
+
+template <class Letter>
+struct ParseNode {
+	Letter							 value;
+	std::vector<std::unique_ptr<ParseNode<Letter>>> children;
+
+	ParseNode(const Letter value)
+		: value(value) {}
+};
 
 template <class State, class Letter>
 class Parser : public DPDA<State, Letter> {
@@ -50,15 +62,15 @@ class Parser : public DPDA<State, Letter> {
 
 	template <class T, class U>
 		requires std::ranges::random_access_range<T> && std::ranges::random_access_range<U>
-	ParseNode<Letter> *makeParseTree(const U &productions, const T &word, int &k, int &j) {
-		auto node	 = new ParseNode<Letter>(std::get<2>(productions[k].first), {});
+	std::unique_ptr<ParseNode<Letter>> makeParseTree(const U &productions, const T &word, int &k, int &j) {
+		auto node	 = std::make_unique<ParseNode<Letter>>(std::get<2>(productions[k].first));
 		auto product = std::get<1>(productions[k].second);
 		++k;
-		if (product.empty()) node->children.push_back(new ParseNode<Letter>{Letter::eps, {}});
+		if (product.empty()) node->children.push_back(std::make_unique<ParseNode<Letter>>(Letter::eps));
 
 		for (size_t i = 0; i < product.size(); ++i) {
 			if (product[i] == word[j]) {
-				node->children.push_back(new ParseNode<Letter>{word[j], {}});
+				node->children.push_back(std::make_unique<ParseNode<Letter>>(word[j]));
 				++j;
 			} else {
 				node->children.push_back(makeParseTree(productions, word, k, j));
@@ -73,9 +85,9 @@ class Parser : public DPDA<State, Letter> {
 		size_t		position = offset > 0 ? offset - 1 : 0;
 		std::string msg;
 		if (!stack.empty() && current_state > Letter::size) {
-			msg = std::format("expected a/an {}, but got {}", stack.back(), Letter(current_state - Letter::size));
+			msg = std::format("expected a/an {}, but got '{}'", stack.back(), Letter(current_state - Letter::size));
 		} else if (stack.empty() && offset == word.size()) {
-			msg = "unexpected end of file";
+			msg = std::format("unexpected end of file");
 		} else if (current_state > Letter::size) {
 			msg = std::format("unexpected {}", Letter(current_state - Letter::size));
 		} else {
@@ -84,7 +96,7 @@ class Parser : public DPDA<State, Letter> {
 		throw ParseError(msg, position);
 	}
 
-	ParseNode<Letter> *parse(const std::vector<Letter> &word) {
+	std::unique_ptr<ParseNode<Letter>> parse(const std::vector<Letter> &word) {
 		std::size_t								   offset = 0;
 		std::vector<Letter>						   stack;
 		State									   current_state = 0;
@@ -120,7 +132,7 @@ class Parser : public DPDA<State, Letter> {
 	}
 
 	template <typename U = Letter>
-	ParseNode<Letter> *parse(const std::string &word) {
+	std::unique_ptr<ParseNode<Letter>> parse(const std::string &word) {
 		std::vector<Letter> w;
 		for(std::size_t i = 0; i < word.size(); ++i) {
 			w.push_back(Letter(word[i]));
@@ -130,3 +142,45 @@ class Parser : public DPDA<State, Letter> {
 		return parse(w);
 	}
 };
+
+namespace {
+using bits = std::vector<bool>;
+
+static inline void p_tabs(std::ostream &out, const bits &b) {
+	for (auto x : b)
+		out << (x ? " \u2502" : "  ");
+}
+
+template <class Letter>
+static void p_show(std::ostream &out, const ParseNode<Letter> *r, bits &b) {
+	// https://en.wikipedia.org/wiki/Box-drawing_character
+	if (r) {
+		out << "-" << r->value << std::endl;
+
+		for (size_t i = 0; i + 1 < r->children.size(); ++i) {
+			p_tabs(out, b);
+			out << " \u251c";	  // ├
+			b.push_back(true);
+			p_show(out, r->children[i].get(), b);
+			b.pop_back();
+		}
+
+		if (!r->children.empty()) {
+			p_tabs(out, b);
+			out << " \u2514";	  // └
+			b.push_back(false);
+			p_show(out, r->children.back().get(), b);
+			b.pop_back();
+		}
+	} else out << " \u25cb" << std::endl;	  // ○
+}
+}	  // namespace
+
+template <class Letter>
+std::ostream &operator<<(std::ostream &out, const std::unique_ptr<ParseNode<Letter>> &node) {
+	bits b;
+	p_show(out, node.get(), b);
+	return out;
+}
+template <class Letter> struct std::formatter<ParseNode<Letter>> : ostream_formatter {};
+
