@@ -37,4 +37,4 @@ While discussing the assignment, there was the idea to implement algorithms that
 ## Compilation Instructions:
 
 Run the `configure` script for your operating system (`.bat` for windows and `.sh` for Linux\MacOS). Then run `cmake --build ./build`. The cmake target `check` runs all test cases. 
-The project was tested `clang`.
+The project was tested with `clang`.
