@@ -41,7 +41,7 @@ template <class State = std::size_t, class Letter = char> requires isState<State
 class DPDA {
    public:
 	using DeltaMap =
-		std::unordered_map<std::tuple<State, Letter, Letter>, std::tuple<State, std::vector<Letter>>, tuple_hash>;
+		std::unordered_map<std::tuple<State, Letter, Letter>, std::tuple<State, std::vector<Letter>>>;
 	DeltaMap delta;		/// the transition function
 
 	State qFinal	   = 0;			// the final state

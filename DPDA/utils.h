@@ -42,17 +42,15 @@ class State {
 	constexpr operator size_t() const { return val; }
 };
 
-namespace std {
 template <>
-struct hash<Letter> {
+struct std::hash<Letter> {
 	size_t operator()(const Letter &x) const { return hash<char>()(x); }
 };
 
 template <>
-struct hash<State> {
+struct std::hash<State> {
 	size_t operator()(const State &x) const { return hash<size_t>()(x); }
 };
-}	  // namespace std
 
 template <int N, typename... Ts>
 using NthTypeOf = typename std::tuple_element<N, std::tuple<Ts...>>::type;
@@ -64,8 +62,8 @@ std::ostream &operator<<(std::ostream &out, const std::pair<A, B> &t);
 template <class T>
 std::ostream &operator<<(std::ostream &out, std::vector<T> v);
 
-struct tuple_hash {
-	template <class... Args>
+template <class... Args>
+struct std::hash<std::tuple<Args...>> {
 	std::size_t operator()(const std::tuple<Args...> &t) const {
 		return [&]<std::size_t... p>(std::index_sequence<p...>) {
 			return ((std::hash<NthTypeOf<p, Args...>>{}(std::get<p>(t))) ^ ...);
