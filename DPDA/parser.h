@@ -1,9 +1,9 @@
 #pragma once
 
 #include <DPDA/dpda.h>
-#include <concepts>
+#include <functional>
 #include <memory>
-#include <type_traits>
+#include "DPDA/utils.h"
 
 template <class Letter>
 struct ParseNode {
@@ -124,7 +124,8 @@ class Parser : public DPDA<State, Letter> {
 				node->children.push_back(std::make_unique<ParseNode<Letter>>(word[j]));
 				++j;
 			} else {
-				node->children.push_back(makeParseTree(productions, word, k, j));
+				auto child = makeParseTree(productions, word, k, j);
+				node->children.push_back(std::move(child));
 			}
 		}
 
@@ -141,7 +142,7 @@ class Parser : public DPDA<State, Letter> {
 		std::size_t								   offset = 0;
 		std::vector<Letter>						   stack;
 		State									   current_state = 0;
-		typename DeltaMap::const_iterator				   res			 = delta.begin();
+		typename DeltaMap::const_iterator		   res			 = delta.begin();
 		std::vector<typename DeltaMap::value_type> productions;
 
 		while ((current_state != qFinal || !stack.empty()) && res != delta.end()) {
@@ -201,16 +202,20 @@ static inline void p_tabs(std::ostream &out, const bits &b) {
 }
 
 template <class Letter>
-static void p_show(std::ostream &out, const ParseNode<Letter> *r, bits &b) {
+static inline  void printFunctionDefault(std::ostream &out, const ParseNode<Letter> *r) { out << "-" << r->value << std::endl; }
+
+template <class Node>
+static void p_show(std::ostream &out, const Node *r, bits &b, std::function<void(std::ostream &, const Node *)> printFunction = printFunctionDefault) {
 	// https://en.wikipedia.org/wiki/Box-drawing_character
 	if (r) {
-		out << "-" << r->value << std::endl;
+		printFunction(out, r);
+		// out << "-" << r->value << std::endl;
 
 		for (size_t i = 0; i + 1 < r->children.size(); ++i) {
 			p_tabs(out, b);
 			out << " \u251c";	  // ├
 			b.push_back(true);
-			p_show(out, r->children[i].get(), b);
+			p_show(out, r->children[i].get(), b, printFunction);
 			b.pop_back();
 		}
 
@@ -218,17 +223,18 @@ static void p_show(std::ostream &out, const ParseNode<Letter> *r, bits &b) {
 			p_tabs(out, b);
 			out << " \u2514";	  // └
 			b.push_back(false);
-			p_show(out, r->children.back().get(), b);
+			p_show(out, r->children.back().get(), b, printFunction);
 			b.pop_back();
 		}
 	} else out << " \u25cb" << std::endl;	  // ○
 }
 }	  // namespace
 
+
 template <class Letter>
 std::ostream &operator<<(std::ostream &out, const std::unique_ptr<ParseNode<Letter>> &node) {
 	bits b;
-	p_show(out, node.get(), b);
+	p_show<ParseNode<Letter>>(out, node.get(), b, printFunctionDefault<Letter>);
 	return out;
 }
 template <class Letter>

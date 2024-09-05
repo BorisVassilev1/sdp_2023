@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <iterator>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
@@ -47,14 +48,17 @@ class CFG {
 				if (res.contains(k)) continue;
 
 				bool isNullable = true;
+				bool isKnown = true;
 				for (Letter l : v) {
-					if (res.contains(l) && !res.find(l)->second) {
+					bool contains = res.contains(l);
+					if (contains && !res.find(l)->second) {
 						res.insert({k, false});
 						isNullable = false;
 						break;
 					}
+					isKnown = isKnown && contains;
 				}
-				if (isNullable) { res.insert({k, true}); }
+				if (isNullable && isKnown) { res.insert({k, true}); }
 			}
 		}
 
