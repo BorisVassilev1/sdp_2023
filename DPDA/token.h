@@ -7,15 +7,17 @@
 
 /**
  * @brief A Token with a name
- * 
+ *
  */
 struct Token {
 	std::size_t value;
+	uint8_t	   *data;
 
 	Token(std::size_t value) : value(value) {}
 
    public:
 	Token(char value) : value(value) {}
+	Token(const Token &other, uint8_t *data) : value(other.value), data(data) {}
 
 	explicit constexpr operator std::size_t() const { return value; }
 	explicit constexpr operator char() const { return value; }
@@ -28,9 +30,11 @@ struct Token {
 	static Token createToken(const std::string &name, std::size_t value = ++size);
 
 	bool				 operator==(const Token &other) const { return value == other.value; }
+	bool				 operator!=(const Token &other) const { return value != other.value; }
 	friend std::ostream &operator<<(std::ostream &out, const Token &v);
-};
 
+	uint8_t *getData() { return data; }
+};
 
 namespace std {
 template <>

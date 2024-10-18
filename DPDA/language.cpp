@@ -3,10 +3,13 @@
 #include <DPDA/utils.h>
 #include <DPDA/token.h>
 #include <cctype>
+#include <chrono>
+#include <cstring>
 #include <exception>
 #include <fstream>
 #include <memory>
 #include <ostream>
+#include <ratio>
 #include <string_view>
 
 const Token Program = Token::createToken("Program");
@@ -27,7 +30,7 @@ const Token Term_		= Token::createToken("Term'");
 const Token Factor		= Token::createToken("Factor");
 const Token Conditional = Token::createToken("Conditional");
 const Token Comparison	= Token::createToken("Comparison");
-const Token Comparison_	= Token::createToken("Comparison'");
+const Token Comparison_ = Token::createToken("Comparison'");
 
 const Token If	  = Token::createToken("if");
 const Token While = Token::createToken("while");
@@ -44,26 +47,11 @@ void createCFG() {
 	g->terminals.insert(If);
 	g->terminals.insert(While);
 	g->terminals.insert(For);
-	g->nonTerminals = {Program,		Number,		Number_,	 Identifier, Identifier_, Expression,
-					   Expression_, Assignment, Assignment_, Arithmetic, Arithmetic_, Term,
-					   Term_,		Factor,		Conditional, Comparison, Comparison_};
+	g->terminals.insert(Number);
+	g->terminals.insert(Identifier);
 
-	g->addRule(Number, {'0'});
-	for (int i = 0; i < 10; ++i) {
-		if (i != 0) g->addRule(Number, {char('0' + i), Number_});
-		g->addRule(Number_, {char('0' + i), Number_});
-	}
-	g->addRule(Number_, {});
-
-	for (int i = 'A'; i <= 'Z'; ++i) {
-		g->addRule(Identifier, {char(i), Identifier_});
-		g->addRule(Identifier_, {char(i), Identifier_});
-	}
-	for (int i = 'a'; i <= 'z'; ++i) {
-		g->addRule(Identifier, {char(i), Identifier_});
-		g->addRule(Identifier_, {char(i), Identifier_});
-	}
-	g->addRule(Identifier_, {});
+	g->nonTerminals = {Program, Expression, Expression_, Assignment,  Assignment_, Arithmetic, Arithmetic_,
+					   Term,	Term_,		Factor,		 Conditional, Comparison,  Comparison_};
 
 	g->addRule(Program, {Expression, Program});
 	g->addRule(Program, {Conditional, ';', Program});
@@ -103,7 +91,17 @@ std::vector<Token> tokenize(std::string &text) {
 	std::vector<Token> res;
 	for (std::size_t i = 0; i < text.length(); ++i) {
 		if (std::isspace(text[i])) continue;
-		if (std::string_view(text).substr(i, 2) == "if") {
+		if (std::isdigit(text[i])) {
+			std::size_t num = 0;
+			while (std::isdigit(text[i])) {
+				num *= 10;
+				num += text[i] - '0';
+				++i;
+			}
+			--i;
+			Token t = Token(Number, (uint8_t *)num);
+			res.push_back(t);
+		} else if (std::string_view(text).substr(i, 2) == "if") {
 			res.push_back(If);
 			++i;
 		} else if (std::string_view(text).substr(i, 5) == "while") {
@@ -112,6 +110,16 @@ std::vector<Token> tokenize(std::string &text) {
 		} else if (std::string_view(text).substr(i, 3) == "for") {
 			res.push_back(For);
 			i += 2;
+		} else if (std::isalpha(text[i])) {
+			std::string name;
+			while (std::isalpha(text[i])) {
+				name += text[i];
+				++i;
+			}
+			--i;
+			char *s = new char[name.size() + 1];
+			std::strcpy(s, name.data());
+			res.push_back(Token(Identifier, reinterpret_cast<uint8_t *>(s)));
 		} else {
 			res.push_back(text[i]);
 		}
@@ -126,7 +134,6 @@ std::unordered_set<Token> punctuation  = {'(', ')', '[', ']', '{', '}', ';'};
 
 struct ASTNode {
 	std::vector<std::unique_ptr<ASTNode>> children;
-	std::vector<Token>					  value;
 	Token								  type;
 
    public:
@@ -135,8 +142,12 @@ struct ASTNode {
 
 std::ostream &operator<<(std::ostream &out, const std::unique_ptr<ASTNode> &node) {
 	bits b;
-	p_show<ASTNode>(out, node.get(), b,
-					[](std::ostream &out, const ASTNode *r) { out << " " << r->type << " " << r->value << std::endl; });
+	p_show<ASTNode>(out, node.get(), b, [](std::ostream &out, const ASTNode *r) {
+		out << " " << r->type << " ";
+		if (r->type == Number) { out << reinterpret_cast<std::size_t>(r->type.data); }
+		if (r->type == Identifier) { out << reinterpret_cast<char *>(r->type.data); }
+		out << std::endl;
+	});
 	return out;
 }
 
@@ -146,18 +157,7 @@ struct std::formatter<ASTNode> : ostream_formatter {};
 std::unique_ptr<ASTNode> makeAST(const std::unique_ptr<ParseNode<Token>> &parseNode) {
 	auto node = std::make_unique<ASTNode>(parseNode->value);
 
-	if (node->type == Number || node->type == Identifier) {
-		std::vector<Token>											   res;
-		std::function<void(const std::unique_ptr<ParseNode<Token>> &)> cut;
-		cut = [&](const std::unique_ptr<ParseNode<Token>> &parseNode) -> void {
-			if (parseNode->children.size() < 2) return;
-			char letter = (char)parseNode->children[0]->value;
-			res.push_back(letter);
-			cut(parseNode->children[1]);
-		};
-		cut(parseNode);
-		node->value = res;
-	} else if (node->type == Program) {
+	if (node->type == Program) {
 		std::function<void(const std::unique_ptr<ParseNode<Token>> &)> cut;
 		cut = [&](const std::unique_ptr<ParseNode<Token>> &parseNode) -> void {
 			if (parseNode->value != Program) return;
@@ -166,7 +166,7 @@ std::unique_ptr<ASTNode> makeAST(const std::unique_ptr<ParseNode<Token>> &parseN
 			auto newChild = makeAST(parseNode->children[0]);
 			if (newChild) node->children.push_back(std::move(newChild));
 
-			for (uint i = 1; i < parseNode->children.size(); ++i) {
+			for (std::size_t i = 1; i < parseNode->children.size(); ++i) {
 				cut(parseNode->children[i]);
 			}
 		};
@@ -208,6 +208,17 @@ std::unique_ptr<ASTNode> makeAST(const std::unique_ptr<ParseNode<Token>> &parseN
 	return node;
 }
 
+#define BENCH(x, n, s)                                                                                            \
+	{                                                                                                             \
+		auto t1 = std::chrono::high_resolution_clock::now();                                                      \
+		for (int i = 0; i < n; ++i)                                                                               \
+			x;                                                                                                    \
+		auto t2	  = std::chrono::high_resolution_clock::now();                                                    \
+		auto diff = t2 - t1;                                                                                      \
+		std::cout << s << std::chrono::duration_cast<std::chrono::nanoseconds>(diff / n).count() << "ns" \
+				  << std::endl;                                                                                   \
+	}
+
 int main() {
 	createCFG();
 
@@ -227,6 +238,7 @@ int main() {
 		auto tokens = tokenize(text);
 		// std::cout << tokens << std::endl;
 
+		BENCH(parser.parse(tokens), 100, "BENCH building parse tree: ");
 		auto t = parser.parse(tokens);
 		// std::cout << t << std::endl;
 

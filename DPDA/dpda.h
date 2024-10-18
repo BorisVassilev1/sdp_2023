@@ -178,10 +178,10 @@ class DPDA {
 	void printAsDOT(std::ostream &out) const {
 		out << "digraph {\n overlap = false; splines = true; nodesep = 0.3; layout = dot;\n";
 		out << "node [shape=doublecircle];\"" << qFinal << "\";\nnode [shape=circle];\n";
-		for (const auto &p : delta) {
-			out << "\t\"" << std::get<0>(p.first) << "\" -> \"" << std::get<0>(p.second) << "\" [xlabel = \""
-				<< std::get<1>(p.first) << ", " << std::get<2>(p.first);
-			if (!std::get<1>(p.second).empty()) { out << " / " << std::get<1>(p.second); }
+		for (const auto &[u, v] : delta) {
+			out << "\t\"" << std::get<0>(u) << "\" -> \"" << std::get<0>(v) << "\" [xlabel = \""
+				<< std::get<1>(u) << ", " << std::get<2>(u);
+			if (!std::get<1>(v).empty()) { out << " / " << std::get<1>(v); }
 			out << "\" , minlen = \"3\"];" << std::endl;
 		}
 		out << "}";
