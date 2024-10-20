@@ -9,11 +9,9 @@
 #include <fstream>
 #include <memory>
 #include <ostream>
-#include <ratio>
 #include <string_view>
 
-const Token Program = Token::createToken("Program");
-// const Token Program_	= Token::createToken("Program'");
+const Token Program		= Token::createToken("Program");
 const Token Number		= Token::createToken("Number");
 const Token Number_		= Token::createToken("Number'");
 const Token Identifier	= Token::createToken("Identifier");
@@ -140,15 +138,19 @@ struct ASTNode {
 	ASTNode(Token type) : type(type) {}
 };
 
-std::ostream &operator<<(std::ostream &out, const std::unique_ptr<ASTNode> &node) {
+
+std::ostream &operator<<(std::ostream &out, const ASTNode *node) {
 	bits b;
-	p_show<ASTNode>(out, node.get(), b, [](std::ostream &out, const ASTNode *r) {
+	p_show<ASTNode>(out, node, b, [](std::ostream &out, const ASTNode *r) {
 		out << " " << r->type << " ";
 		if (r->type == Number) { out << reinterpret_cast<std::size_t>(r->type.data); }
 		if (r->type == Identifier) { out << reinterpret_cast<char *>(r->type.data); }
 		out << std::endl;
 	});
 	return out;
+}
+std::ostream &operator<<(std::ostream &out, const std::unique_ptr<ASTNode> &node) {
+	return out << node.get();
 }
 
 template <>
@@ -174,7 +176,6 @@ std::unique_ptr<ASTNode> makeAST(const std::unique_ptr<ParseNode<Token>> &parseN
 	} else if (punctuation.contains(node->type)) {
 		return nullptr;
 	} else if (binaryOpsPri.contains(node->type)) {
-		// node->type = parseNode->children[1]->children[0]->value;
 		if (parseNode->children[1]->children[0]->value == Token::eps) {
 			auto newChild = makeAST(parseNode->children[0]);
 			if (newChild) node->children.push_back(std::move(newChild));
@@ -184,6 +185,27 @@ std::unique_ptr<ASTNode> makeAST(const std::unique_ptr<ParseNode<Token>> &parseN
 			auto b	   = makeAST(parseNode->children[1]);
 			if (a) node->children.push_back(std::move(a));
 			if (b) node->children.push_back(std::move(b));
+
+			std::function<void(std::unique_ptr<ASTNode> &)> cut;
+			cut = [&node, &cut](std::unique_ptr<ASTNode> &Node) -> void {
+				if (Node->type != node->type) return;
+				if (Node->children.size() < 2) return;
+				if(&Node == &node) return cut(Node->children[1]);
+				
+				ASTNode *child = Node.get();
+
+				node->children.push_back(std::move(child->children[0]));
+				std::swap(node->children.back(), node->children[node->children.size() - 2]);
+
+				if(child->children[1]->type != node->type) {
+					auto last = std::move(child->children[1]);
+					node->children.back() = std::move(last);
+					return;
+				}
+
+				cut(child->children[1]);
+			};
+			cut(node);
 		}
 	} else if (binaryOpsSec.contains(node->type)) {
 		if (parseNode->children.size() == 2) return makeAST(parseNode->children[1]);
@@ -208,15 +230,14 @@ std::unique_ptr<ASTNode> makeAST(const std::unique_ptr<ParseNode<Token>> &parseN
 	return node;
 }
 
-#define BENCH(x, n, s)                                                                                            \
-	{                                                                                                             \
-		auto t1 = std::chrono::high_resolution_clock::now();                                                      \
-		for (int i = 0; i < n; ++i)                                                                               \
-			x;                                                                                                    \
-		auto t2	  = std::chrono::high_resolution_clock::now();                                                    \
-		auto diff = t2 - t1;                                                                                      \
-		std::cout << s << std::chrono::duration_cast<std::chrono::nanoseconds>(diff / n).count() << "ns" \
-				  << std::endl;                                                                                   \
+#define BENCH(x, n, s)                                                                                                 \
+	{                                                                                                                  \
+		auto t1 = std::chrono::high_resolution_clock::now();                                                           \
+		for (int i = 0; i < n; ++i)                                                                                    \
+			x;                                                                                                         \
+		auto t2	  = std::chrono::high_resolution_clock::now();                                                         \
+		auto diff = t2 - t1;                                                                                           \
+		std::cout << s << std::chrono::duration_cast<std::chrono::nanoseconds>(diff / n).count() << "ns" << std::endl; \
 	}
 
 int main() {

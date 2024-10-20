@@ -3,6 +3,7 @@ bobo;
 kalin = 10;
 kalin = 1 + 2 + 3 + 4 + 5;
 pesho = 12 + (15 * 12) + (1 / 2 + a * asd);
+a = b = c + d = e;
 while ( 1 + 2 ){
 	kalin = 3;
 	if ( gosho ){
