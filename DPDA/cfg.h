@@ -1,12 +1,10 @@
 #pragma once
 
 #include <functional>
-#include <iterator>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
 #include <iostream>
-#include "utils.h"
 
 /**
  * @brief A Context-Free Grammar

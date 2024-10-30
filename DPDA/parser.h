@@ -3,7 +3,8 @@
 #include <DPDA/dpda.h>
 #include <functional>
 #include <memory>
-#include "DPDA/utils.h"
+#include <DPDA/utils.h>
+#include <DPDA/cfg.h>
 
 template <class Letter>
 struct ParseNode {

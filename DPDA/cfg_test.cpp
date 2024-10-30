@@ -1,5 +1,6 @@
-#include "cfg.h"
+#include <DPDA/cfg.h>
 #include <assert.h>
+#include <DPDA/utils.h>
 
 int main() {
 	CFG<Letter> g;

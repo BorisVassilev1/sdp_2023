@@ -1,18 +1,13 @@
 #pragma once
 
 #include <concepts>
-#include <exception>
 #include <format>
-#include <sstream>
 #include <string>
 #include <tuple>
 #include <unordered_map>
 #include <vector>
 #include <iostream>
 #include <ranges>
-
-#include "cfg.h"
-#include "utils.h"
 
 /// a concept for classes that can be Letter in a DPDA<State, Letter>
 template <class L>
