@@ -3,6 +3,7 @@
 #include <DPDA/dpda.h>
 #include <functional>
 #include <memory>
+#include <unordered_map>
 #include <DPDA/utils.h>
 #include <DPDA/cfg.h>
 
@@ -42,18 +43,27 @@ class Parser : public DPDA<State, Letter> {
 
 	CFG<Letter> g;
 
+	const std::unordered_map<Letter, bool>						 nullable;
+	const std::unordered_map<Letter, std::unordered_set<Letter>> first;
+	const std::unordered_map<Letter, std::unordered_set<Letter>> follow;
+
 	void detectMistake(const std::vector<Letter> &word, std::size_t offset, const std::vector<Letter> &stack,
 					   State current_state) const {
 		size_t		position = offset > 0 ? offset - 1 : 0;
 		std::string msg;
 		if (!stack.empty() && current_state > Letter::size) {
-			msg = std::format("expected a/an {}, but got '{}'", stack.back(), Letter(current_state - Letter::size));
+			auto &firsts = *this->first.find(stack.back());
+			msg			 = std::format("expected one of {}, but got '{}'", firsts.second, Letter(current_state - Letter::size));
 		} else if (stack.empty() && offset == word.size()) {
 			msg = std::format("unexpected end of file");
 		} else if (current_state > Letter::size) {
 			msg = std::format("unexpected {}", Letter(current_state - Letter::size));
 		} else {
 			msg = "unknown error";
+		}
+		msg += " near: \n";
+		for(size_t i = std::max((int)position - 5, 0); i < std::min(position + 5, word.size()); ++i) {
+			msg += std::format("{}", word[i]);
 		}
 		throw ParseError(msg, position);
 	}
@@ -69,12 +79,13 @@ class Parser : public DPDA<State, Letter> {
 	 *
 	 * @param grammar
 	 */
-	Parser(const CFG<Letter> &grammar) : g(grammar) {
+	Parser(const CFG<Letter> &grammar) :
+		g(grammar),
+		nullable(grammar.findNullables()),
+		first(grammar.findFirsts(nullable)),
+		follow(grammar.findFollows(nullable,first))
+	{
 		addTransition(0, Letter::eps, Letter::eps, 1, {grammar.start});
-
-		const auto nullable = grammar.findNullables();
-		const auto first	= grammar.findFirsts(nullable);
-		const auto follow	= grammar.findFollows(nullable, first);
 
 		auto f = [](const Letter l) -> State { return Letter::size + std::size_t(l); };
 
@@ -203,10 +214,13 @@ static inline void p_tabs(std::ostream &out, const bits &b) {
 }
 
 template <class Letter>
-static inline  void printFunctionDefault(std::ostream &out, const ParseNode<Letter> *r) { out << "-" << r->value << std::endl; }
+static inline void printFunctionDefault(std::ostream &out, const ParseNode<Letter> *r) {
+	out << "-" << r->value << std::endl;
+}
 
 template <class Node>
-static void p_show(std::ostream &out, const Node *r, bits &b, std::function<void(std::ostream &, const Node *)> printFunction = printFunctionDefault) {
+static void p_show(std::ostream &out, const Node *r, bits &b,
+				   std::function<void(std::ostream &, const Node *)> printFunction = printFunctionDefault) {
 	// https://en.wikipedia.org/wiki/Box-drawing_character
 	if (r) {
 		printFunction(out, r);
@@ -230,7 +244,6 @@ static void p_show(std::ostream &out, const Node *r, bits &b, std::function<void
 	} else out << " \u25cb" << std::endl;	  // ○
 }
 }	  // namespace
-
 
 template <class Letter>
 std::ostream &operator<<(std::ostream &out, const std::unique_ptr<ParseNode<Letter>> &node) {

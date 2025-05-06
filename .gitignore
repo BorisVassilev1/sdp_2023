@@ -35,3 +35,5 @@ Debug/
 graph.txt
 *.svg
 .vscode/
+
+gen_100K.txt

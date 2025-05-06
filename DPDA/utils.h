@@ -3,6 +3,7 @@
 #include <tuple>
 #include <iostream>
 #include <unordered_set>
+#include <unordered_map>
 #include <vector>
 #include <format>
 #include <string_view>
@@ -123,5 +124,7 @@ template <> struct std::formatter<State> : ostream_formatter {};
 template <> struct std::formatter<std::exception> : ostream_formatter {};
 template <class... Args> struct std::formatter<std::tuple<Args...>> : ostream_formatter {};
 template <class A, class B> struct std::formatter<std::pair<A, B>> : ostream_formatter {};
-
+template <class T> struct std::formatter<std::unordered_set<T>> : ostream_formatter{};
+template <class T> struct std::formatter<std::vector<T>> : ostream_formatter{};
+template <class A, class B> struct std::formatter<std::unordered_multimap<A, B>> : ostream_formatter {};
 

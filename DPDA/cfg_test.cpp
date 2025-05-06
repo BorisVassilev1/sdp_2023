@@ -18,4 +18,7 @@ int main() {
 	g.eof	= '#';
 
 	g.printParseTable();
+
+	srand(time(0));
+	std::cout << g.generate(90, 110) << std::endl;
 }

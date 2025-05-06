@@ -99,13 +99,13 @@ std::vector<Token> tokenize(std::string &text) {
 			--i;
 			Token t = Token(Number, (uint8_t *)num);
 			res.push_back(t);
-		} else if (std::string_view(text).substr(i, 2) == "if") {
+		} else if (std::string_view(text).substr(i, 2) == "if" && !std::isalpha(text[i + 2])) {
 			res.push_back(If);
 			++i;
-		} else if (std::string_view(text).substr(i, 5) == "while") {
+		} else if (std::string_view(text).substr(i, 5) == "while" && !std::isalpha(text[i + 5])) {
 			res.push_back(While);
 			i += 4;
-		} else if (std::string_view(text).substr(i, 3) == "for") {
+		} else if (std::string_view(text).substr(i, 3) == "for" && !std::isalpha(text[i + 3])) {
 			res.push_back(For);
 			i += 2;
 		} else if (std::isalpha(text[i])) {
@@ -138,7 +138,6 @@ struct ASTNode {
 	ASTNode(Token type) : type(type) {}
 };
 
-
 std::ostream &operator<<(std::ostream &out, const ASTNode *node) {
 	bits b;
 	p_show<ASTNode>(out, node, b, [](std::ostream &out, const ASTNode *r) {
@@ -149,9 +148,7 @@ std::ostream &operator<<(std::ostream &out, const ASTNode *node) {
 	});
 	return out;
 }
-std::ostream &operator<<(std::ostream &out, const std::unique_ptr<ASTNode> &node) {
-	return out << node.get();
-}
+std::ostream &operator<<(std::ostream &out, const std::unique_ptr<ASTNode> &node) { return out << node.get(); }
 
 template <>
 struct std::formatter<ASTNode> : ostream_formatter {};
@@ -190,15 +187,15 @@ std::unique_ptr<ASTNode> makeAST(const std::unique_ptr<ParseNode<Token>> &parseN
 			cut = [&node, &cut](std::unique_ptr<ASTNode> &Node) -> void {
 				if (Node->type != node->type) return;
 				if (Node->children.size() < 2) return;
-				if(&Node == &node) return cut(Node->children[1]);
-				
+				if (&Node == &node) return cut(Node->children[1]);
+
 				ASTNode *child = Node.get();
 
 				node->children.push_back(std::move(child->children[0]));
 				std::swap(node->children.back(), node->children[node->children.size() - 2]);
 
-				if(child->children[1]->type != node->type) {
-					auto last = std::move(child->children[1]);
+				if (child->children[1]->type != node->type) {
+					auto last			  = std::move(child->children[1]);
 					node->children.back() = std::move(last);
 					return;
 				}
@@ -230,41 +227,92 @@ std::unique_ptr<ASTNode> makeAST(const std::unique_ptr<ParseNode<Token>> &parseN
 	return node;
 }
 
-#define BENCH(x, n, s)                                                                                                 \
-	{                                                                                                                  \
-		auto t1 = std::chrono::high_resolution_clock::now();                                                           \
-		for (int i = 0; i < n; ++i)                                                                                    \
-			x;                                                                                                         \
-		auto t2	  = std::chrono::high_resolution_clock::now();                                                         \
-		auto diff = t2 - t1;                                                                                           \
-		std::cout << s << std::chrono::duration_cast<std::chrono::nanoseconds>(diff / n).count() << "ns" << std::endl; \
+std::string gen_random_string(const int len) {
+	static const char alphanum[] =
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		"abcdefghijklmnopqrstuvwxyz";
+	std::string tmp_s;
+	tmp_s.reserve(len);
+
+	if (len > 0) { tmp_s += alphanum[rand() % ((sizeof(alphanum) / 2) - 1)]; }
+	for (int i = 1; i < len; ++i) {
+		tmp_s += alphanum[rand() % (sizeof(alphanum) - 1)];
 	}
 
-int main() {
+	return tmp_s;
+}
+
+void random_tokens(std::vector<Token> &text, std::ostream &os) {
+	for (Token &i : text) {
+		if (i == Number) {
+			os << rand();
+		} else if (i == Identifier) {
+			os << gen_random_string(rand() % 10 + 1) << " ";
+		} else {
+			os << i;
+		}
+	}
+}
+
+#define BENCH(x, n, s)                                                                                    \
+	{                                                                                                     \
+		auto t1 = std::chrono::high_resolution_clock::now();                                              \
+		for (int i = 0; i < n; ++i)                                                                       \
+			x;                                                                                            \
+		auto t2	  = std::chrono::high_resolution_clock::now();                                            \
+		auto diff = t2 - t1;                                                                              \
+		std::cout << s << std::chrono::duration_cast<std::chrono::microseconds>(diff / n).count() << "μs" \
+				  << std::endl;                                                                           \
+	}
+
+int main(int argc, char **argv) {
 	createCFG();
 
 	// g->printParseTable();
+	if (argc >= 2 && std::string(argv[1]) == "generate") {
+		srand(time(0));
+		std::size_t tokens = -1;
+		if (argc == 3) { tokens = std::stoi(argv[2]); }
+		std::size_t cnt = 0;
+		while (tokens > cnt) {
+			auto v = g->generate(1000, 2000);
+			cnt += v.size();
+			random_tokens(v, std::cout);
+		}
+	} else {
+		try {
+			Parser<State, Token> parser(*g);
+			// parser.enable_print = true;
 
-	try {
-		Parser<State, Token> parser(*g);
-		// parser.enable_print = true;
+			std::stringstream buffer;
+			std::string		  fileName = "test_file.txt";
+			if (argc == 2) fileName = argv[1];
 
-		std::stringstream buffer;
-		std::ifstream	  file("test_file.txt");
-		buffer << file.rdbuf();
+			std::ifstream file(fileName);
+			if (!file) {
+				std::cout << "error: " << strerror(errno) << std::endl;
+				return 1;
+			}
+			std::cout << "parsing file: " << fileName << std::endl;
+			buffer << file.rdbuf();
 
-		std::string text = buffer.str();
-		// std::cout << text << std::endl;
+			std::string text = buffer.str();
+			// std::cout << text << std::endl;
 
-		auto tokens = tokenize(text);
-		// std::cout << tokens << std::endl;
+			BENCH(tokenize(text), 100, "BENCH tokenize : ");
+			auto tokens = tokenize(text);
+			std::cout << "tokens: " << tokens.size() << std::endl;
 
-		BENCH(parser.parse(tokens), 100, "BENCH building parse tree: ");
-		auto t = parser.parse(tokens);
-		// std::cout << t << std::endl;
+			BENCH(parser.parse(tokens), 10, "BENCH building parse tree: ");
+			auto t = parser.parse(tokens);
+			// std::cout << t << std::endl;
 
-		auto ast = makeAST(t);
-		std::cout << ast << std::endl;
+			BENCH(makeAST(t), 100, "BENCH building AST: ");
+			if (tokens.size() < 1000) {
+				auto ast = makeAST(t);
+				std::cout << ast << std::endl;
+			}
 
-	} catch (const std::exception &e) { std::cerr << e << std::endl; }
+		} catch (const std::exception &e) { std::cerr << e << std::endl; }
+	}
 }

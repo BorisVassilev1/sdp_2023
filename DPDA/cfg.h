@@ -8,7 +8,7 @@
 
 /**
  * @brief A Context-Free Grammar
- * 
+ *
  * @tparam Letter - Type of symbols in the alphabet
  */
 template <class Letter>
@@ -46,7 +46,7 @@ class CFG {
 				if (res.contains(k)) continue;
 
 				bool isNullable = true;
-				bool isKnown = true;
+				bool isKnown	= true;
 				for (Letter l : v) {
 					bool contains = res.contains(l);
 					if (contains && !res.find(l)->second) {
@@ -278,5 +278,48 @@ class CFG {
 		requires std::is_convertible_v<char, Letter>
 	void addRule(char a, const std::string &w) {
 		addRule(a, std::vector<Letter>(w.begin(), w.end()));
+	}
+
+	std::vector<Letter> generate(std::size_t min, std::size_t max) {
+		
+		auto nullables = findNullables();
+
+		auto [v, b] = generate(max, start, nullables);
+		while(!b || v.size() < min) {
+			std::tie(v,b) = generate(max, start, nullables);
+		}
+		return v;
+	}
+
+	std::pair<std::vector<Letter>, bool> generate( std::size_t max, Letter l, std::unordered_map<Letter, bool> &nullables) {
+		if(max <= 0) return {{}, false};
+
+
+		bool isNullable = nullables[l];
+		if(isNullable) {
+			if(rand() % 2) return {{}, true};
+		}
+
+		auto [b, e] = rules.equal_range(l);
+		auto size	= std::distance(b, e) - isNullable;
+
+		int val = rand() % size;
+		std::advance(b, val);
+		auto [_, w] = *b;
+		
+		std::vector<Letter> result;
+
+		for(Letter &l : w) {
+			if(nonTerminals.contains(l)) {
+				auto [v, b] = generate(max - result.size(), l, nullables);
+				if(!b) return {{}, false};
+				result.insert(result.end(), v.begin(), v.end());
+			}
+			else {
+				result.push_back(l);
+			}
+		}
+		
+		return {result, true};
 	}
 };
