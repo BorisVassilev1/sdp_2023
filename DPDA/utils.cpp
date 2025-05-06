@@ -8,13 +8,6 @@ std::ostream &operator<<(std::ostream &out, Letter l) {
 	return out;
 }
 
-std::ostream &operator<<(std::ostream &out, State s) {
-	if (s >= Letter::size) {
-		out << "f" << Letter(s - Letter::size);
-	} else out << size_t(s);
-	return out;
-}
-
 using bits = std::vector<bool>;
 
 static void print_exception(std::ostream &out, const std::exception& e, int level =  0)

@@ -29,6 +29,9 @@ const Token Factor		= Token::createToken("Factor");
 const Token Conditional = Token::createToken("Conditional");
 const Token Comparison	= Token::createToken("Comparison");
 const Token Comparison_ = Token::createToken("Comparison'");
+const Token CommaSep	= Token::createToken("CommaSep");
+const Token CommaSep_	= Token::createToken("CommaSep'");
+const Token ParamList	= Token::createToken("ParamList");
 
 const Token If	  = Token::createToken("if");
 const Token While = Token::createToken("while");
@@ -48,8 +51,8 @@ void createCFG() {
 	g->terminals.insert(Number);
 	g->terminals.insert(Identifier);
 
-	g->nonTerminals = {Program, Expression, Expression_, Assignment,  Assignment_, Arithmetic, Arithmetic_,
-					   Term,	Term_,		Factor,		 Conditional, Comparison,  Comparison_};
+	g->nonTerminals = {Program, Expression, Expression_, Assignment, Assignment_, Arithmetic, Arithmetic_, Term,
+					   Term_,	Factor,		Conditional, Comparison, Comparison_, CommaSep,	  CommaSep_,   ParamList};
 
 	g->addRule(Program, {Expression, Program});
 	g->addRule(Program, {Conditional, ';', Program});
@@ -76,13 +79,23 @@ void createCFG() {
 	g->addRule(Term_, {'/', Factor, Term_});
 	g->addRule(Term_, {});
 
-	g->addRule(Factor, {Identifier});
+	g->addRule(Factor, {Identifier, ParamList});
 	g->addRule(Factor, {Number});
 	g->addRule(Factor, {'(', Assignment, ')'});
 
 	g->addRule(Conditional, {If, '(', Assignment, ')', '{', Program, '}'});
 	g->addRule(Conditional, {While, '(', Assignment, ')', '{', Program, '}'});
 	g->addRule(Conditional, {For, '(', Expression, Expression, Assignment, ')', '{', Program, '}'});
+
+	g->addRule(ParamList, {});
+	g->addRule(ParamList, {'(', CommaSep, ')', ParamList});
+	g->addRule(ParamList, {'[', CommaSep, ']', ParamList});
+
+	g->addRule(CommaSep, {Assignment, CommaSep_});
+	g->addRule(CommaSep, {});
+	g->addRule(CommaSep_, {',', Assignment, CommaSep_});
+	g->addRule(CommaSep_, {});
+
 }
 
 std::vector<Token> tokenize(std::string &text) {
@@ -281,7 +294,7 @@ int main(int argc, char **argv) {
 		}
 	} else {
 		try {
-			Parser<State, Token> parser(*g);
+			Parser<Token> parser(*g);
 			// parser.enable_print = true;
 
 			std::stringstream buffer;

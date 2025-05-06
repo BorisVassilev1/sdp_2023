@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <iostream>
+#include "utils.h"
+#include <format>
 
 /**
  * @brief A Context-Free Grammar
@@ -74,10 +76,11 @@ class CFG {
 	 */
 	bool nullable(const std::vector<Letter> &w, const std::unordered_map<Letter, bool> &nullable) const {
 		if (w.empty()) return true;
+		bool ans = true;
 		for (const auto x : w) {
-			if (nullable.find(x)->second) return true;
+			ans = ans && nullable.find(x)->second;
 		}
-		return false;
+		return ans;
 	}
 
 	/**
@@ -281,23 +284,22 @@ class CFG {
 	}
 
 	std::vector<Letter> generate(std::size_t min, std::size_t max) {
-		
 		auto nullables = findNullables();
 
 		auto [v, b] = generate(max, start, nullables);
-		while(!b || v.size() < min) {
-			std::tie(v,b) = generate(max, start, nullables);
+		while (!b || v.size() < min) {
+			std::tie(v, b) = generate(max, start, nullables);
 		}
 		return v;
 	}
 
-	std::pair<std::vector<Letter>, bool> generate( std::size_t max, Letter l, std::unordered_map<Letter, bool> &nullables) {
-		if(max <= 0) return {{}, false};
-
+	std::pair<std::vector<Letter>, bool> generate(std::size_t max, Letter l,
+												  std::unordered_map<Letter, bool> &nullables) {
+		if (max <= 0) return {{}, false};
 
 		bool isNullable = nullables[l];
-		if(isNullable) {
-			if(rand() % 2) return {{}, true};
+		if (isNullable) {
+			if (rand() % 2) return {{}, true};
 		}
 
 		auto [b, e] = rules.equal_range(l);
@@ -306,20 +308,19 @@ class CFG {
 		int val = rand() % size;
 		std::advance(b, val);
 		auto [_, w] = *b;
-		
+
 		std::vector<Letter> result;
 
-		for(Letter &l : w) {
-			if(nonTerminals.contains(l)) {
+		for (Letter &l : w) {
+			if (nonTerminals.contains(l)) {
 				auto [v, b] = generate(max - result.size(), l, nullables);
-				if(!b) return {{}, false};
+				if (!b) return {{}, false};
 				result.insert(result.end(), v.begin(), v.end());
-			}
-			else {
+			} else {
 				result.push_back(l);
 			}
 		}
-		
+
 		return {result, true};
 	}
 };

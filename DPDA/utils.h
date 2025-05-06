@@ -7,6 +7,7 @@
 #include <vector>
 #include <format>
 #include <string_view>
+#include <sstream>
 
 /**
  * @brief A simple Letter class
@@ -33,6 +34,7 @@ constexpr const size_t Letter::size = 256;
  * @brief A simple Letter class
  * 
  */
+template<class Letter>
 class State {
 	size_t val;
 
@@ -48,9 +50,9 @@ struct std::hash<Letter> {
 	size_t operator()(const Letter &x) const { return hash<char>()(x); }
 };
 
-template <>
-struct std::hash<State> {
-	size_t operator()(const State &x) const { return hash<size_t>()(x); }
+template <class Letter>
+struct std::hash<State<Letter>> {
+	size_t operator()(const State<Letter> &x) const { return hash<size_t>()(x); }
 };
 
 template <int N, typename... Ts>
@@ -97,14 +99,30 @@ template <class T>
 std::ostream &operator<<(std::ostream &out, std::unordered_set<T> v) {
 	out << "( ";
 	for (const T &x : v)
-		out << x << " ";
+		out << '\'' << x << "\' ";
 	out << ")";
 	return out;
 }
 
 std::ostream &operator<<(std::ostream &out, const std::exception &e);
 std::ostream &operator<<(std::ostream &out, Letter l);
-std::ostream &operator<<(std::ostream &out, State s);
+template<class Letter>
+std::ostream &operator<<(std::ostream &out, State<Letter> s) {
+	if (s >= Letter::size) {
+		out << "f" << Letter(s - Letter::size);
+	} else out << size_t(s);
+	return out;
+}
+
+template<class A, class B>
+std::ostream &operator<<(std::ostream &out,const std::unordered_map<A, B> &m) {
+	out << "{";
+	for(auto &[K, V] : m) {
+		out << '(' << K << " : " << V << ')' << std::endl;
+	}
+	out << "}";
+	return out;
+}
 
 template <typename Char>
 struct basic_ostream_formatter : std::formatter<std::basic_string_view<Char>, Char> {
@@ -120,7 +138,7 @@ struct basic_ostream_formatter : std::formatter<std::basic_string_view<Char>, Ch
 
 using ostream_formatter = basic_ostream_formatter<char>;
 template <> struct std::formatter<Letter> : ostream_formatter {};
-template <> struct std::formatter<State> : ostream_formatter {};
+template <class Letter> struct std::formatter<State<Letter>> : ostream_formatter {};
 template <> struct std::formatter<std::exception> : ostream_formatter {};
 template <class... Args> struct std::formatter<std::tuple<Args...>> : ostream_formatter {};
 template <class A, class B> struct std::formatter<std::pair<A, B>> : ostream_formatter {};

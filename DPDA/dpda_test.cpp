@@ -43,7 +43,7 @@ TEST_CASE("a^n.b^n hardcoded") {
 	/*
 	 * S -> aSb | eps
 	 */
-	DPDA<State, Letter> a;
+	DPDA<State<Letter>, Letter> a;
 	a.addTransition(0, 'a', eps, 0, {'a'});
 	a.addTransition(0, 'a', 'a', 0, {'a', 'a'});
 	a.addTransition(0, 'b', 'a', 1, {});
@@ -75,7 +75,7 @@ TEST_CASE("arithmetics hardcoded") {
 
 	std::vector<char> Sigma = {'i', '+', '(', ')', '.', '#'};
 
-	DPDA<State, Letter> a;
+	DPDA<State<Letter>, Letter> a;
 	a.addTransition(s, eps, eps, _f, "e");
 
 	for (char x : Sigma)
@@ -125,7 +125,7 @@ TEST_CASE("0^n.1^n.# hardcoded") {
 	/*
 	 * S -> aSb | eps
 	 */
-	DPDA<State, Letter> a;
+	DPDA<State<Letter>, Letter> a;
 	a.addTransition(s, eps, eps, _f, "S");
 	a.addTransition(_f, '0', eps, f('0'), {});
 	a.addTransition(f('0'), eps, '0', _f, {});
@@ -166,7 +166,7 @@ TEST_CASE("arithmetics from grammar") {
 	g.start = 'e';
 	g.eof	= '#';
 
-	Parser<State, Letter> a(g);
+	Parser<Letter> a(g);
 	// a.printTransitions();
 	// a.enable_print = true;
 	const char *str1 = "(i+i).i#";
@@ -210,7 +210,7 @@ TEST_CASE("ll1 finite grammar") {
 	g.start = 'S';
 	g.eof	= '#';
 
-	Parser<State, Letter> a(g);
+	Parser<Letter> a(g);
 	// a.printTransitions();
 	// a.enable_print = true;
 	const char *str1 = "acdb#";
@@ -241,7 +241,7 @@ TEST_CASE("ll1 regular grammar") {
 	g.start = 'S';
 	g.eof	= '#';
 
-	Parser<State, Letter> a(g);
+	Parser<Letter> a(g);
 	//a.printTransitions();
 	//a.enable_print = true;
 	const char *str1 = "efffb#";
@@ -276,7 +276,7 @@ TEST_CASE("a^n.b^n") {
 	g.addRule('S', {});
 	g.start = 'S';
 
-	Parser<State, Letter> a(g);
+	Parser< Letter> a(g);
 	std::cout << a.parse("aabb") << std::endl;
 }
 
@@ -289,7 +289,7 @@ TEST_CASE("ambiguous grammar") {
 	g.addRule('S', "a");
 	g.addRule('A', "a");
 
-	using Parser = Parser<State, Letter>;
+	using Parser = Parser<Letter>;
 	Parser *a;
 	CHECK_THROWS_PRINT(a = new Parser(g));
 	(void)a;

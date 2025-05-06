@@ -34,8 +34,18 @@ class ParseError : public std::exception {
 	virtual const char *what() const noexcept { return msg.c_str(); }
 };
 
-template <class State, class Letter>
-class Parser : public DPDA<State, Letter> {
+template<class Letter>
+inline std::size_t getLengthOfTokens(const std::vector<Letter> &word, std::size_t offset, std::size_t length) {
+	std::string s;
+	for(std::size_t i = 0; i < length; ++i) {
+		s += std::format("{}", word[offset + i]);
+	}
+	return s.size();
+}
+
+template <class Letter>
+class Parser : public DPDA<State<Letter>, Letter> {
+	using State = State<Letter>;
 	using typename DPDA<State, Letter>::DeltaMap;
 	using DPDA<State, Letter>::printState;
 	using DPDA<State, Letter>::addTransition;
@@ -61,10 +71,13 @@ class Parser : public DPDA<State, Letter> {
 		} else {
 			msg = "unknown error";
 		}
-		msg += " near: \n";
+		msg += "\n";
+
 		for(size_t i = std::max((int)position - 5, 0); i < std::min(position + 5, word.size()); ++i) {
 			msg += std::format("{}", word[i]);
 		}
+		std::size_t len = getLengthOfTokens(word, std::max((int)position-5, 0), 5);
+		msg += std::format("\n{: >{}}", '^', len+1);
 		throw ParseError(msg, position);
 	}
 
