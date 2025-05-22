@@ -16,6 +16,8 @@
 template <class Letter>
 class CFG {
    public:
+	using Rule = std::pair<Letter, std::vector<Letter>>;
+
 	std::unordered_multimap<Letter, std::vector<Letter>> rules;
 	std::unordered_set<Letter, std::hash<Letter>>		 terminals;
 	std::unordered_set<Letter, std::hash<Letter>>		 nonTerminals;

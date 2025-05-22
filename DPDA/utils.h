@@ -146,3 +146,15 @@ template <class T> struct std::formatter<std::unordered_set<T>> : ostream_format
 template <class T> struct std::formatter<std::vector<T>> : ostream_formatter{};
 template <class A, class B> struct std::formatter<std::unordered_multimap<A, B>> : ostream_formatter {};
 
+
+template<class T>
+class RangeFromPair {
+	T range;
+	
+	public:
+	RangeFromPair(const T &range) : range(range) {}
+
+	auto begin() { return range.first; }
+	auto end() { return range.second; }
+
+};

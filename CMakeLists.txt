@@ -30,6 +30,17 @@ set_target_properties(cfg_test PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY ../
 )
 
+add_executable(earley_test 
+	DPDA/earley_test.cpp
+	DPDA/utils.cpp
+)
+target_compile_options(earley_test PRIVATE ${COMPILE_ARGS})
+target_link_options(earley_test PRIVATE ${COMPILE_ARGS})
+target_include_directories(earley_test PRIVATE ../doctest.h .)
+set_target_properties(earley_test PROPERTIES
+	RUNTIME_OUTPUT_DIRECTORY ../
+)
+
 add_test(NAME cfg_test
          COMMAND cfg_test 
 		 DEPENDS cfg_test)
