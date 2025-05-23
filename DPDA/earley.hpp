@@ -13,61 +13,67 @@ class EarleyParser {
 	//	int					 j;
 	// };
 
+	bool expect_eof = false;
+
 	using DottedRule = std::tuple<Letter, std::vector<Letter> *, int, int>;
 	EarleyParser(const CFG<Letter> &g) : grammar(g) {}
 
-	auto C(const std::vector<std::unordered_set<DottedRule>> &R, const std::unordered_set<DottedRule> &R_ip, int i) {
-		std::unordered_set<DottedRule> C_s	 = R_ip;
-		bool						   added = true;
+	auto C(const std::vector<std::unordered_set<DottedRule>> &R, std::unordered_set<DottedRule> &R_ip, int i) {
+		std::unordered_set<DottedRule> &C_s	  = R_ip;
+		bool							added = true;
 
 		// auto &terminals	   = grammar.terminals;
 		auto &nonTerminals = grammar.nonTerminals;
 		auto &rules		   = grammar.rules;
 
+		static std::unordered_set<DottedRule> C_s1;
 		while (added) {
-			added								= false;
-			std::unordered_set<DottedRule> C_s1 = C_s;
+			added = false;
+			C_s1.clear();
 			// std::cout << C_s << std::endl;
 			for (auto &[A, w, dotPos, j] : C_s) {
 				auto &β1Xβ2 = *w;
-				if (dotPos < β1Xβ2.size() && nonTerminals.contains(β1Xβ2[dotPos])) {
+				if (dotPos < (int)β1Xβ2.size() && nonTerminals.contains(β1Xβ2[dotPos])) {
 					//  { (X → •β, i) | ∃ (A → β1•Xβ2, j) ∈ C(s) and X → β ∈ P }
 					auto &X = β1Xβ2[dotPos];
 					auto  r = rules.equal_range(X);
 					for (auto &[_X, β] : RangeFromPair(r)) {
-						auto [_, s] = C_s1.insert({X, &β, 0, i});
-						added |= s;
+						C_s1.insert({X, &β, 0, i});
 					}
 
 					// { (A → β1X•β2, j) | ∃ (A → β1X•β2, j) ∈ C(s) and (X → β•, i) ∈ C(s) }
 					for (auto &[X_, w, dotPos_, i_] : C_s) {
 						auto &β = *w;
-						if (X_ == X && dotPos_ == β.size() && i_ == i) {
-							auto [_, s] = C_s1.insert({A, &β1Xβ2, dotPos + 1, j});
-							added |= s;
+						if (X_ == X && dotPos_ == (int)β.size() && i_ == i) {
+							//
+							C_s1.insert({A, &β1Xβ2, dotPos + 1, j});
 						}
 					}
 				}
 			}
 
-			// {(A → β1X • β2, j) | има β и k < i : ((A → β1 • Xβ2, j) ∈ ˜Rk и (X → β•, k) ∈ C(s))}
-			for (int k = 0; k < i; ++k) {
-				for (auto &[A, w, dotPos, j] : R[k]) {
-					auto &β1Xβ2 = *w;
-					if (dotPos < β1Xβ2.size() && nonTerminals.contains(β1Xβ2[dotPos])) {
-						auto &X = β1Xβ2[dotPos];
+			std::size_t prevSize = C_s.size();
+			C_s.insert(C_s1.begin(), C_s1.end());
+			if (C_s.size() > prevSize) { added = true; }
+			C_s1.clear();
 
-						for (auto &[X_, w, dotPos_, k_] : C_s) {
-							auto &β = *w;
-							if (X_ == X && dotPos_ == β.size() && k_ == k) {
-								auto [_, s] = C_s1.insert({A, &β1Xβ2, dotPos + 1, j});
-								added |= s;
-							}
+			// {(A → β1X•β2, j) | има β и k < i : ((A → β1•Xβ2, j) ∈ Rk и (X → β•, k) ∈ C(s))}
+			for (auto &[X, w, dotPos, k] : C_s) {
+				auto &β = *w;
+				if (dotPos == (int)β.size()) {
+					// search in R_k
+					for (auto &[A, w, dotPos, j] : R[k]) {
+						auto &β1Xβ2 = *w;
+						if (dotPos < (int)β1Xβ2.size() && X == β1Xβ2[dotPos]) {
+							C_s1.insert({A, &β1Xβ2, dotPos + 1, j});
 						}
 					}
 				}
 			}
-			std::swap(C_s, C_s1);
+
+			prevSize = C_s.size();
+			C_s.insert(C_s1.begin(), C_s1.end());
+			if (C_s.size() > prevSize) { added = true; }
 		};
 		return C_s;
 	}
@@ -80,37 +86,46 @@ class EarleyParser {
 		for (auto &[S, β] : RangeFromPair(r)) {
 			Rp[0].insert({S, &β, 0, 0});
 		}
-		std::cout << "R'[0] = ";
-		print(Rp[0]);
-		std::cout << std::endl;
+		// std::cout << "R'[0] = ";
+		// print(Rp[0]);
+		// std::cout << std::endl;
 
 		R[0] = C(R, Rp[0], 0);
 
-		std::cout << "R[0] = ";
-		print(R[0]);
-		std::cout << std::endl;
+		// std::cout << "R[0] = ";
+		// print(R[0]);
+		// std::cout << std::endl;
 
-		for (int i = 0; i < word.size(); ++i) {
-			std::cout << "i = " << i << std::endl;
+		int size = word.size() - expect_eof;
+
+		for (int i = 0; i < size; ++i) {
+			// std::cout << "i = " << i << std::endl;
+
 			// R′[i+1] = {(A → β1a • β2, j) | (A → β1 • aβ2, j) ∈ Ri и a = ai+1}
 			for (auto &[A, w, dotPos, j] : R[i]) {
 				auto &β1aβ2 = *w;
-				if (dotPos < β1aβ2.size() && β1aβ2[dotPos] == word[i]) { Rp[i + 1].insert({A, &β1aβ2, dotPos + 1, j}); }
+				if (dotPos < (int)β1aβ2.size() && β1aβ2[dotPos] == word[i]) { Rp[i + 1].insert({A, &β1aβ2, dotPos + 1, j}); }
 			}
+			if (Rp[i + 1].size() == 0) {
+				std::cout << "failed: " << i << " " << word[i] << std::endl;
+				print(R[i]);
+				std::cout << std::endl;
+			}
+
 			// Ri+1 = Cε( R, R[i+1], i + 1)
 			R[i + 1] = C(R, Rp[i + 1], i + 1);
 
-			std::cout << "R'[" << i + 1 << "] = ";
-			print(Rp[i + 1]);
-			std::cout << std::endl;
-			std::cout << "R[" << i + 1 << "] = ";
-			print(R[i + 1]);
-			std::cout << std::endl;
+			// std::cout << "R'[" << i + 1 << "] = ";
+			// print(Rp[i + 1]);
+			// std::cout << std::endl;
+			// std::cout << "R[" << i + 1 << "] = ";
+			// print(R[i + 1]);
+			// std::cout << std::endl;
 		}
 
-		for (auto &[A, w, dotPos, j] : R[word.size()]) {
+		for (auto &[A, w, dotPos, j] : R[size]) {
 			auto &β = *w;
-			if (dotPos == β.size() && A == grammar.start) return true;
+			if (dotPos == (int)β.size() && A == grammar.start) return true;
 		}
 		return false;
 	}
@@ -131,11 +146,11 @@ class EarleyParser {
 		auto &[A, w, dotPos, j] = r;
 		out << "(" << A << " -> ";
 		auto &β = *w;
-		for (int i = 0; i < β.size(); ++i) {
+		for (int i = 0; i < (int)β.size(); ++i) {
 			if (i == dotPos) out << "•";
 			out << β[i];
 		}
-		if (dotPos == β.size()) out << "•";
+		if (dotPos == (int)β.size()) out << "•";
 		std::cout << ", " << j << ")";
 		return out;
 	}

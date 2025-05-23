@@ -2,6 +2,7 @@
 #include <DPDA/cfg.h>
 #include <DPDA/utils.h>
 #include <DPDA/token.h>
+#include <cassert>
 #include <cctype>
 #include <chrono>
 #include <cstring>
@@ -10,6 +11,7 @@
 #include <memory>
 #include <ostream>
 #include <string_view>
+#include "DPDA/earley.hpp"
 
 const Token Program		= Token::createToken("Program");
 const Token Number		= Token::createToken("Number");
@@ -297,6 +299,9 @@ int main(int argc, char **argv) {
 			Parser<Token> parser(*g);
 			// parser.enable_print = true;
 
+			EarleyParser<Token> earleyParser(*g);
+			earleyParser.expect_eof = true;
+
 			std::stringstream buffer;
 			std::string		  fileName = "test_file.txt";
 			if (argc == 2) fileName = argv[1];
@@ -318,12 +323,16 @@ int main(int argc, char **argv) {
 
 			BENCH(parser.parse(tokens), 10, "BENCH building parse tree: ");
 			auto t = parser.parse(tokens);
+
+			//tokens.pop_back(); // remove eof
+			BENCH(earleyParser.recognize(tokens), 10, "BENCH earley parse: ");
+			assert(earleyParser.recognize(tokens));
 			// std::cout << t << std::endl;
 
 			BENCH(makeAST(t), 100, "BENCH building AST: ");
 			if (tokens.size() < 1000) {
 				auto ast = makeAST(t);
-				std::cout << ast << std::endl;
+				//std::cout << ast << std::endl;
 			}
 
 		} catch (const std::exception &e) { std::cerr << e << std::endl; }
