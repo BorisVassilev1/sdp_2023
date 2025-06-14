@@ -60,3 +60,34 @@ target_include_directories(language PRIVATE ../doctest.h .)
 set_target_properties(language PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY ../
 )
+
+
+add_executable(regex 
+	Regex/regex.cpp
+	DPDA/utils.cpp
+	DPDA/token.cpp
+	Regex/regexParser.cpp
+)
+
+target_compile_options(regex PRIVATE ${COMPILE_ARGS})
+target_link_options(regex PRIVATE ${COMPILE_ARGS})
+target_include_directories(regex PRIVATE ../doctest.h .)
+set_target_properties(regex PROPERTIES
+	RUNTIME_OUTPUT_DIRECTORY ../
+)
+
+
+add_executable(fst
+	Regex/FST_test.cpp
+	DPDA/utils.cpp
+	DPDA/token.cpp
+	Regex/regexParser.cpp
+)
+
+target_compile_options(fst PRIVATE ${COMPILE_ARGS})
+target_link_options(fst PRIVATE ${COMPILE_ARGS})
+target_include_directories(fst PRIVATE ../doctest.h .)
+set_target_properties(fst PROPERTIES
+	RUNTIME_OUTPUT_DIRECTORY ../
+)
+

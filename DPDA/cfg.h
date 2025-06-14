@@ -285,18 +285,19 @@ class CFG {
 		addRule(a, std::vector<Letter>(w.begin(), w.end()));
 	}
 
-	std::vector<Letter> generate(std::size_t min, std::size_t max) {
+	std::vector<Letter> generate(std::size_t min, std::size_t max) const {
 		auto nullables = findNullables();
 
 		auto [v, b] = generate(max, start, nullables);
 		while (!b || v.size() < min) {
 			std::tie(v, b) = generate(max, start, nullables);
+			std::cout << v << std::endl;
 		}
 		return v;
 	}
 
 	std::pair<std::vector<Letter>, bool> generate(std::size_t max, Letter l,
-												  std::unordered_map<Letter, bool> &nullables) {
+												  std::unordered_map<Letter, bool> &nullables) const {
 		if (max <= 0) return {{}, false};
 
 		bool isNullable = nullables[l];
@@ -307,7 +308,7 @@ class CFG {
 		auto [b, e] = rules.equal_range(l);
 		auto size	= std::distance(b, e) - isNullable;
 
-		int val = rand() % size;
+		int val = (rand()+1) % size;
 		std::advance(b, val);
 		auto [_, w] = *b;
 

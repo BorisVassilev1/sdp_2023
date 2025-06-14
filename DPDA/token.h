@@ -10,8 +10,8 @@
  *
  */
 struct Token {
-	std::size_t value;
-	uint8_t	   *data;
+	const std::size_t value;
+	uint8_t	   *data = nullptr;
 
 	Token(std::size_t value) : value(value) {}
 

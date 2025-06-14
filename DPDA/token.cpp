@@ -17,7 +17,12 @@ Token Token::createToken(const std::string &name, std::size_t value) {
 }
 
 std::ostream &operator<<(std::ostream &out, const Token &v) {
-	return out << getTokenNames().find(v.value)->second;
+	if(v.value && v.value < 128) return out << static_cast<char>(v.value);
+	auto it = getTokenNames().find(v.value);
+	if(it == getTokenNames().end()) {
+		return out << v.value;
+	}
+	return out << it->second;
 }
 
 std::size_t Token::size = 256;

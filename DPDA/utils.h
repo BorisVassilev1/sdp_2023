@@ -8,17 +8,20 @@
 #include <format>
 #include <string_view>
 #include <sstream>
+#include <string>
 
 /**
  * @brief A simple Letter class
  * 
  */
 class Letter {
-	char val;
+	char val = 0;
 
    public:
 	constexpr Letter(char val) : val(val) {}
 	constexpr Letter() : val(0) {}
+	constexpr Letter(const Letter &other) = default;
+	constexpr Letter &operator=(const Letter &other) = default;
 
 	constexpr operator char() const { return val; }
 	static const Letter eps;
@@ -29,6 +32,24 @@ class Letter {
 constexpr const Letter Letter::eps	= '\0';
 constexpr const Letter Letter::eof	= '#';
 constexpr const size_t Letter::size = 256;
+
+template<class Letter_t = Letter>
+inline std::vector<Letter_t> toLetter(const std::string &s) {
+	std::vector<Letter_t> res;
+	for (char c : s) {
+		res.push_back(Letter_t(c));
+	}
+	return res;
+}
+
+inline std::vector<Letter> toLetter(const char* s) {
+	std::vector<Letter> res;
+	for (const char *c = s; *c != '\0'; ++c) {
+		res.push_back(Letter(*c));
+	}
+	return res;
+}
+
 
 /**
  * @brief A simple Letter class
