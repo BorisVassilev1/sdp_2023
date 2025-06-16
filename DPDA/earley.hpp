@@ -13,7 +13,8 @@ class EarleyParser {
 	//	int					 j;
 	// };
 
-	bool expect_eof = false;
+	bool expect_eof	  = false;
+	bool enable_print = false;
 
 	using DottedRule = std::tuple<Letter, std::vector<Letter> *, int, int>;
 	EarleyParser(const CFG<Letter> &g) : grammar(g) {}
@@ -86,25 +87,31 @@ class EarleyParser {
 		for (auto &[S, β] : RangeFromPair(r)) {
 			Rp[0].insert({S, &β, 0, 0});
 		}
-		// std::cout << "R'[0] = ";
-		// print(Rp[0]);
-		// std::cout << std::endl;
+		if (enable_print) {
+			std::cout << "R'[0] = ";
+			print(Rp[0]);
+			std::cout << std::endl;
+		}
 
 		R[0] = C(R, Rp[0], 0);
 
-		// std::cout << "R[0] = ";
-		// print(R[0]);
-		// std::cout << std::endl;
+		if (enable_print) {
+			std::cout << "R[0] = ";
+			print(R[0]);
+			std::cout << std::endl;
+		}
 
 		int size = word.size() - expect_eof;
 
 		for (int i = 0; i < size; ++i) {
-			// std::cout << "i = " << i << std::endl;
+			if (enable_print) { std::cout << "i = " << i << std::endl; }
 
 			// R′[i+1] = {(A → β1a • β2, j) | (A → β1 • aβ2, j) ∈ Ri и a = ai+1}
 			for (auto &[A, w, dotPos, j] : R[i]) {
 				auto &β1aβ2 = *w;
-				if (dotPos < (int)β1aβ2.size() && β1aβ2[dotPos] == word[i]) { Rp[i + 1].insert({A, &β1aβ2, dotPos + 1, j}); }
+				if (dotPos < (int)β1aβ2.size() && β1aβ2[dotPos] == word[i]) {
+					Rp[i + 1].insert({A, &β1aβ2, dotPos + 1, j});
+				}
 			}
 			if (Rp[i + 1].size() == 0) {
 				std::cout << "failed: " << i << " " << word[i] << std::endl;
@@ -115,12 +122,14 @@ class EarleyParser {
 			// Ri+1 = Cε( R, R[i+1], i + 1)
 			R[i + 1] = C(R, Rp[i + 1], i + 1);
 
-			// std::cout << "R'[" << i + 1 << "] = ";
-			// print(Rp[i + 1]);
-			// std::cout << std::endl;
-			// std::cout << "R[" << i + 1 << "] = ";
-			// print(R[i + 1]);
-			// std::cout << std::endl;
+			if (enable_print) {
+				std::cout << "R'[" << i + 1 << "] = ";
+				print(Rp[i + 1]);
+				std::cout << std::endl;
+				std::cout << "R[" << i + 1 << "] = ";
+				print(R[i + 1]);
+				std::cout << std::endl;
+			}
 		}
 
 		for (auto &[A, w, dotPos, j] : R[size]) {
