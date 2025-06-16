@@ -59,6 +59,7 @@ class Regex {
    public:
 	virtual void print(std::ostream &out) const = 0;
 	virtual ~Regex()							= default;
+	virtual int size() const					= 0;
 };
 
 class UnionRegex : public Regex {
@@ -75,6 +76,8 @@ class UnionRegex : public Regex {
 		if (right) right->print(out);
 		out << ")";
 	}
+
+	int size() const override { return (left ? left->size() : 0) + (right ? right->size() : 0) + 1; }
 };
 
 class ConcatRegex : public Regex {
@@ -91,6 +94,8 @@ class ConcatRegex : public Regex {
 		if (right) right->print(out);
 		out << ")";
 	}
+
+	int size() const override { return (left ? left->size() : 0) + (right ? right->size() : 0) + 1; }
 };
 
 class KleeneStarRegex : public Regex {
@@ -103,6 +108,8 @@ class KleeneStarRegex : public Regex {
 		if (child) child->print(out);
 		out << ")*";
 	}
+
+	int size() const override { return (child ? child->size() : 0) + 1; }
 };
 
 class TupleRegex : public Regex {
@@ -111,8 +118,10 @@ class TupleRegex : public Regex {
 	std::string right;
 	TupleRegex(std::string left, std::string right) : left(left), right(right) {}
 
-	void print(std::ostream &out) const override {
-		out << "<'" << left << "','" << right << "'>";
+	void print(std::ostream &out) const override { out << "<'" << left << "','" << right << "'>"; }
+
+	int size() const override {
+		return 1;
 	}
 };
 
@@ -122,12 +131,12 @@ std::string			   generateRegexString(std::size_t min);
 std::unique_ptr<Regex> parseTreeToRegex(const ParseNode<Token> *root);
 std::unique_ptr<Regex> parseRegex(const std::string &text);
 
-std::unique_ptr<Regex> toLeftAssoc(std::unique_ptr<Regex> regex);
+std::unique_ptr<Regex> toLeftAssoc(std::unique_ptr<Regex> &&regex);
 
 extern std::string Alphabet;
 
 std::string identity(const std::string &alphabet);
-std::string optionalReplace(const std::string &regex,const std::string &alphabet = Alphabet);
+std::string optionalReplace(const std::string &regex, const std::string &alphabet = Alphabet);
 
 std::ostream &operator<<(std::ostream &out, const Regex &regex);
 std::ostream &operator<<(std::ostream &out, std::unique_ptr<Regex> &regex);

@@ -49,8 +49,9 @@ int main(int argc, char **argv) {
 	// if (tokens.size() < 1000) { std::cout << "parse tree: " << std::endl << parseTree << std::endl; }
 
 	// auto reg = parseTreeToRegex(parseTree.get());
-	BENCH({ parseRegex(text); }, 100, "BENCH parsing regex: ");
+	BENCH({ parseRegex(text); }, 10, "BENCH parsing regex: ");
 	auto reg = parseRegex(text);
+	std::cout << reg->size() << " tokens in regex." << std::endl;
 	if (tokens.size() < 1000) {
 		std::cout << "regex: " << std::endl;
 		reg->print(std::cout);

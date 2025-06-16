@@ -107,45 +107,35 @@ std::unique_ptr<Regex> parseRegex(const std::string &text) {
 	return toLeftAssoc(std::move(r));
 }
 
-template <class TR>
-void rotateTree(std::unique_ptr<Regex> &regex, TR *r) {
-	std::stack<std::unique_ptr<Regex>> children;
-	{
-		children.push(std::move(r->left));
-		TR *curr = r;
-		TR *next = dynamic_cast<TR *>(r->right.get());
-		while (next) {
-			children.push(std::move(next->left));
-			curr = next;
-			next = dynamic_cast<TR *>(next->right.get());
-		}
-		children.push(std::move(curr->right));
-	}
-	{
-		std::unique_ptr<Regex> *curr = &regex;
-		while (children.size() > 2) {
-			auto child = std::move(children.top());
-			children.pop();
-			*curr = std::make_unique<TR>(nullptr, toLeftAssoc(std::move(child)));
-			curr  = &((TR *)(curr->get()))->left;
-		}
-		auto child1 = std::move(children.top());
-		children.pop();
-		auto child2 = std::move(children.top());
-		children.pop();
-		*curr = std::make_unique<TR>(toLeftAssoc(std::move(child1)), toLeftAssoc(std::move(child2)));
-	}
-}
-
-std::unique_ptr<Regex> toLeftAssoc(std::unique_ptr<Regex> regex) {
+std::unique_ptr<Regex> toLeftAssoc(std::unique_ptr<Regex> &&regex) {
 	if (auto *r = dynamic_cast<UnionRegex *>(regex.get())) {
-		rotateTree<UnionRegex>(regex, r);
+		if (auto *right = dynamic_cast<UnionRegex *>(r->right.get())) {
+			auto b = std::move(right->left);
+			right->left = std::move(regex);
+			regex = std::move(r->right);
+			r->right = std::move(b);
+
+			regex =	 toLeftAssoc(std::move(regex));
+		} else {
+			r->left = toLeftAssoc(std::move(r->left));
+			r->right = toLeftAssoc(std::move(r->right));
+		}
 	} else if (auto *r = dynamic_cast<ConcatRegex *>(regex.get())) {
-		rotateTree<ConcatRegex>(regex, r);
+		if (auto *right = dynamic_cast<ConcatRegex *>(r->right.get())) {
+			auto b = std::move(right->left);
+			right->left = std::move(regex);
+			regex = std::move(r->right);
+			r->right = std::move(b);
+
+			regex =	 toLeftAssoc(std::move(regex));
+		} else {
+			r->left = toLeftAssoc(std::move(r->left));
+			r->right = toLeftAssoc(std::move(r->right));
+		}
 	} else if (auto *r = dynamic_cast<KleeneStarRegex *>(regex.get())) {
 		r->child = toLeftAssoc(std::move(r->child));
 	}
-	return regex;
+	return std::move(regex);
 }
 
 std::string Alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._?;:/!@#$%^&*()-+=<>[]{}|\\`~";
