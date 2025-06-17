@@ -152,7 +152,7 @@ std::string identity(const std::string &alphabet) {
 
 std::string optionalReplace(const std::string &regex, const std::string &alphabet) {
 	auto id = identity(alphabet);
-	return std::format("({})*.({}.({})*)*", id, regex, id);
+	return std::format("({})*.(({}).({})*)*", id, regex, id);
 }
 
 std::ostream &operator<<(std::ostream &out, const Regex &regex) {

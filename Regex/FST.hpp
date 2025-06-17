@@ -1,5 +1,6 @@
 #pragma once
 
+#include <fstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -24,11 +25,24 @@ class TFSA {
 
 	TFSA() : N(0) {}
 
-	void addTransition(State from, const std::vector<Letter> &w1, const std::vector<Letter> &w2, State to) {
-		StringID id1 = words.size();
-		words.push_back(w1);
-		StringID id2 = words.size();
-		words.push_back(w2);
+	void addTransition(State from, std::vector<Letter> &&w1, std::vector<Letter> &&w2, State to) {
+		StringID id1;
+		if (w1.empty()) id1 = 0;
+		else {
+			id1 = words.size();
+			words.emplace_back(std::move(w1));
+		}
+		StringID id2;
+		if (w2.empty()) id2 = 0;	 // TODO: this is not always valid at the moment
+		else if (words.back() == w2) id2 = id1;
+		else {
+			id2 = words.size();
+			words.emplace_back(std::move(w2));
+		}
+		// StringID id1 = words.size();
+		// words.emplace_back(std::move(w1));
+		// StringID id2 = words.size();
+		// words.emplace_back(std::move(w2));
 		transitions.insert({from, {id1, id2, to}});
 	}
 
@@ -55,11 +69,12 @@ class TFSA {
 template <class Letter>
 class BS_WordFSA : public TFSA<Letter> {
    public:
-	BS_WordFSA(const std::vector<Letter> &word1, const std::vector<Letter> &word2) : TFSA<Letter>() {
+	BS_WordFSA(std::vector<Letter> &&word1, std::vector<Letter> &&word2) : TFSA<Letter>() {
 		this->N		  = 2;
 		this->qFirst  = 0;
 		this->qFinals = {1};
-		this->addTransition(this->qFirst, word1, word2, 1);
+		this->words.push_back({});
+		this->addTransition(this->qFirst, std::move(word1), std::move(word2), 1);
 	}
 };
 
@@ -67,6 +82,7 @@ template <class Letter>
 class BS_UnionFSA : public TFSA<Letter> {
    public:
 	using State = TFSA<Letter>::State;
+	using StringID = TFSA<Letter>::StringID;
 
 	BS_UnionFSA(TFSA<Letter> &&fst1, TFSA<Letter> &&fst2) : TFSA<Letter>() {
 		if (fst1.qFinals.empty() && fst2.qFinals.empty()) {
@@ -89,13 +105,15 @@ class BS_UnionFSA : public TFSA<Letter> {
 			const auto &[id1, id2, to] = value;
 			State new_from			   = from + fst1.N - 1;
 			if (from == 0) new_from = 0;
-			this->transitions.insert({new_from, {id1 + fst1.words.size(), id2 + fst1.words.size(), to + fst1.N - 1}});
+			StringID new_id1 = id1 ? id1 + fst1.words.size() - 1 : 0;
+			StringID new_id2 = id2 ? id2 + fst1.words.size() - 1 : 0;
+			this->transitions.insert({new_from, {new_id1, new_id2, to + fst1.N - 1}});
 		}
 
 		this->words = std::move(fst1.words);
 		this->words.reserve(this->words.size() + fst2.words.size());
-		for (const auto &word : fst2.words) {
-			this->words.push_back(std::move(word));
+		for (auto it = ++fst2.words.begin(); it != fst2.words.end(); ++it) {
+			this->words.push_back(std::move(*it));
 		}
 
 		this->qFinals = std::move(fst1.qFinals);
@@ -109,6 +127,7 @@ template <class Letter>
 class BS_ConcatFSA : public TFSA<Letter> {
    public:
 	using State = TFSA<Letter>::State;
+	using StringID = TFSA<Letter>::StringID;
 
 	BS_ConcatFSA(TFSA<Letter> &&fsa1, TFSA<Letter> &&fsa2) {
 		if (fsa1.qFinals.empty() || fsa2.qFinals.empty()) {
@@ -127,7 +146,9 @@ class BS_ConcatFSA : public TFSA<Letter> {
 			const auto &[id1, id2, to] = value;
 			State new_from			   = from + fsa1.N - 1;
 			if (from == 0) new_from = *fsa1_final;
-			this->transitions.insert({new_from, {id1 + fsa1.words.size(), id2 + fsa1.words.size(), to + fsa1.N - 1}});
+			StringID new_id1 = id1 ? id1 + fsa1.words.size() - 1 : 0;
+			StringID new_id2 = id2 ? id2 + fsa1.words.size() - 1 : 0;
+			this->transitions.insert({new_from, {new_id1, new_id2, to + fsa1.N - 1}});
 		}
 
 		++fsa1_final;
@@ -136,18 +157,23 @@ class BS_ConcatFSA : public TFSA<Letter> {
 			for (auto it = i1; it != i2; ++it) {
 				const auto &[_, value]	   = *it;
 				const auto &[id1, id2, to] = value;
+				StringID new_id1 = id1 ? id1 + fsa1.words.size() - 1 : 0;
+				StringID new_id2 = id2 ? id2 + fsa1.words.size() - 1 : 0;
 				this->transitions.insert(
-					{*fsa1_final, {id1 + fsa1.words.size(), id2 + fsa1.words.size(), to + fsa1.N - 1}});
+					{*fsa1_final, { new_id1, new_id2, to + fsa1.N - 1}});
 			}
 		}
 
 		this->words = std::move(fsa1.words);
 		this->words.reserve(this->words.size() + fsa2.words.size());
-		for (const auto &word : fsa2.words) {
-			this->words.push_back(std::move(word));
+		for (auto it = ++fsa2.words.begin(); it != fsa2.words.end(); ++it) {
+			this->words.push_back(std::move(*it));
 		}
 
-		this->qFinals.reserve(fsa2.qFinals.size());
+		if(fsa2.qFinals.contains(fsa2.qFirst)) {
+			this->qFinals = std::move(fsa1.qFinals);
+		}
+		this->qFinals.reserve(this->qFinals.size() + fsa2.qFinals.size());
 		for (const auto &q : fsa2.qFinals) {
 			this->qFinals.insert(q + fsa1.N - 1);
 		}
@@ -187,18 +213,24 @@ class BS_KleeneStarFSA : public TFSA<Letter> {
 	}
 };
 
+
 template <class Letter>
 TFSA<Letter> makeFSA_BerriSethi(Regex &regex) {
+	//static int counter = 0;
+	TFSA<Letter> fsa;
 	if (auto *r = dynamic_cast<TupleRegex *>(&regex)) {
-		return BS_WordFSA<Letter>(toLetter<Letter>(r->left), toLetter<Letter>(r->right));
+		fsa = BS_WordFSA<Letter>(toLetter<Letter>(std::move(r->left)), toLetter<Letter>(std::move(r->right)));
 	} else if (auto *r = dynamic_cast<UnionRegex *>(&regex)) {
-		return BS_UnionFSA<Letter>(makeFSA_BerriSethi<Letter>(*r->left), makeFSA_BerriSethi<Letter>(*r->right));
+		fsa = BS_UnionFSA<Letter>(makeFSA_BerriSethi<Letter>(*r->left), makeFSA_BerriSethi<Letter>(*r->right));
 	} else if (auto *r = dynamic_cast<ConcatRegex *>(&regex)) {
-		return BS_ConcatFSA<Letter>(makeFSA_BerriSethi<Letter>(*r->left), makeFSA_BerriSethi<Letter>(*r->right));
+		fsa = BS_ConcatFSA<Letter>(makeFSA_BerriSethi<Letter>(*r->left), makeFSA_BerriSethi<Letter>(*r->right));
 	} else if (auto *r = dynamic_cast<KleeneStarRegex *>(&regex)) {
-		return BS_KleeneStarFSA<Letter>(makeFSA_BerriSethi<Letter>(*r->child));
+		fsa = BS_KleeneStarFSA<Letter>(makeFSA_BerriSethi<Letter>(*r->child));
 	}
-	throw std::runtime_error("Unknown regex type for FSA construction: " + std::string(typeid(regex).name()));
+	//std::ofstream out("fsa_" + std::to_string(counter++) + ".dot");
+	//fsa.print(out);
+	return fsa;
+	//throw std::runtime_error("Unknown regex type for FSA construction: " + std::string(typeid(regex).name()));
 }
 
 // Thompson's construction
@@ -206,12 +238,12 @@ TFSA<Letter> makeFSA_BerriSethi(Regex &regex) {
 template <class Letter>
 class TH_WordFSA : public TFSA<Letter> {
    public:
-	TH_WordFSA(const std::vector<Letter> &word1, const std::vector<Letter> &word2) : TFSA<Letter>() {
+	TH_WordFSA(std::vector<Letter> &&word1, std::vector<Letter> &&word2) : TFSA<Letter>() {
 		this->N		  = 2;
 		this->qFirst  = 0;
 		this->qFinals = {1};
 		this->words.push_back({});
-		this->addTransition(this->qFirst, word1, word2, 1);
+		this->addTransition(this->qFirst, std::move(word1), std::move(word2), 1);
 	}
 };
 
@@ -333,7 +365,7 @@ class TH_KleeneStarFSA : public TFSA<Letter> {
 template <class Letter>
 TFSA<Letter> makeFSA_Thompson(Regex &regex) {
 	if (auto *r = dynamic_cast<TupleRegex *>(&regex)) {
-		return TH_WordFSA<Letter>(toLetter<Letter>(r->left), toLetter<Letter>(r->right));
+		return TH_WordFSA<Letter>(toLetter<Letter>(std::move(r->left)), toLetter<Letter>(std::move(r->right)));
 	} else if (auto *r = dynamic_cast<UnionRegex *>(&regex)) {
 		return TH_UnionFSA<Letter>(makeFSA_Thompson<Letter>(*r->left), makeFSA_Thompson<Letter>(*r->right));
 	} else if (auto *r = dynamic_cast<ConcatRegex *>(&regex)) {
@@ -343,5 +375,3 @@ TFSA<Letter> makeFSA_Thompson(Regex &regex) {
 	}
 	throw std::runtime_error("Unknown regex type for FSA construction: " + std::string(typeid(regex).name()));
 }
-
-
