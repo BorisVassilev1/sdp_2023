@@ -49,11 +49,11 @@ inline std::size_t getLengthOfTokens(const std::vector<Letter> &word, std::size_
 template <class Letter>
 class Parser : public DPDA<State<Letter>, Letter> {
    protected:
-	using State = State<Letter>;
-	using typename DPDA<State, Letter>::DeltaMap;
-	using DPDA<State, Letter>::printState;
-	using DPDA<State, Letter>::addTransition;
-	using DPDA<State, Letter>::transition;
+	using LState = State<Letter>;
+	using typename DPDA<LState, Letter>::DeltaMap;
+	using DPDA<LState, Letter>::printState;
+	using DPDA<LState, Letter>::addTransition;
+	using DPDA<LState, Letter>::transition;
 
 	CFG<Letter> g;
 
@@ -62,7 +62,7 @@ class Parser : public DPDA<State<Letter>, Letter> {
 	const std::unordered_map<Letter, std::unordered_set<Letter>> follow;
 
 	void detectMistake(const std::vector<Letter> &word, std::size_t offset, const std::vector<Letter> &stack,
-					   State current_state) const {
+					   LState current_state) const {
 		size_t		position = offset > 0 ? offset - 1 : 0;
 		std::string msg;
 		Letter		currentLetter = Letter(current_state - Letter::size);
@@ -90,10 +90,10 @@ class Parser : public DPDA<State<Letter>, Letter> {
 	}
 
    public:
-	using DPDA<State, Letter>::delta;
-	using DPDA<State, Letter>::qFinal;
-	using DPDA<State, Letter>::enable_print;
-	using DPDA<State, Letter>::printTransitions;
+	using DPDA<LState, Letter>::delta;
+	using DPDA<LState, Letter>::qFinal;
+	using DPDA<LState, Letter>::enable_print;
+	using DPDA<LState, Letter>::printTransitions;
 
 	/**
 	 * @brief Construct a Parser from an LL(1) grammar. Throws if grammar is not LL(1)
@@ -107,7 +107,7 @@ class Parser : public DPDA<State<Letter>, Letter> {
 		  follow(grammar.findFollows(nullable, first)) {
 		addTransition(0, Letter::eps, Letter::eps, 1, {grammar.start});
 
-		auto f = [](const Letter l) -> State { return Letter::size + std::size_t(l); };
+		auto f = [](const Letter l) -> LState { return Letter::size + std::size_t(l); };
 
 		try {
 			for (const auto &[A, v] : grammar.rules) {
@@ -170,7 +170,7 @@ class Parser : public DPDA<State<Letter>, Letter> {
 	std::pair<bool, ProductionVector> generateProductions(const std::vector<Letter> &word) const {
 		std::size_t																 offset = 0;
 		std::vector<Letter>														 stack;
-		State																	 current_state = 0;
+		LState																	 current_state = 0;
 		typename DeltaMap::const_iterator										 res		   = delta.begin();
 		std::vector<std::reference_wrapper<const typename DeltaMap::value_type>> productions;
 

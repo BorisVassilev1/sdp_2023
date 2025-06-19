@@ -9,6 +9,7 @@
 #include <string_view>
 #include <sstream>
 #include <string>
+#include <ranges>
 
 /**
  * @brief A simple Letter class
@@ -144,6 +145,7 @@ std::ostream &operator<<(std::ostream &out,const std::unordered_map<A, B> &m) {
 	out << "}";
 	return out;
 }
+
 
 template <typename Char>
 struct basic_ostream_formatter : std::formatter<std::basic_string_view<Char>, Char> {

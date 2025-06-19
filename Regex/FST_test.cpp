@@ -1,5 +1,6 @@
 #include <Regex/FST.hpp>
 #include <iostream>
+#include "Regex/functionality.hpp"
 #include "Regex/regexParser.hpp"
 #include "util/bench.hpp"
 #include <DPDA/utils.h>
@@ -21,7 +22,7 @@ int main() {
 	auto E = BS_KleeneStarFSA<Letter>(std::move(D));
 	//E.print(std::cout);
 
-	auto r = optionalReplace("<':)','😄'>+<'=D', '🍄'>");
+	auto r = optionalReplace("<':)','😄'>+<'=D', '🍄'>", "a");
 	auto t = parseRegex(r);
 
 	std::cout << "Optional replace: " << t << std::endl;
@@ -31,11 +32,15 @@ int main() {
 	//fsa.print(std::cout);
 	
 	BENCH(makeFSA_Thompson<Letter>(*t), 100, "BENCH makeFSA Thompson: ");
-	//auto fsa = makeFSA_Thompson<Letter>(*t);
+	auto fsa = makeFSA_Thompson<Letter>(*t);
 	//fsa.print(std::cout);
-	//std::cout << "FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
-	//		  << fsa.words.size() << " words." << std::endl;
+	std::cout << "FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
+			  << fsa.words.size() << " words." << std::endl;
 	//fsa.print(std::cout);
+	drawFSA(fsa);
+
+	std::cout << "functional: " << isFunctional(fsa) << std::endl;
+	
 	
 	
 }
