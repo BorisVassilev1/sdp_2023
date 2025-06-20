@@ -13,9 +13,9 @@
 
 #include <DPDA/utils.h>
 
-// Two-Tape Finite State Automaton (TFSA) class template
+// Classical Finite State Transducer (FST) class template
 template <class Letter>
-class TFSA {
+class FST {
    public:
 	using State	   = unsigned int;
 	using StringID = unsigned int;
@@ -27,7 +27,7 @@ class TFSA {
 	std::vector<std::vector<Letter>> words;		// words on the tapes
 	Map								 transitions;
 
-	TFSA() : N(0) {}
+	FST() : N(0) {}
 
 	void addTransition(State from, std::vector<Letter> &&w1, std::vector<Letter> &&w2, State to) {
 		StringID id1;
@@ -52,7 +52,7 @@ class TFSA {
 
 	void print(std::ostream &out) const {
 		// print in DOT
-		out << "digraph TFSA {\n";
+		out << "digraph FST {\n";
 		out << "  rankdir=LR;\n";
 		out << "  node [shape=circle];\n";
 		out << "  init [label=\"N=" << this->N << "\", shape=square];\n";
@@ -73,9 +73,9 @@ class TFSA {
 // Berry-Sethi constructions
 
 template <class Letter>
-class BS_WordFSA : public TFSA<Letter> {
+class BS_WordFSA : public FST<Letter> {
    public:
-	BS_WordFSA(std::vector<Letter> &&word1, std::vector<Letter> &&word2) : TFSA<Letter>() {
+	BS_WordFSA(std::vector<Letter> &&word1, std::vector<Letter> &&word2) : FST<Letter>() {
 		this->N		  = 2;
 		this->qFirsts = {0};
 		this->qFinals = {1};
@@ -85,21 +85,21 @@ class BS_WordFSA : public TFSA<Letter> {
 };
 
 template <class Letter>
-class BS_UnionFSA : public TFSA<Letter> {
+class BS_UnionFSA : public FST<Letter> {
    public:
-	using State	   = TFSA<Letter>::State;
-	using StringID = TFSA<Letter>::StringID;
+	using State	   = FST<Letter>::State;
+	using StringID = FST<Letter>::StringID;
 
-	BS_UnionFSA(TFSA<Letter> &&fst1, TFSA<Letter> &&fst2) : TFSA<Letter>() {
+	BS_UnionFSA(FST<Letter> &&fst1, FST<Letter> &&fst2) : FST<Letter>() {
 		if (fst1.qFinals.empty() && fst2.qFinals.empty()) {
 			this->N		  = 0;
 			this->qFirsts = {0};
 			return;
 		} else if (fst1.qFinals.empty()) {
-			(TFSA<Letter> &)(*this) = std::move(fst2);
+			(FST<Letter> &)(*this) = std::move(fst2);
 			return;
 		} else if (fst2.qFinals.empty()) {
-			(TFSA<Letter> &)(*this) = std::move(fst1);
+			(FST<Letter> &)(*this) = std::move(fst1);
 			return;
 		}
 
@@ -130,12 +130,12 @@ class BS_UnionFSA : public TFSA<Letter> {
 };
 
 template <class Letter>
-class BS_ConcatFSA : public TFSA<Letter> {
+class BS_ConcatFSA : public FST<Letter> {
    public:
-	using State	   = TFSA<Letter>::State;
-	using StringID = TFSA<Letter>::StringID;
+	using State	   = FST<Letter>::State;
+	using StringID = FST<Letter>::StringID;
 
-	BS_ConcatFSA(TFSA<Letter> &&fsa1, TFSA<Letter> &&fsa2) {
+	BS_ConcatFSA(FST<Letter> &&fsa1, FST<Letter> &&fsa2) {
 		if (fsa1.qFinals.empty() || fsa2.qFinals.empty()) {
 			this->N		  = 0;
 			this->qFirsts = {0};
@@ -184,9 +184,9 @@ class BS_ConcatFSA : public TFSA<Letter> {
 };
 
 template <class Letter>
-class BS_KleeneStarFSA : public TFSA<Letter> {
+class BS_KleeneStarFSA : public FST<Letter> {
    public:
-	BS_KleeneStarFSA(TFSA<Letter> &&fsa) {
+	BS_KleeneStarFSA(FST<Letter> &&fsa) {
 		if (fsa.qFinals.empty()) {
 			this->N		  = 0;
 			this->qFirsts = {0};
@@ -198,7 +198,7 @@ class BS_KleeneStarFSA : public TFSA<Letter> {
 		this->transitions = std::move(fsa.transitions);
 
 		auto [i1, i2] = this->transitions.equal_range(0);
-		typename TFSA<Letter>::Map toAdd;
+		typename FST<Letter>::Map toAdd;
 		for (auto it = i1; it != i2; ++it) {
 			const auto &[_, value]	   = *it;
 			const auto &[id1, id2, to] = value;
@@ -217,9 +217,9 @@ class BS_KleeneStarFSA : public TFSA<Letter> {
 };
 
 template <class Letter>
-TFSA<Letter> makeFSA_BerriSethi(Regex &regex) {
+FST<Letter> makeFSA_BerriSethi(Regex &regex) {
 	// static int counter = 0;
-	TFSA<Letter> fsa;
+	FST<Letter> fsa;
 	if (auto *r = dynamic_cast<TupleRegex *>(&regex)) {
 		fsa = BS_WordFSA<Letter>(toLetter<Letter>(std::move(r->left)), toLetter<Letter>(std::move(r->right)));
 	} else if (auto *r = dynamic_cast<UnionRegex *>(&regex)) {
@@ -238,9 +238,9 @@ TFSA<Letter> makeFSA_BerriSethi(Regex &regex) {
 // Thompson's construction
 
 template <class Letter>
-class TH_WordFSA : public TFSA<Letter> {
+class TH_WordFSA : public FST<Letter> {
    public:
-	TH_WordFSA(std::vector<Letter> &&word1, std::vector<Letter> &&word2) : TFSA<Letter>() {
+	TH_WordFSA(std::vector<Letter> &&word1, std::vector<Letter> &&word2) : FST<Letter>() {
 		this->N		  = 2;
 		this->qFirsts = {0};
 		this->qFinals = {1};
@@ -250,19 +250,19 @@ class TH_WordFSA : public TFSA<Letter> {
 };
 
 template <class Letter>
-class TH_UnionFSA : public TFSA<Letter> {
+class TH_UnionFSA : public FST<Letter> {
    public:
-	TH_UnionFSA(TFSA<Letter> &&fst1, TFSA<Letter> &&fst2) : TFSA<Letter>() {
+	TH_UnionFSA(FST<Letter> &&fst1, FST<Letter> &&fst2) : FST<Letter>() {
 		if (fst1.qFinals.empty() && fst2.qFinals.empty()) {
 			this->N		  = 0;
 			this->qFirsts = {0};
 			this->words.push_back({});
 			return;
 		} else if (fst1.qFinals.empty()) {
-			(TFSA<Letter> &)(*this) = std::move(fst2);
+			(FST<Letter> &)(*this) = std::move(fst2);
 			return;
 		} else if (fst2.qFinals.empty()) {
-			(TFSA<Letter> &)(*this) = std::move(fst1);
+			(FST<Letter> &)(*this) = std::move(fst1);
 			return;
 		}
 
@@ -298,9 +298,9 @@ class TH_UnionFSA : public TFSA<Letter> {
 };
 
 template <class Letter>
-class TH_ConcatFSA : public TFSA<Letter> {
+class TH_ConcatFSA : public FST<Letter> {
    public:
-	TH_ConcatFSA(TFSA<Letter> &&fst1, TFSA<Letter> &&fst2) {
+	TH_ConcatFSA(FST<Letter> &&fst1, FST<Letter> &&fst2) {
 		if (fst1.qFinals.empty() || fst2.qFinals.empty()) {
 			this->N		  = 0;
 			this->qFirsts = {0};
@@ -338,9 +338,9 @@ class TH_ConcatFSA : public TFSA<Letter> {
 };
 
 template <class Letter>
-class TH_KleeneStarFSA : public TFSA<Letter> {
+class TH_KleeneStarFSA : public FST<Letter> {
    public:
-	TH_KleeneStarFSA(TFSA<Letter> &&fst) {
+	TH_KleeneStarFSA(FST<Letter> &&fst) {
 		if (fst.qFinals.empty()) {
 			this->N		  = 0;
 			this->qFirsts = {0};
@@ -365,7 +365,7 @@ class TH_KleeneStarFSA : public TFSA<Letter> {
 };
 
 template <class Letter>
-TFSA<Letter> makeFSA_Thompson(Regex &regex) {
+FST<Letter> makeFSA_Thompson(Regex &regex) {
 	if (auto *r = dynamic_cast<TupleRegex *>(&regex)) {
 		return TH_WordFSA<Letter>(toLetter<Letter>(std::move(r->left)), toLetter<Letter>(std::move(r->right)));
 	} else if (auto *r = dynamic_cast<UnionRegex *>(&regex)) {
@@ -379,7 +379,7 @@ TFSA<Letter> makeFSA_Thompson(Regex &regex) {
 }
 
 template <class Letter>
-void drawFSA(const TFSA<Letter> &fsa) {
+void drawFSA(const FST<Letter> &fsa) {
 	ShellProcess p("dot -Tsvg > a.svg && feh ./a.svg");
 	fsa.print(p.in());
 	p.in() << std::endl;
@@ -390,7 +390,7 @@ void drawFSA(const TFSA<Letter> &fsa) {
 }
 
 template <class Letter>
-auto trimFSA(TFSA<Letter> &&fsa) {
+auto trimFSA(FST<Letter> &&fsa) {
 	if (fsa.qFinals.empty()) {
 		fsa.N		= 0;
 		fsa.qFirsts = {0};
@@ -399,8 +399,8 @@ auto trimFSA(TFSA<Letter> &&fsa) {
 		fsa.transitions.clear();
 		return std::move(fsa);
 	}
-	using State	   = TFSA<Letter>::State;
-	using StringID = TFSA<Letter>::StringID;
+	using State	   = FST<Letter>::State;
+	using StringID = FST<Letter>::StringID;
 	std::vector<bool> visited_back(fsa.N, false);
 	std::vector<bool> visited_forw(fsa.N, false);
 
@@ -451,7 +451,7 @@ auto trimFSA(TFSA<Letter> &&fsa) {
 	for (unsigned int i = 0; i < fsa.N; ++i) {
 		if (visited_back[i] && visited_forw[i]) { new_map[i] = cnt++; }
 	}
-	TFSA<Letter> new_fsa;
+	FST<Letter> new_fsa;
 	new_fsa.N = cnt;
 	new_fsa.qFirsts.reserve(fsa.qFirsts.size());
 	for (const auto &q : fsa.qFirsts) {
@@ -496,8 +496,8 @@ auto trimFSA(TFSA<Letter> &&fsa) {
 }
 
 template <class Letter>
-auto removeEpsilonFST(TFSA<Letter> &&fsa) {
-	using State	   = typename TFSA<Letter>::State;
+auto removeEpsilonFST(FST<Letter> &&fsa) {
+	using State	   = typename FST<Letter>::State;
 
 	std::stack<State>				stack;
 	std::vector<bool>				visited(fsa.N, false);
@@ -530,7 +530,7 @@ auto removeEpsilonFST(TFSA<Letter> &&fsa) {
 		return id1 == 0 && id2 == 0;	 // remove epsilon transitions
 	});
 
-	typename TFSA<Letter>::Map new_transitions;
+	typename FST<Letter>::Map new_transitions;
 	new_transitions.insert(fsa.transitions.begin(), fsa.transitions.end());
 	for (const auto &[from, value] : fsa.transitions) {
 		const auto &[id1, id2, to] = value;
@@ -542,6 +542,7 @@ auto removeEpsilonFST(TFSA<Letter> &&fsa) {
 
 	std::unordered_set<State> new_qFirsts;
 	for (const State &i : fsa.qFirsts) {
+		new_qFirsts.insert(i);
 		for (const State &j : closure[i]) {
 			new_qFirsts.insert(j);
 		}
@@ -551,3 +552,4 @@ auto removeEpsilonFST(TFSA<Letter> &&fsa) {
 	fsa.transitions = std::move(new_transitions);
 	return std::move(fsa);
 }
+

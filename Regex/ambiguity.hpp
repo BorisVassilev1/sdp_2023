@@ -5,7 +5,7 @@
 
 
 template <class Letter>
-void tarjan(int u, const typename TFSA<Letter>::Map &transitions);
+void tarjan(int u, const typename FST<Letter>::Map &transitions);
 
 static int foundat = 1, sccIndex = 0;
 static std::vector<int> scc;
@@ -13,7 +13,7 @@ static std::vector<int>			  disc, low;	 // init disc to -1
 static std::vector<bool>			  onstack;		 // init to 0
 
 template <class Letter>
-void tarjan(int u, const typename TFSA<Letter>::Map &transitions) {
+void tarjan(int u, const typename FST<Letter>::Map &transitions) {
 	static std::stack<int> st;
 
 	disc[u] = low[u] = foundat++;
@@ -41,7 +41,7 @@ void tarjan(int u, const typename TFSA<Letter>::Map &transitions) {
 }
 
 template <class Letter>
-bool testInfiniteAmbiguity(const TFSA<Letter> &fst) {
+bool testInfiniteAmbiguity(const FST<Letter> &fst) {
 	// tarjan algorithm to find strongly connected components
 	// we search in the subgraph with transitions only <\varepsilon, w>
 	

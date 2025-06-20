@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include "Regex/FST.hpp"
+#include "Regex/TFSA.hpp"
 #include "Regex/ambiguity.hpp"
 #include "Regex/functionality.hpp"
 #include "Regex/regexParser.hpp"
@@ -67,29 +68,35 @@ int main(int argc, char **argv) {
 	// auto t = parseRegex(r);
 	// std::cout << "Optional replace: " << t << std::endl;
 
+	FST<Letter> fst;
+	BENCH(fst = makeFSA_BerriSethi<Letter>(*reg), 1, "BENCH makeFSA: ");
+	std::cout << "FSA has " << fst.N << " states and " << fst.transitions.size() << " transitions and "
+			  << fst.words.size() << " words." << std::endl;
+	// BENCH(fsa = makeFSA_Thompson<Letter>(*reg), 1, "BENCH makeFSA Thompson: ");
+	// std::cout << "FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
+	//		  << fsa.words.size() << " words." << std::endl;
+
+	if (tokens.size() < 1000) { drawFSA(fst); }
+
+	BENCH(testInfiniteAmbiguity(fst), 100, "BENCH testInfiniteAmbiguity: ");
+	std::cout << "Testing infinite ambiguity: " << testInfiniteAmbiguity(fst) << std::endl;
+
+	BENCH(fst = trimFSA<Letter>(std::move(fst));, 1, "BENCH trimFSA: ");
+	BENCH(fst = removeEpsilonFST<Letter>(std::move(fst));, 1, "BENCH removeEpsilonFST: ");
+	if (tokens.size() < 1000) drawFSA(fst);
+	std::cout << "FSA has " << fst.N << " states and " << fst.transitions.size() << " transitions and "
+			  << fst.words.size() << " words after removing epsilons." << std::endl;
+
+	BENCH(fst = trimFSA<Letter>(std::move(fst));, 1, "BENCH trimFSA again: ");
+	if (tokens.size() < 1000) drawFSA(fst);
+	std::cout << "FSA has " << fst.N << " states and " << fst.transitions.size() << " transitions and "
+			  << fst.words.size() << " words after trimming." << std::endl;
+
 	TFSA<Letter> fsa;
-	BENCH(fsa = makeFSA_BerriSethi<Letter>(*reg), 1, "BENCH makeFSA: ");
-	std::cout << "FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
-			  << fsa.words.size() << " words." << std::endl;
-	BENCH(fsa = makeFSA_Thompson<Letter>(*reg), 1, "BENCH makeFSA Thompson: ");
-	std::cout << "FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
-			  << fsa.words.size() << " words." << std::endl;
-
-	if (tokens.size() < 1000) { drawFSA(fsa); }
-
-	BENCH(testInfiniteAmbiguity(fsa), 100, "BENCH testInfiniteAmbiguity: ");
-	std::cout << "Testing infinite ambiguity: " << testInfiniteAmbiguity(fsa) << std::endl;
-
-	BENCH(fsa = trimFSA<Letter>(std::move(fsa));, 1, "BENCH trimFSA: ");
-	BENCH(fsa = removeEpsilonFST<Letter>(std::move(fsa));, 1, "BENCH removeEpsilonFST: ");
+	BENCH(fsa = expandFST<Letter>(std::move(fst));, 1, "BENCH expandFST: ");
 	if (tokens.size() < 1000) drawFSA(fsa);
-	std::cout << "FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
-			  << fsa.words.size() << " words after removing epsilons." << std::endl;
-	BENCH(fsa = trimFSA<Letter>(std::move(fsa));, 1, "BENCH trimFSA again: ");
-	if (tokens.size() < 1000) drawFSA(fsa);
-
-	std::cout << "FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
-			  << fsa.words.size() << " words after trimming." << std::endl;
+	std::cout << "Expanded FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions."
+			  << std::endl;
 
 	// std::cout << "isFunctional: " << isFunctional(fsa) << std::endl;
 }

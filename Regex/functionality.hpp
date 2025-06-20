@@ -78,10 +78,10 @@ bool eq(U &&u, V &&v) {
 
 /// expects trimmed real-time FST
 template <class Letter>
-bool isFunctional(const TFSA<Letter> &fst) {
+bool isFunctional(const FST<Letter> &fst) {
 	// create the squared putput transducer and compute Adm(q) for every state q in it;
 
-	using State = typename TFSA<Letter>::State;
+	using State = typename FST<Letter>::State;
 
 	std::unordered_map<std::tuple<State, State>, std::tuple<std::vector<Letter>, std::vector<Letter>>> Adm;
 	std::queue<std::tuple<State, State>>															   queue;
