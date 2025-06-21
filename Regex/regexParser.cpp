@@ -59,7 +59,7 @@ CFG<Token> createRegexGrammar() {
 }
 
 std::unique_ptr<Regex> generateRegex() {
-	if (rand() % 2) return std::make_unique<TupleRegex>(gen_random_string(3), gen_random_string(3));
+	if (rand() % 2) return std::make_unique<TupleRegex>(gen_random_string(0,3), gen_random_string(0,3));
 
 	int r = rand() % 3;
 	switch (r) {
@@ -139,6 +139,9 @@ std::unique_ptr<Regex> toLeftAssoc(std::unique_ptr<Regex> &&regex) {
 }
 
 std::string Alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._?;:/!@#$%^&*()-+=<>[]{}|\\`~";
+std::string lb = "«";
+std::string rb = "»";
+std::string cb = "†";
 
 std::string identity(const std::string &alphabet) {
 	std::string result;

@@ -37,16 +37,12 @@ class FST {
 			words.emplace_back(std::move(w1));
 		}
 		StringID id2;
-		if (w2.empty()) id2 = 0;	 // TODO: this is not always valid at the moment
+		if (w2.empty()) id2 = 0;
 		else if (words.back() == w2) id2 = id1;
 		else {
 			id2 = words.size();
 			words.emplace_back(std::move(w2));
 		}
-		// StringID id1 = words.size();
-		// words.emplace_back(std::move(w1));
-		// StringID id2 = words.size();
-		// words.emplace_back(std::move(w2));
 		transitions.insert({from, {id1, id2, to}});
 	}
 
@@ -464,6 +460,7 @@ auto trimFSA(FST<Letter> &&fsa) {
 	}
 
 	std::vector<bool> words_used(fsa.words.size(), false);
+	words_used[0] = true;	 // always keep the empty word
 	for (const auto &[from, value] : fsa.transitions) {
 		const auto &[id1, id2, to] = value;
 		if (new_map[from] != -1u && new_map[to] != -1u) {

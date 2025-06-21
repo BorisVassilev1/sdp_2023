@@ -29,6 +29,12 @@ void generate1M() {
 int main(int argc, char **argv) {
 	RegexParser parser;
 
+	if(argc == 2 && std::string(argv[1]) == "--generate") {
+		generate1M();
+		std::cout << "Generated regex_1M.txt" << std::endl;
+		return 0;
+	}
+
 	std::stringstream buffer;
 	std::string		  fileName = "test_file_regex.txt";
 	if (argc == 2) fileName = argv[1];
@@ -78,7 +84,8 @@ int main(int argc, char **argv) {
 
 	if (tokens.size() < 1000) { drawFSA(fst); }
 
-	BENCH(testInfiniteAmbiguity(fst), 100, "BENCH testInfiniteAmbiguity: ");
+	bool infAmbiguity;
+	BENCH(infAmbiguity = testInfiniteAmbiguity(fst), 100, "BENCH testInfiniteAmbiguity: ");
 	std::cout << "Testing infinite ambiguity: " << testInfiniteAmbiguity(fst) << std::endl;
 
 	BENCH(fst = trimFSA<Letter>(std::move(fst));, 1, "BENCH trimFSA: ");
@@ -95,8 +102,17 @@ int main(int argc, char **argv) {
 	TFSA<Letter> fsa;
 	BENCH(fsa = expandFST<Letter>(std::move(fst));, 1, "BENCH expandFST: ");
 	if (tokens.size() < 1000) drawFSA(fsa);
-	std::cout << "Expanded FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions."
-			  << std::endl;
+	std::cout << "Expanded FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
+			  << fsa.words.size() << " words." << std::endl;
+
+	
+	if(!infAmbiguity) {
+	BENCH(fsa = realtimeFST<Letter>(std::move(fsa));, 1, "BENCH realtimeFST: ");
+	if (tokens.size() < 1000) drawFSA(fsa);
+	std::cout << "Real-time FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
+			  << fsa.words.size() << " words." << std::endl;
+	}
+
 
 	// std::cout << "isFunctional: " << isFunctional(fsa) << std::endl;
 }

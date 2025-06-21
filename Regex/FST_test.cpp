@@ -1,5 +1,6 @@
 #include <Regex/FST.hpp>
 #include <iostream>
+#include "Regex/TFSA.hpp"
 #include "Regex/functionality.hpp"
 #include "Regex/regexParser.hpp"
 #include "util/bench.hpp"
@@ -22,24 +23,30 @@ int main() {
 	auto E = BS_KleeneStarFSA<Letter>(std::move(D));
 	//E.print(std::cout);
 
-	auto r = optionalReplace("<':)','😄'>+<'=D', '🍄'>", "a");
+	auto r = optionalReplace("<':)','😄'>+<'=D', '🍄'>", "ab");
 	auto t = parseRegex(r);
 
 	std::cout << "Optional replace: " << t << std::endl;
 	
 	BENCH(makeFSA_BerriSethi<Letter>(*t), 100, "BENCH makeFSA Berry-Sethi: ");
-	//auto fsa = makeFSA_BerriSethi<Letter>(*t);
-	//fsa.print(std::cout);
+	auto fst = makeFSA_BerriSethi<Letter>(*t);
+	//fst.print(std::cout);
 	
 	BENCH(makeFSA_Thompson<Letter>(*t), 100, "BENCH makeFSA Thompson: ");
-	auto fsa = makeFSA_Thompson<Letter>(*t);
+	//auto fst = makeFSA_Thompson<Letter>(*t);
 	//fsa.print(std::cout);
-	std::cout << "FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
-			  << fsa.words.size() << " words." << std::endl;
+	std::cout << "FSA has " << fst.N << " states and " << fst.transitions.size() << " transitions and "
+			  << fst.words.size() << " words." << std::endl;
 	//fsa.print(std::cout);
+	drawFSA(fst);
+	
+	fst = removeEpsilonFST<Letter>(std::move(fst));
+	fst = trimFSA<Letter>(std::move(fst));
+
+	auto fsa = expandFST(std::move(fst));
 	drawFSA(fsa);
 
-	std::cout << "functional: " << isFunctional(fsa) << std::endl;
+	//std::cout << "functional: " << isFunctional(fsa) << std::endl;
 	
 	
 	

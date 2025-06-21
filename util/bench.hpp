@@ -27,3 +27,9 @@ inline std::string gen_random_string(const int len) {
 
 	return tmp_s;
 }
+
+inline std::string gen_random_string(const int min, const int max) {
+	if (min > max) { throw std::invalid_argument("min must be less than or equal to max"); }
+	int len = min + rand() % (max - min + 1);
+	return gen_random_string(len);
+}
