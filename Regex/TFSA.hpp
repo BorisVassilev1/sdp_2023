@@ -51,7 +51,9 @@ class TFSA {
 		out << "}\n";
 	}
 
-	State newState() { return ++N; }
+	State newState() { 
+		return N++;
+	}
 };
 
 template <class Letter>
@@ -119,8 +121,9 @@ void drawFSA(const TFSA<Letter> &fsa) {
 }
 
 
+// https://lml.bas.bg/~stoyan/finite-state-techniques.pdf#theorem.4.4.8
 template <class Letter>
-auto realtimeFST(TFSA<Letter> &&fsa) {
+auto removeUpperEpsilonFST(TFSA<Letter> &&fsa) {
 	using State	   = TFSA<Letter>::State;
 	using StringID = TFSA<Letter>::StringID;
 
@@ -159,32 +162,142 @@ auto realtimeFST(TFSA<Letter> &&fsa) {
 		return w1 == Letter::eps;	 // remove epsilon transitions
 	});
 
-	int size = 0;
-	for(const auto &c : closure) {
-		size += c.size();
+	typename TFSA<Letter>::Map new_transitions;
+	for (State q1 = 0; q1 < fsa.N; ++q1) {
+		for(const auto &[q_, u] : closure[q1]) {
+			auto [i1, i2] = fsa.transitions.equal_range(q_);
+			for (const auto &[_, value] : std::ranges::subrange(i1, i2)) {
+				const auto &[sigma, id2, q__] = value;
+				const auto &v = fsa.words.getWord(id2);
+				for (const auto &[q2, w] : closure[q__]) {
+					auto new_word = u;
+					new_word.insert(new_word.end(), v.begin(), v.end());
+					new_word.insert(new_word.end(), w.begin(), w.end());
+					StringID new_id = fsa.words.addWord(new_word);
+					new_transitions.insert({q1, {sigma, new_id, q2}});
+				}
+			}
+			if(fsa.qFinals.contains(q_)) {
+				// if q_ is a final state, then q1 is also a final state
+				fsa.qFinals.insert(q1);
+			}
+		}
 	}
-	std::cout << "Closure size: " << size << std::endl;
+	fsa.transitions = std::move(new_transitions);
 
-	//typename TFSA<Letter>::Map new_transitions;
-	//new_transitions.insert(fsa.transitions.begin(), fsa.transitions.end());
-	//for (const auto &[from, value] : fsa.transitions) {
-	//	const auto &[id1, id2, to] = value;
-	//	if (id1 == 0 && id2 == 0) assert(false);
-	//	for (const auto &next : closure[to]) {
-	//		new_transitions.insert({from, {id1, id2, next}});
-	//	}
-	//}
-
-	//std::unordered_set<State> new_qFirsts;
-	//for (const State &i : fsa.qFirsts) {
-	//	new_qFirsts.insert(i);
-	//	for (const State &j : closure[i]) {
-	//		new_qFirsts.insert(j);
-	//	}
-	//}
-	//fsa.qFirsts = std::move(new_qFirsts);
-
-	//fsa.transitions = std::move(new_transitions);
 	return std::move(fsa);
 
 }
+
+
+template <class Letter>
+auto trimFSA(TFSA<Letter> &&fsa) {
+	if (fsa.qFinals.empty()) {
+		fsa.N		= 0;
+		fsa.qFirsts = {0};
+		fsa.words.clear();
+		fsa.words.addWord(std::span<Letter>{});	 // add empty word
+		fsa.transitions.clear();
+		return std::move(fsa);
+	}
+	using State	   = FST<Letter>::State;
+	using StringID = FST<Letter>::StringID;
+	std::vector<bool> visited_back(fsa.N, false);
+	std::vector<bool> visited_forw(fsa.N, false);
+
+	{
+		auto						   &forwardTransitions = fsa.transitions;
+		std::vector<std::vector<State>> backwardTransitions;
+		backwardTransitions.resize(fsa.N);
+		for (const auto &[from, value] : forwardTransitions) {
+			const auto &[_, _, to] = value;
+			backwardTransitions[to].push_back(from);
+		}
+
+		std::vector<State> stack;
+		for (const auto &final : fsa.qFinals) {
+			visited_back[final] = true;
+			stack.push_back(final);
+		}
+		while (!stack.empty()) {
+			State current = stack.back();
+			stack.pop_back();
+			for (const auto &next : backwardTransitions[current]) {
+				if (!visited_back[next]) {
+					visited_back[next] = true;
+					stack.push_back(next);
+				}
+			}
+		}
+
+		for (const auto &first : fsa.qFirsts) {
+			visited_forw[first] = true;		// mark initial states as visited
+			stack.push_back(first);
+		}
+		while (!stack.empty()) {
+			State current = stack.back();
+			stack.pop_back();
+			auto [i1, i2] = forwardTransitions.equal_range(current);
+			for (const auto &[_, value] : std::ranges::subrange(i1, i2)) {
+				const auto &[id1, id2, to] = value;
+				if (!visited_forw[to]) {
+					visited_forw[to] = true;
+					stack.push_back(to);
+				}
+			}
+		}
+	}
+	int				   cnt = 0;
+	std::vector<State> new_map(fsa.N, -1);
+	for (unsigned int i = 0; i < fsa.N; ++i) {
+		if (visited_back[i] && visited_forw[i]) { new_map[i] = cnt++; }
+	}
+	TFSA<Letter> new_fsa;
+	new_fsa.N = cnt;
+	new_fsa.qFirsts.reserve(fsa.qFirsts.size());
+	for (const auto &q : fsa.qFirsts) {
+		if (new_map[q] != -1u) { new_fsa.qFirsts.insert(new_map[q]); }
+	}
+
+	new_fsa.qFinals.reserve(fsa.qFinals.size());
+	for (const auto &q : fsa.qFinals) {
+		if (new_map[q] != -1u) { new_fsa.qFinals.insert(new_map[q]); }
+	}
+
+	std::vector<bool> words_used(fsa.words.size(), false);
+	words_used[0] = true;	 // always keep the empty word
+	for (const auto &[from, value] : fsa.transitions) {
+		const auto &[_, id, to] = value;
+		if (new_map[from] != -1u && new_map[to] != -1u) {
+			words_used[id] = true;
+		}
+	}
+
+	std::vector<StringID> words_index_map(fsa.words.size(), -1);
+	for (size_t i = 0; i < fsa.words.size(); ++i) {
+		if (words_used[i]) {
+			auto id = new_fsa.words.addWord(std::move(fsa.words.getWord(i)));
+			words_index_map[i] = id;
+		}
+	}
+
+	for (const auto &[from, value] : fsa.transitions) {
+		const auto &[sigma, id, to] = value;
+		if (new_map[from] != -1u && new_map[to] != -1u) {
+			State	 new_from = new_map[from];
+			State	 new_to	  = new_map[to];
+			StringID new_id  = words_index_map[id];
+			new_fsa.transitions.insert({new_from, {sigma, new_id, new_to}});
+		}
+	}
+
+	return std::move(new_fsa);
+}
+
+template <class Letter>
+auto realtimeFST(FST<Letter> &&fst) {
+	return trimFSA(removeUpperEpsilonFST(expandFST(removeEpsilonFST(trimFSA(std::move(fst))))));
+}
+
+
+

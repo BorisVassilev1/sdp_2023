@@ -37,7 +37,12 @@ class WordSet {
 		return std::span{words.data() + start, length};
 	}
 
-	size_t size() const { return words.size(); }
+	auto operator[](WordID id) const {
+		return getWord(id);
+	}
+
+	size_t totalLength() const { return words.size(); }
+	size_t size() const { return nextWordID; }
 
 	void clear() {
 		words.clear();

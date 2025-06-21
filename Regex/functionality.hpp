@@ -8,6 +8,7 @@
 #include <span>
 #include <cassert>
 #include <queue>
+#include "Regex/TFSA.hpp"
 
 using sv = std::string_view;
 
@@ -78,10 +79,10 @@ bool eq(U &&u, V &&v) {
 
 /// expects trimmed real-time FST
 template <class Letter>
-bool isFunctional(const FST<Letter> &fst) {
+bool isFunctional(const TFSA<Letter> &fst) {
 	// create the squared putput transducer and compute Adm(q) for every state q in it;
 
-	using State = typename FST<Letter>::State;
+	using State = typename TFSA<Letter>::State;
 
 	std::unordered_map<std::tuple<State, State>, std::tuple<std::vector<Letter>, std::vector<Letter>>> Adm;
 	std::queue<std::tuple<State, State>>															   queue;
@@ -91,7 +92,15 @@ bool isFunctional(const FST<Letter> &fst) {
 		auto [b2, e2] = fst.transitions.equal_range(j);
 		auto r1		  = std::ranges::subrange(b1, e1);
 		auto r2		  = std::ranges::subrange(b2, e2);
-		return std::views::cartesian_product(r1, r2);
+		return std::views::cartesian_product(r1, r2) | std::views::filter(
+			[](const auto &pair) {
+				const auto &[t1, t2] = pair;
+				const auto &[_, value1] = t1;
+				const auto &[_, value2] = t2;
+				const auto &[a, _, _] = value1;
+				const auto &[b, _, _] = value2;
+				return a == b;	// only consider transitions with the same letter
+			});
 	};
 
 	auto isFinal = [&fst](State i, State j) { return fst.qFinals.contains(i) && fst.qFinals.contains(j); };
@@ -103,12 +112,12 @@ bool isFunctional(const FST<Letter> &fst) {
 	bool functional = true;
 	while (!queue.empty() && functional) {
 		auto Q = queue.front();
-		std::cout << Q << std::endl;
+		//std::cout << Q << std::endl;
 		auto &[q, h] = Q;
 		queue.pop();
 
 		auto &[u, v] = Adm[Q];	   // always computed
-		std::cout << "\'" << u << "\',\'" << v << "\'" << std::endl;
+		//std::cout << "\'" << u << "\',\'" << v << "\'" << std::endl;
 		auto Dq = Delta(q, h);
 		for (const auto &[t1, t2] : Dq) {
 			auto &[_, value1] = t1;
@@ -116,12 +125,9 @@ bool isFunctional(const FST<Letter> &fst) {
 			auto &[_, id1, i] = value1;
 			auto &[_, id2, j] = value2;
 			auto [h_1, h_2]	  = w_noref(u, v, fst.words[id1], fst.words[id2]);
-			std::cout << "w(\'" << u << "\',\'" << v << "\',\'" << fst.words[id1] << "\',\'" << fst.words[id2]
-					  << "\') = (\'" << toString(h_1) << "\',\'" << toString(h_2) << "\')" << std::endl;
-			std::cout << "len: " << h_1.size() << " " << h_2.size() << std::endl;
 
 			auto q2 = std::tuple(i, j);
-			//  unctional(i+1) := ∀(q′, h′) ∈ Dq : (balancible(h′) ∧
+			//  functional(i+1) := ∀(q′, h′) ∈ Dq : (balancible(h′) ∧
 			// ((q′ ∈ F ) → (h′ = (ε, ε))) ∧ (! Adm(i)(q′) → (h′ = Adm(i)(q′))));
 			functional &= balancible(h_1, h_2);
 			functional &= !isFinal(i, j) || (h_1.empty() && h_2.empty());
@@ -130,21 +136,21 @@ bool isFunctional(const FST<Letter> &fst) {
 				q2_it == Adm.end() || (eq(h_1, std::get<0>(q2_it->second)) && eq(h_2, std::get<1>(q2_it->second)));
 
 			if (functional) {
-				// std::cout << h_1.size() << " " << h_2.size() << " " << toLetter<Letter>(h_1).size() << " "
-				//		  << toLetter<Letter>(h_2).size() << std::endl;
+				if(q2_it == Adm.end()) queue.push(q2);
 				Adm.insert({{i, j}, {toLetter<Letter>(h_1), toLetter<Letter>(h_2)}});
-				queue.push(q2);
 			} else {
-				std::cout << "-> \"" << toString(h_1) << "\", \"" << toString(h_2) << "\"" << std::endl;
-				std::cout << "len: " << h_1.size() << " " << h_2.size() << std::endl;
-				std::cout << "balancible: " << balancible(h_1, h_2) << std::endl;
-				std::cout << "isFinal: " << isFinal(i, j) << std::endl;
-				if (q2_it != Adm.end()) {
-					std::cout << "Adm(" << i << ", " << j << ") = (" << toString(std::get<0>(q2_it->second)) << ", "
-							  << toString(std::get<1>(q2_it->second)) << ")" << std::endl;
-				} else {
-					std::cout << "Adm(" << i << ", " << j << ") not found" << std::endl;
-				}
+				//std::cout << "-> \"" << toString(h_1) << "\", \"" << toString(h_2) << "\"" << std::endl;
+				//std::cout << "len: " << h_1.size() << " " << h_2.size() << std::endl;
+				//std::cout << "balancible: " << balancible(h_1, h_2) << std::endl;
+				//std::cout << "isFinal: " << isFinal(i, j) << std::endl;
+				//std::cout << "Q = (" << q << ", " << h << ")"<< std::endl;
+				//std::cout << "q2 = (" << std::get<0>(q2) << ", " << std::get<1>(q2) << ")"<< std::endl;
+				//if (q2_it != Adm.end()) {
+				//	std::cout << "Adm(" << i << ", " << j << ") = (" << toString(std::get<0>(q2_it->second)) << ", "
+				//			  << toString(std::get<1>(q2_it->second)) << ")" << std::endl;
+				//} else {
+				//	std::cout << "Adm(" << i << ", " << j << ") not found" << std::endl;
+				//}
 
 				return false;	  // not functional
 			}

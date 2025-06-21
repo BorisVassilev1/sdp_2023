@@ -29,7 +29,7 @@ void generate1M() {
 int main(int argc, char **argv) {
 	RegexParser parser;
 
-	if(argc == 2 && std::string(argv[1]) == "--generate") {
+	if (argc == 2 && std::string(argv[1]) == "--generate") {
 		generate1M();
 		std::cout << "Generated regex_1M.txt" << std::endl;
 		return 0;
@@ -105,14 +105,17 @@ int main(int argc, char **argv) {
 	std::cout << "Expanded FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
 			  << fsa.words.size() << " words." << std::endl;
 
-	
-	if(!infAmbiguity) {
-	BENCH(fsa = realtimeFST<Letter>(std::move(fsa));, 1, "BENCH realtimeFST: ");
-	if (tokens.size() < 1000) drawFSA(fsa);
-	std::cout << "Real-time FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
-			  << fsa.words.size() << " words." << std::endl;
+	if (!infAmbiguity) {
+		BENCH(fsa = removeUpperEpsilonFST<Letter>(std::move(fsa));, 1, "BENCH realtimeFST: ");
+		if (tokens.size() < 1000) drawFSA(fsa);
+		std::cout << "Real-time FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
+				  << fsa.words.size() << " words." << std::endl;
+
+		BENCH(fsa = trimFSA<Letter>(std::move(fsa));, 1, "BENCH trimFSA again: ");
+		if (tokens.size() < 1000) drawFSA(fsa);
+		std::cout << "Trimmed FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
+				  << fsa.words.size() << " words." << std::endl;
+		std::cout << "isFunctional: " << isFunctional(fsa) << std::endl;
 	}
 
-
-	// std::cout << "isFunctional: " << isFunctional(fsa) << std::endl;
 }

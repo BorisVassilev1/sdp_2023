@@ -1,6 +1,7 @@
 #include <Regex/FST.hpp>
 #include <iostream>
 #include "Regex/TFSA.hpp"
+#include "Regex/ambiguity.hpp"
 #include "Regex/functionality.hpp"
 #include "Regex/regexParser.hpp"
 #include "util/bench.hpp"
@@ -43,11 +44,22 @@ int main() {
 	fst = removeEpsilonFST<Letter>(std::move(fst));
 	fst = trimFSA<Letter>(std::move(fst));
 
+	if(!testInfiniteAmbiguity(fst)) {
+		std::cout << "FSA is not infinitely ambiguous." << std::endl;
+	} else {
+		std::cout << "FSA is infinitely ambiguous." << std::endl;
+		return 0;
+	}
+
 	auto fsa = expandFST(std::move(fst));
 	drawFSA(fsa);
 
-	//std::cout << "functional: " << isFunctional(fsa) << std::endl;
-	
-	
+	fsa = removeUpperEpsilonFST(std::move(fsa));
+	drawFSA(fsa);
+	fsa = trimFSA(std::move(fsa));
+	std::cout << "FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
+			  << fsa.words.size() << " words after removing epsilons." << std::endl;
+
+	std::cout << "functional: " << isFunctional(fsa) << std::endl;
 	
 }
