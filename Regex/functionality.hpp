@@ -35,6 +35,17 @@ auto commonPrefix(U &&a, V &&b) {
 }
 
 template <class U, class V>
+auto commonPrefixLen(U &&a, V &&b) {
+	auto it1 = std::begin(a);
+	auto it2 = std::begin(b);
+	while (it1 != std::end(a) && it2 != std::end(b) && *it1 == *it2) {
+		++it1;
+		++it2;
+	}
+	return std::distance(std::begin(a), it1);
+}
+
+template <class U, class V>
 auto remainderSuffix(U &&w, V &&s) {
 	assert(std::distance(std::begin(w), std::end(w)) <= std::distance(std::begin(s), std::end(s)));
 	return std::ranges::subrange(std::begin(s) + std::distance(std::begin(w), std::end(w)), std::end(s));

@@ -116,6 +116,8 @@ int main(int argc, char **argv) {
 		std::cout << "Trimmed FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
 				  << fsa.words.size() << " words." << std::endl;
 		std::cout << "isFunctional: " << isFunctional(fsa) << std::endl;
+
+		
 	}
 
 }

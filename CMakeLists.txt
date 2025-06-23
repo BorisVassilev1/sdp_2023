@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5.0)
 project(sdp_project)
 
-set(COMPILE_ARGS -std=c++26 -Wall -Wextra -Wpedantic --pedantic-errors -g -O3)
+set(COMPILE_ARGS -std=c++26 -Wall -Wextra -Wpedantic --pedantic-errors -g -O3 -fsanitize=address)
 
 add_executable(dpda_test 
 	DPDA/dpda_test.cpp

@@ -13,7 +13,7 @@
 
 /**
  * @brief A simple Letter class
- * 
+ *
  */
 class Letter {
 	char val = 0;
@@ -21,10 +21,10 @@ class Letter {
    public:
 	constexpr Letter(char val) : val(val) {}
 	constexpr Letter() : val(0) {}
-	constexpr Letter(const Letter &other) = default;
+	constexpr Letter(const Letter &other)			 = default;
 	constexpr Letter &operator=(const Letter &other) = default;
 
-	constexpr operator char() const { return val; }
+	constexpr			operator char() const { return val; }
 	static const Letter eps;
 	static const Letter eof;
 	static const size_t size;
@@ -34,7 +34,7 @@ constexpr const Letter Letter::eps	= '\0';
 constexpr const Letter Letter::eof	= '#';
 constexpr const size_t Letter::size = 256;
 
-template<class Letter_t = Letter>
+template <class Letter_t = Letter>
 inline std::vector<Letter_t> toLetter(const std::string &s) {
 	std::vector<Letter_t> res;
 	for (char c : s) {
@@ -43,7 +43,7 @@ inline std::vector<Letter_t> toLetter(const std::string &s) {
 	return res;
 }
 
-inline std::vector<Letter> toLetter(const char* s) {
+inline std::vector<Letter> toLetter(const char *s) {
 	std::vector<Letter> res;
 	for (const char *c = s; *c != '\0'; ++c) {
 		res.push_back(Letter(*c));
@@ -51,18 +51,17 @@ inline std::vector<Letter> toLetter(const char* s) {
 	return res;
 }
 
-
 /**
  * @brief A simple Letter class
- * 
+ *
  */
-template<class Letter>
+template <class Letter>
 class State {
 	size_t val;
 
    public:
 	constexpr State(size_t val) : val(val) {}
-	constexpr State() : val(0){};
+	constexpr State() : val(0) {};
 
 	constexpr operator size_t() const { return val; }
 };
@@ -70,6 +69,20 @@ class State {
 template <>
 struct std::hash<Letter> {
 	size_t operator()(const Letter &x) const { return hash<char>()(x); }
+};
+
+template <>
+struct std::hash<std::span<Letter>> {
+	size_t operator()(const std::span<Letter> &x) const {
+		return std::hash<std::string_view>()(std::string_view(reinterpret_cast<const char *>(x.data()), x.size()));
+	}
+};
+
+template <>
+struct std::hash<std::vector<Letter>> {
+	size_t operator()(const std::vector<Letter> &x) const {
+		return std::hash<std::string_view>()(std::string_view(reinterpret_cast<const char *>(x.data()), x.size()));
+	}
 };
 
 template <class Letter>
@@ -128,7 +141,7 @@ std::ostream &operator<<(std::ostream &out, std::unordered_set<T> v) {
 
 std::ostream &operator<<(std::ostream &out, const std::exception &e);
 std::ostream &operator<<(std::ostream &out, Letter l);
-template<class Letter>
+template <class Letter>
 std::ostream &operator<<(std::ostream &out, State<Letter> s) {
 	if (s >= Letter::size) {
 		out << "f" << Letter(s - Letter::size);
@@ -136,48 +149,51 @@ std::ostream &operator<<(std::ostream &out, State<Letter> s) {
 	return out;
 }
 
-template<class A, class B>
-std::ostream &operator<<(std::ostream &out,const std::unordered_map<A, B> &m) {
+template <class A, class B>
+std::ostream &operator<<(std::ostream &out, const std::unordered_map<A, B> &m) {
 	out << "{";
-	for(auto &[K, V] : m) {
+	for (auto &[K, V] : m) {
 		out << '(' << K << " : " << V << ')' << std::endl;
 	}
 	out << "}";
 	return out;
 }
 
-
 template <typename Char>
 struct basic_ostream_formatter : std::formatter<std::basic_string_view<Char>, Char> {
-  template <typename T, typename OutputIt>
-  auto format(const T& value, std::basic_format_context<OutputIt, Char>& ctx) const
-      -> OutputIt {
-    std::basic_stringstream<Char> ss;
-    ss << value;
-    return std::formatter<std::basic_string_view<Char>, Char>::format(
-        ss.view(), ctx);
-  }
+	template <typename T, typename OutputIt>
+	auto format(const T &value, std::basic_format_context<OutputIt, Char> &ctx) const -> OutputIt {
+		std::basic_stringstream<Char> ss;
+		ss << value;
+		return std::formatter<std::basic_string_view<Char>, Char>::format(ss.view(), ctx);
+	}
 };
 
 using ostream_formatter = basic_ostream_formatter<char>;
-template <> struct std::formatter<Letter> : ostream_formatter {};
-template <class Letter> struct std::formatter<State<Letter>> : ostream_formatter {};
-template <> struct std::formatter<std::exception> : ostream_formatter {};
-template <class... Args> struct std::formatter<std::tuple<Args...>> : ostream_formatter {};
-template <class A, class B> struct std::formatter<std::pair<A, B>> : ostream_formatter {};
-template <class T> struct std::formatter<std::unordered_set<T>> : ostream_formatter{};
-template <class T> struct std::formatter<std::vector<T>> : ostream_formatter{};
-template <class A, class B> struct std::formatter<std::unordered_multimap<A, B>> : ostream_formatter {};
+template <>
+struct std::formatter<Letter> : ostream_formatter {};
+template <class Letter>
+struct std::formatter<State<Letter>> : ostream_formatter {};
+template <>
+struct std::formatter<std::exception> : ostream_formatter {};
+template <class... Args>
+struct std::formatter<std::tuple<Args...>> : ostream_formatter {};
+template <class A, class B>
+struct std::formatter<std::pair<A, B>> : ostream_formatter {};
+template <class T>
+struct std::formatter<std::unordered_set<T>> : ostream_formatter {};
+template <class T>
+struct std::formatter<std::vector<T>> : ostream_formatter {};
+template <class A, class B>
+struct std::formatter<std::unordered_multimap<A, B>> : ostream_formatter {};
 
-
-template<class T>
+template <class T>
 class RangeFromPair {
 	T range;
-	
-	public:
+
+   public:
 	RangeFromPair(const T &range) : range(range) {}
 
 	auto begin() { return range.first; }
 	auto end() { return range.second; }
-
 };

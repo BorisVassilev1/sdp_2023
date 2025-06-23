@@ -9,6 +9,7 @@
 #include <Regex/FST.hpp>
 #include "Regex/wordset.hpp"
 
+
 // Classical Two-Tape Finite State Automaton (TFSA)
 template <class Letter>
 class TFSA {
@@ -25,6 +26,14 @@ class TFSA {
 	WordSet<Letter>			  words;
 
 	void addTransition(State from, Letter w1, StringID w2, State to) { transitions.insert({from, {w1, w2, to}}); }
+	void addTransition(State from, Letter w1, const std::vector<Letter> w2 , State to) {
+		if(w2.empty()) 
+			addTransition(from, w1, 0, to);
+		else {
+			StringID id2 = words.addWord(std::span{w2.data(), w2.size()});
+			addTransition(from, w1, id2, to);
+		}
+	}
 
 	void print(std::ostream &out) const {
 		// print in DOT

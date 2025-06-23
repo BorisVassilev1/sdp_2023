@@ -66,6 +66,17 @@ class PipeBuffer : public std::streambuf {
 		return traits_type::to_int_type(*gptr());
 	}
 
+	int_type overflow(int_type c = traits_type::eof()) override {
+		if (c != traits_type::eof()) {
+			if (pptr() == epptr()) {
+				sync();
+			}
+			*pptr() = traits_type::to_char_type(c);
+			pbump(1);
+		}
+		return traits_type::not_eof(c);
+	}
+
 	int sync() override {
 		ssize_t bytes_to_write = pptr() - pbase();
 		if (bytes_to_write > 0) {

@@ -386,6 +386,16 @@ void drawFSA(const FST<Letter> &fsa) {
 }
 
 template <class Letter>
+inline void saveFSA(const FST<Letter> &fsa, const std::string &filename) {
+	std::ofstream out(filename);
+	if (!out.is_open()) {
+		throw std::runtime_error("Could not open file " + filename + " for writing.");
+	}
+	fsa.print(out);
+	out.close();
+}
+
+template <class Letter>
 auto trimFSA(FST<Letter> &&fsa) {
 	if (fsa.qFinals.empty()) {
 		fsa.N		= 0;

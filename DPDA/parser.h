@@ -85,7 +85,15 @@ class Parser : public DPDA<State<Letter>, Letter> {
 			msg += std::format("{}", word[i]);
 		}
 		std::size_t len = getLengthOfTokens(word, std::max((int)position - 5, 0), 5);
-		msg += std::format("\n{: >{}}", '^', len + 1);
+		// this does not work on clang 20.1.6 c++26
+		// msg += std::format("\n{: >{}}", '^', len + 1);
+		msg += "\n";
+		for (size_t i = 0; i < len+1; ++i) {
+			msg += " ";
+		}
+		msg += '^';
+
+
 		throw ParseError(msg, position);
 	}
 
