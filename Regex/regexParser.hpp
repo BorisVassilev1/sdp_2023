@@ -3,6 +3,7 @@
 #include <DPDA/parser.h>
 #include <DPDA/token.h>
 #include <cstring>
+#include "Regex/wordset.hpp"
 #include "util/bench.hpp"
 
 extern const Token Identifier;
@@ -15,7 +16,22 @@ extern const Token KleeneStar;
 extern const Token KleeneStar_;
 extern const Token Braces;
 
-std::vector<Token> tokenize(const std::string &text);
+struct TokenizedString : public std::vector<Token> {
+	TokenizedString() = default;
+	using std::vector<Token>::vector;
+	using std::vector<Token>::operator=;
+	TokenizedString(std::vector<Token> &&other) : std::vector<Token>(std::move(other)) {}
+	~TokenizedString() {
+		for (auto &token : *this) {
+			if (token.value == Identifier.value && token.data) {
+				delete[] reinterpret_cast<char *>(token.data);
+				token.data = nullptr;
+			}
+		}
+	}
+};
+
+TokenizedString tokenize(const std::string &text);
 
 CFG<Token> createRegexGrammar();
 
@@ -120,15 +136,13 @@ class TupleRegex : public Regex {
 
 	void print(std::ostream &out) const override { out << "<'" << left << "','" << right << "'>"; }
 
-	int size() const override {
-		return 1;
-	}
+	int size() const override { return 1; }
 };
 
 std::unique_ptr<Regex> generateRegex();
 std::string			   generateRegexString(std::size_t min);
 
-std::unique_ptr<Regex> parseTreeToRegex(const ParseNode<Token> *root);
+std::unique_ptr<Regex> parseTreeToRegex(const ParseNode<Token> *root, TokenizedString &&owner);
 std::unique_ptr<Regex> parseRegex(const std::string &text);
 
 std::unique_ptr<Regex> toLeftAssoc(std::unique_ptr<Regex> &&regex);

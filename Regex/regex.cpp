@@ -48,17 +48,11 @@ int main(int argc, char **argv) {
 	buffer << file.rdbuf();
 
 	std::string text = buffer.str();
-	// std::cout << text << std::endl;
 
 	BENCH(tokenize(text), 100, "BENCH tokenize : ");
 	auto tokens = tokenize(text);
 	if (tokens.size() < 1000) { std::cout << "tokens: " << tokens << std::endl; }
 
-	// BENCH({ parser.parse(tokens); }, 100, "BENCH parsing regex: ");
-	// auto parseTree = parser.parse(tokens);
-	// if (tokens.size() < 1000) { std::cout << "parse tree: " << std::endl << parseTree << std::endl; }
-
-	// auto reg = parseTreeToRegex(parseTree.get());
 	BENCH({ parseRegex(text); }, 10, "BENCH parsing regex: ");
 	auto reg = parseRegex(text);
 	std::cout << reg->size() << " tokens in regex." << std::endl;
@@ -69,10 +63,6 @@ int main(int argc, char **argv) {
 	}
 	// generate1M();
 	//
-
-	// auto r = optionalReplace("<':)','😄'>+<'=D', '🍄'>");
-	// auto t = parseRegex(r);
-	// std::cout << "Optional replace: " << t << std::endl;
 
 	FST<Letter> fst;
 	BENCH(fst = makeFSA_BerriSethi<Letter>(*reg), 1, "BENCH makeFSA: ");
@@ -116,7 +106,6 @@ int main(int argc, char **argv) {
 		std::cout << "Trimmed FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
 				  << fsa.words.size() << " words." << std::endl;
 		std::cout << "isFunctional: " << isFunctional(fsa) << std::endl;
-
 		
 	}
 

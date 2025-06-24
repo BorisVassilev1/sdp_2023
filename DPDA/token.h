@@ -10,12 +10,17 @@
  *
  */
 struct Token {
-	const std::size_t value;
-	uint8_t	   *data = nullptr;
+	std::size_t value;
+	uint8_t			 *data = nullptr;
 
 	Token(std::size_t value) : value(value) {}
 
    public:
+	Token(const Token &other)			 = default;
+	Token(Token &&other)				 = default;
+	Token &operator=(const Token &other) = default;
+	Token &operator=(Token &&other)		 = default;
+
 	Token(char value) : value(value) {}
 	Token(const Token &other, uint8_t *data) : value(other.value), data(data) {}
 

@@ -2,7 +2,7 @@
 #include "DPDA/dpda.h"
 
 std::ostream &operator<<(std::ostream &out, Letter l) {
-	if(l < 0) return out << (int)l;
+	//if(l < 0) return out << (int)l;
 	switch(l) {
 		case Letter::eof: out << "(eof)"; break;
 		case Letter::eps: out << "ε"; break;

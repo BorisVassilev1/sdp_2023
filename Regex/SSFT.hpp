@@ -18,19 +18,22 @@ class SSFT {
 	using StringID = WordSet<Letter>::WordID;
 	using Map	   = std::unordered_map<std::tuple<State, Letter>, std::pair<StringID, State>>;
 
-	WordSet<Letter>			  words;
-	Map						  transitions;
-	std::unordered_set<State> qFinals;
+	WordSet<Letter>						words;
+	Map									transitions;
+	std::unordered_set<State>			qFinals;
+	unsigned int						N = 0;
+	std::unordered_map<State, StringID> output;
 
 	SSFT() = default;
 
 	// accepts a trimmed TFSA and builds a subsequential finite-state transducer
 	// tests for bounded variation
 	SSFT(TFSA<Letter> &&fsa) {
-		int C = 0;
+		unsigned int C = 0;
 		for (auto w : fsa.words) {
 			if (w.size() > C) C = w.size();
 		}
+		auto MAX_DELAY = C * fsa.N * fsa.N;		// C * |Q|^2
 
 		UniqueWordSet<Letter> stateDelays;
 		using DelayID = UniqueWordSet<Letter>::WordID;
@@ -61,11 +64,12 @@ class SSFT {
 			queue.pop();
 			const BigState &currentState = states[current];
 
-			std::vector<BigState> nextStates;
-			std::vector<std::reference_wrapper<typename Map::value_type>>
+			static WordSet<Letter>		 temporaryWords;	 // used for the new state delays
+			static std::vector<BigState> nextStates;
+			static std::vector<std::reference_wrapper<typename Map::value_type>>
 				  currentTransitions;	  // transitions for the current state
 			State nextState		= 0;
-			auto  localNewState = [&nextStates, &nextState]() {
+			auto  localNewState = [&nextState]() {
 				 auto &ref = nextStates.emplace_back();
 				 return std::tuple(std::reference_wrapper{ref}, nextState++);
 			};
@@ -82,7 +86,7 @@ class SSFT {
 						// create a new transition
 						auto wordToDelay  = std::views::concat(oldDelay, fsa.words[id]);
 						auto new_id		  = words.addWord(wordToDelay);
-						auto temp_id = words.addWord(wordToDelay);
+						auto temp_id	  = temporaryWords.addWord(wordToDelay);
 						auto [to, to_ind] = localNewState();
 						auto k			  = transitions.insert({{current, s}, {new_id, to_ind}});
 						currentTransitions.emplace_back(std::ref(*k.first));
@@ -91,14 +95,12 @@ class SSFT {
 						auto &[_, rhs]		= *it;
 						auto &[outputID, n] = rhs;
 						// update the existing transition
-						auto wordToDelay = std::views::concat(oldDelay, fsa.words[id]);
-						auto temp_id	 = words.addWord(wordToDelay);
-						auto outputWord	 = words[outputID];
-						auto i = commonPrefixLen(wordToDelay, outputWord);
-						auto &nextBig = nextStates[n];
-						// auto short_id = words.copyWord(long_id);
+						auto  wordToDelay = std::views::concat(oldDelay, fsa.words[id]);
+						auto  temp_id	  = temporaryWords.addWord(wordToDelay);
+						auto  outputWord  = words[outputID];
+						auto  i			  = commonPrefixLen(wordToDelay, outputWord);
+						auto &nextBig	  = nextStates[n];
 						words.replaceWithSubstr(outputID, 0, i);
-						std::cout << std::endl;
 						nextBig.emplace_back(next, temp_id);
 					}
 				}
@@ -110,13 +112,13 @@ class SSFT {
 				auto &nextBig		 = nextStates[to];
 
 				for (auto &[q, delay_id] : nextBig) {
-					auto wrongDelay = words[delay_id];
-					auto eaten = words[outputID].size();
+					auto wrongDelay = temporaryWords[delay_id];
+					auto eaten		= words[outputID].size();
 
-					std::cout << "delay_id: " << delay_id << std::endl;
-					std::cout << "wrongDelay: start: " << wrongDelay.data() << ", length: " << wrongDelay.size()
-							  << std::endl;
-					std::cout << std::endl;
+					if (wrongDelay.size() - eaten > MAX_DELAY) {
+						throw std::runtime_error("Delay too long, bounded variation not satisfied");
+					}
+
 					auto new_id =
 						stateDelays.addWord((Letter *)&*wrongDelay.begin() + eaten, wrongDelay.size() - eaten);
 					delay_id = new_id;
@@ -126,7 +128,6 @@ class SSFT {
 			std::vector<int> stateRemap(nextStates.size(), -1);
 			for (const auto &[i, nextState] : std::views::enumerate(nextStates)) {
 				// check if the next state is already in the states vector
-				std::cout << std::endl;
 				auto it = stateMap.find(nextState);
 				if (it != stateMap.end()) {
 					stateRemap[i] = it->second;
@@ -137,8 +138,12 @@ class SSFT {
 				State newIndex = newState();
 				stateRemap[i]  = newIndex;
 
-				for (const auto &[q, _] : nextState) {
-					if (fsa.qFinals.contains(q)) { qFinals.insert(newIndex); }
+				for (const auto &[q, delayID] : nextState) {
+					if (fsa.qFinals.contains(q)) {
+						qFinals.insert(newIndex);
+						auto output			   = words.addWord(stateDelays[delayID]);
+						this->output[newIndex] = output;
+					}
 				}
 
 				std::sort(nextState.begin(), nextState.end());
@@ -157,53 +162,109 @@ class SSFT {
 					continue;
 				}
 				to = stateRemap[to];
-				// auto &state	 = states[to];
-				// auto  output = words[outputID];
-				// for (const auto &[q, id] : currentState) {}
 			}
+
+			// clear temporary data to conserve memory allocation
+			nextStates.clear();
+			currentTransitions.clear();
+			temporaryWords.clear();
 		}
+		this->N = states.size();
 
 		// print in dot format
+		if (N < 1000) {
+			ShellProcess p("dot -Tsvg > a.svg && feh ./a.svg");
+			auto		&in = p.in();
+			in << "digraph SSFT {\n";
+			in << "  rankdir=LR;\n";
+			in << "  node [shape=circle];\n";
+			in << "  init [label=\"N=" << states.size() << "\", shape=square];\n";
+			in << "  init -> 0;\n";		// initial state
+			for (const auto [i, state] : std::ranges::views::enumerate(states)) {
+				in << "  " << i << " [label=\"";
+				for (const auto &[q, id] : state.get()) {
+					in << "(" << q << ", ";
+					for (const auto &letter : stateDelays[id]) {
+						if (letter < 128 && letter >= 32) in << letter;
+						else in << (int)letter;
+					}
+					in << ")\n ";
+				}
+				in << "\"";
+				if (qFinals.contains(i)) in << ", shape=doublecircle";
+				in << "];\n";	  // final States
+			}
 
-		ShellProcess p("dot -Tsvg > a.svg && feh ./a.svg");
-		auto		&in = p.in();
-		in << "digraph SSFT {\n";
-		in << "  rankdir=LR;\n";
-		in << "  node [shape=circle];\n";
-		in << "  init [label=\"N=" << states.size() << "\", shape=square];\n";
-		in << "  init -> 0;\n";		// initial state
-		for (const auto [i, state] : std::ranges::views::enumerate(states)) {
-			in << "  " << i << " [label=\"";
-			for (const auto &[q, id] : state.get()) {
-				in << "(" << q << ", ";
-				for (const auto &letter : stateDelays[id]) {
+			for (const auto &[from, value] : transitions) {
+				const auto &[s, l]		   = from;
+				const auto &[outputID, to] = value;
+				in << "  " << s << " -> " << to << " [label=\"<" << l << ", ";
+				for (const auto &letter : words[outputID]) {
 					if (letter < 128 && letter >= 32) in << letter;
 					else in << (int)letter;
 				}
-				in << ")\n ";
+				in << ">\"];\n";
 			}
-			in << "\"";
-			if (qFinals.contains(i)) in << ", shape=doublecircle";
-			in << "];\n";	  // final States
-		}
+			in << "}\n";
 
+			p.in() << std::endl;
+			p.in().close();
+			p.wait();
+			std::cout << getString(p.out()) << std::endl;
+			std::cout << getString(p.err()) << std::endl;
+		}
+	}
+
+	auto f(const std::vector<Letter> &input) const {
+		std::vector<Letter> output;
+		State				current = 0;	 // initial state
+		for (const auto &letter : input) {
+			auto it = transitions.find({current, letter});
+			if (it == transitions.end()) return std::pair{output, false};
+			const auto &[outputID, next] = it->second;
+			output.insert(output.end(), words[outputID].begin(), words[outputID].end());
+			current = next;
+		}
+		return std::pair{output, true};
+	}
+
+	void print(std::ostream &out) const {
+		out << "digraph SSFT {\n";
+		out << "  rankdir=LR;\n";
+		out << "  node [shape=circle];\n";
+		out << "  init [label=\"N=" << N << "\", shape=square];\n";
+		out << "  init -> 0;\n";	 // initial state
+		for (const auto &q : qFinals) {
+			if (qFinals.contains(q)) {
+				out << "  " << q << " [shape=doublecircle, label=\"";
+				for (const auto &letter : words[output.at(q)]) {
+					if (letter < 128 && letter >= 32) out << letter;
+					else out << (int)letter;
+				}
+				out << "\"];\n";	 // final States with output
+			} else out << "  " << q << " [shape=doublecircle];\n";	   // final States
+		}
 		for (const auto &[from, value] : transitions) {
 			const auto &[s, l]		   = from;
 			const auto &[outputID, to] = value;
-			std::cout << s << " -> " << to << std::endl;
-			in << "  " << s << " -> " << to << " [label=\"<" << l << ", ";
+			out << "  " << s << " -> " << to << " [label=\"<" << l << ", ";
 			for (const auto &letter : words[outputID]) {
-				if (letter < 128 && letter >= 32) in << letter;
-				else in << (int)letter;
+				if (letter < 128 && letter >= 32) out << letter;
+				else out << (int)letter;
 			}
-			in << ">\"];\n";
+			out << ">\"];\n";
 		}
-		in << "}\n";
-
-		p.in() << std::endl;
-		p.in().close();
-		p.wait();
-		std::cout << getString(p.out()) << std::endl;
-		std::cout << getString(p.err()) << std::endl;
+		out << "}\n";
 	}
 };
+
+template <class Letter>
+void drawFSA(const SSFT<Letter> &fsa) {
+	ShellProcess p("dot -Tsvg > a.svg && feh ./a.svg");
+	fsa.print(p.in());
+	p.in() << std::endl;
+	p.in().close();
+	p.wait();
+	std::cout << getString(p.out()) << std::endl;
+	std::cout << getString(p.err()) << std::endl;
+}

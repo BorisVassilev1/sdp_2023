@@ -98,20 +98,65 @@ bool isFunctional(const TFSA<Letter> &fst) {
 	std::unordered_map<std::tuple<State, State>, std::tuple<std::vector<Letter>, std::vector<Letter>>> Adm;
 	std::queue<std::tuple<State, State>>															   queue;
 
-	auto Delta = [&fst](State i, State j) {
+	std::unordered_set<std::tuple<State, State>> coFinals;
+	{
+		std::vector<std::vector<std::tuple<Letter, State>>> reverseTransitions;
+		reverseTransitions.resize(fst.N);
+		for (const auto &[from, rhs] : fst.transitions) {
+			const auto &[l, _, to] = rhs;
+			reverseTransitions[to].emplace_back(l, from);		// reverse transitions
+		}
+
+		auto DeltaRev = [&reverseTransitions](State i, State j) {
+			return std::views::cartesian_product(reverseTransitions[i], reverseTransitions[j]) |
+				   std::views::filter([](const auto &pair) {
+					   const auto &[t1, t2] = pair;
+					   const auto &[a, _]	= t1;
+					   const auto &[b, _]	= t2;
+					   return a == b;	  // only consider transitions with the same Letter
+				   });
+		};
+
+		std::queue<std::tuple<State, State>> queueRev;
+		for (const auto &q : fst.qFinals) {
+			for (const auto &q2 : fst.qFinals) {
+				if (q != q2) {	   // only consider pairs of different final states
+					queueRev.push({q, q2});
+					coFinals.insert({q, q2});
+				}
+			}
+		}
+		while (!queueRev.empty()) {
+			auto Q = queueRev.front();
+			queueRev.pop();
+			auto &[q, h] = Q;
+
+			auto Dq = DeltaRev(q, h);
+			for (const auto &[t1, t2] : Dq) {
+				auto &[_, i] = t1;
+				auto &[_, j] = t2;
+				if (coFinals.contains({i, j})) continue;	 // already processed
+				coFinals.insert({i, j});
+				queueRev.push({i, j});
+			}
+		}
+	}
+
+	auto isCoFinal = [&coFinals](State i, State j) { return coFinals.contains({i, j}); };
+
+	auto Delta = [&](State i, State j) {
 		auto [b1, e1] = fst.transitions.equal_range(i);
 		auto [b2, e2] = fst.transitions.equal_range(j);
 		auto r1		  = std::ranges::subrange(b1, e1);
 		auto r2		  = std::ranges::subrange(b2, e2);
-		return std::views::cartesian_product(r1, r2) | std::views::filter(
-			[](const auto &pair) {
-				const auto &[t1, t2] = pair;
-				const auto &[_, value1] = t1;
-				const auto &[_, value2] = t2;
-				const auto &[a, _, _] = value1;
-				const auto &[b, _, _] = value2;
-				return a == b;	// only consider transitions with the same letter
-			});
+		return std::views::cartesian_product(r1, r2) | std::views::filter([&](const auto &pair) {
+				   const auto &[t1, t2]	   = pair;
+				   const auto &[_, value1] = t1;
+				   const auto &[_, value2] = t2;
+				   const auto &[a, _, to1] = value1;
+				   const auto &[b, _, to2] = value2;
+				   return a == b && isCoFinal(to1, to2);	 // only consider transitions with the same letter
+			   });
 	};
 
 	auto isFinal = [&fst](State i, State j) { return fst.qFinals.contains(i) && fst.qFinals.contains(j); };
@@ -123,12 +168,12 @@ bool isFunctional(const TFSA<Letter> &fst) {
 	bool functional = true;
 	while (!queue.empty() && functional) {
 		auto Q = queue.front();
-		//std::cout << Q << std::endl;
+		// std::cout << Q << std::endl;
 		auto &[q, h] = Q;
 		queue.pop();
 
 		auto &[u, v] = Adm[Q];	   // always computed
-		//std::cout << "\'" << u << "\',\'" << v << "\'" << std::endl;
+		// std::cout << "\'" << u << "\',\'" << v << "\'" << std::endl;
 		auto Dq = Delta(q, h);
 		for (const auto &[t1, t2] : Dq) {
 			auto &[_, value1] = t1;
@@ -147,21 +192,21 @@ bool isFunctional(const TFSA<Letter> &fst) {
 				q2_it == Adm.end() || (eq(h_1, std::get<0>(q2_it->second)) && eq(h_2, std::get<1>(q2_it->second)));
 
 			if (functional) {
-				if(q2_it == Adm.end()) queue.push(q2);
+				if (q2_it == Adm.end()) queue.push(q2);
 				Adm.insert({{i, j}, {toLetter<Letter>(h_1), toLetter<Letter>(h_2)}});
 			} else {
-				//std::cout << "-> \"" << toString(h_1) << "\", \"" << toString(h_2) << "\"" << std::endl;
-				//std::cout << "len: " << h_1.size() << " " << h_2.size() << std::endl;
-				//std::cout << "balancible: " << balancible(h_1, h_2) << std::endl;
-				//std::cout << "isFinal: " << isFinal(i, j) << std::endl;
-				//std::cout << "Q = (" << q << ", " << h << ")"<< std::endl;
-				//std::cout << "q2 = (" << std::get<0>(q2) << ", " << std::get<1>(q2) << ")"<< std::endl;
-				//if (q2_it != Adm.end()) {
+				// std::cout << "-> \"" << toString(h_1) << "\", \"" << toString(h_2) << "\"" << std::endl;
+				// std::cout << "len: " << h_1.size() << " " << h_2.size() << std::endl;
+				// std::cout << "balancible: " << balancible(h_1, h_2) << std::endl;
+				// std::cout << "isFinal: " << isFinal(i, j) << std::endl;
+				// std::cout << "Q = (" << q << ", " << h << ")"<< std::endl;
+				// std::cout << "q2 = (" << std::get<0>(q2) << ", " << std::get<1>(q2) << ")"<< std::endl;
+				// if (q2_it != Adm.end()) {
 				//	std::cout << "Adm(" << i << ", " << j << ") = (" << toString(std::get<0>(q2_it->second)) << ", "
 				//			  << toString(std::get<1>(q2_it->second)) << ")" << std::endl;
-				//} else {
+				// } else {
 				//	std::cout << "Adm(" << i << ", " << j << ") not found" << std::endl;
-				//}
+				// }
 
 				return false;	  // not functional
 			}

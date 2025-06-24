@@ -12,7 +12,7 @@ const Token KleeneStar	   = Token::createToken("star");
 const Token KleeneStar_	   = Token::createToken("star'");
 const Token Braces		   = Token::createToken("braces");
 
-std::vector<Token> tokenize(const std::string &text) {
+TokenizedString tokenize(const std::string &text) {
 	std::vector<Token> res;
 	for (std::size_t i = 0; i < text.length(); ++i) {
 		if (std::isspace(text[i])) continue;
@@ -59,7 +59,7 @@ CFG<Token> createRegexGrammar() {
 }
 
 std::unique_ptr<Regex> generateRegex() {
-	if (rand() % 2) return std::make_unique<TupleRegex>(gen_random_string(0,3), gen_random_string(0,3));
+	if (rand() % 2) return std::make_unique<TupleRegex>(gen_random_string(0, 3), gen_random_string(0, 3));
 
 	int r = rand() % 3;
 	switch (r) {
@@ -80,20 +80,22 @@ std::string generateRegexString(std::size_t min) {
 	}
 }
 
-std::unique_ptr<Regex> parseTreeToRegex(const ParseNode<Token> *root) {
+std::unique_ptr<Regex> parseTreeToRegex(const ParseNode<Token> *root, TokenizedString &owner) {
 	if (!root) return nullptr;
 
 	if (root->value == Union || root->value == Union_) {
-		return std::make_unique<UnionRegex>(parseTreeToRegex(root->children[0].get()),
-											parseTreeToRegex(root->children[1].get()));
+		return std::make_unique<UnionRegex>(parseTreeToRegex(root->children[0].get(), owner),
+											parseTreeToRegex(root->children[1].get(), owner));
 	} else if (root->value == Concatenation || root->value == Concatenation_) {
-		return std::make_unique<ConcatRegex>(parseTreeToRegex(root->children[0].get()),
-											 parseTreeToRegex(root->children[1].get()));
+		return std::make_unique<ConcatRegex>(parseTreeToRegex(root->children[0].get(), owner),
+											 parseTreeToRegex(root->children[1].get(), owner));
 	} else if (root->value == KleeneStar) {
-		return std::make_unique<KleeneStarRegex>(parseTreeToRegex(root->children[0].get()));
+		return std::make_unique<KleeneStarRegex>(parseTreeToRegex(root->children[0].get(), owner));
 	} else if (root->value == Tuple) {
-		return std::make_unique<TupleRegex>(std::string(reinterpret_cast<char *>(root->children[0]->value.data)),
-											std::string(reinterpret_cast<char *>(root->children[1]->value.data)));
+		char *left	 = reinterpret_cast<char *>(root->children[0]->value.data);
+		char *right	 = reinterpret_cast<char *>(root->children[1]->value.data);
+		auto  left_s = std::string(left), right_s = std::string(right);
+		return std::make_unique<TupleRegex>(std::move(left_s), std::move(right_s));
 	}
 	return nullptr;
 }
@@ -103,33 +105,33 @@ std::unique_ptr<Regex> parseRegex(const std::string &text) {
 	auto			   tokens = tokenize(text);
 	if (tokens.empty()) return nullptr;
 	auto parseTree = parser.parse(tokens);
-	auto r		   = parseTreeToRegex(parseTree.get());
+	auto r		   = parseTreeToRegex(parseTree.get(), tokens);
 	return toLeftAssoc(std::move(r));
 }
 
 std::unique_ptr<Regex> toLeftAssoc(std::unique_ptr<Regex> &&regex) {
 	if (auto *r = dynamic_cast<UnionRegex *>(regex.get())) {
 		if (auto *right = dynamic_cast<UnionRegex *>(r->right.get())) {
-			auto b = std::move(right->left);
+			auto b		= std::move(right->left);
 			right->left = std::move(regex);
-			regex = std::move(r->right);
-			r->right = std::move(b);
+			regex		= std::move(r->right);
+			r->right	= std::move(b);
 
-			regex =	 toLeftAssoc(std::move(regex));
+			regex = toLeftAssoc(std::move(regex));
 		} else {
-			r->left = toLeftAssoc(std::move(r->left));
+			r->left	 = toLeftAssoc(std::move(r->left));
 			r->right = toLeftAssoc(std::move(r->right));
 		}
 	} else if (auto *r = dynamic_cast<ConcatRegex *>(regex.get())) {
 		if (auto *right = dynamic_cast<ConcatRegex *>(r->right.get())) {
-			auto b = std::move(right->left);
+			auto b		= std::move(right->left);
 			right->left = std::move(regex);
-			regex = std::move(r->right);
-			r->right = std::move(b);
+			regex		= std::move(r->right);
+			r->right	= std::move(b);
 
-			regex =	 toLeftAssoc(std::move(regex));
+			regex = toLeftAssoc(std::move(regex));
 		} else {
-			r->left = toLeftAssoc(std::move(r->left));
+			r->left	 = toLeftAssoc(std::move(r->left));
 			r->right = toLeftAssoc(std::move(r->right));
 		}
 	} else if (auto *r = dynamic_cast<KleeneStarRegex *>(regex.get())) {
@@ -139,9 +141,9 @@ std::unique_ptr<Regex> toLeftAssoc(std::unique_ptr<Regex> &&regex) {
 }
 
 std::string Alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._?;:/!@#$%^&*()-+=<>[]{}|\\`~";
-std::string lb = "«";
-std::string rb = "»";
-std::string cb = "†";
+std::string lb		 = "«";
+std::string rb		 = "»";
+std::string cb		 = "†";
 
 std::string identity(const std::string &alphabet) {
 	std::string result;
