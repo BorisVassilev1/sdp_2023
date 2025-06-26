@@ -9,7 +9,6 @@
 #include <Regex/FST.hpp>
 #include "Regex/wordset.hpp"
 
-
 // Classical Two-Tape Finite State Automaton (TFSA)
 template <class Letter>
 class TFSA {
@@ -25,10 +24,11 @@ class TFSA {
 	Map						  transitions;
 	WordSet<Letter>			  words;
 
+	std::unordered_set<StringID> f_eps{};
+
 	void addTransition(State from, Letter w1, StringID w2, State to) { transitions.insert({from, {w1, w2, to}}); }
-	void addTransition(State from, Letter w1, const std::vector<Letter> w2 , State to) {
-		if(w2.empty()) 
-			addTransition(from, w1, 0, to);
+	void addTransition(State from, Letter w1, const std::vector<Letter> w2, State to) {
+		if (w2.empty()) addTransition(from, w1, 0, to);
 		else {
 			StringID id2 = words.addWord(std::span{w2.data(), w2.size()});
 			addTransition(from, w1, id2, to);
@@ -60,9 +60,7 @@ class TFSA {
 		out << "}\n";
 	}
 
-	State newState() { 
-		return N++;
-	}
+	State newState() { return N++; }
 };
 
 template <class Letter>
@@ -129,31 +127,30 @@ void drawFSA(const TFSA<Letter> &fsa) {
 	std::cout << getString(p.err()) << std::endl;
 }
 
-
 // https://lml.bas.bg/~stoyan/finite-state-techniques.pdf#theorem.4.4.8
 template <class Letter>
 auto removeUpperEpsilonFST(TFSA<Letter> &&fsa) {
 	using State	   = TFSA<Letter>::State;
 	using StringID = TFSA<Letter>::StringID;
 
-	std::stack<int>				stack;
-	std::vector<bool>				visited(fsa.N, false);
+	std::stack<int>													 stack;
+	std::vector<bool>												 visited(fsa.N, false);
 	std::vector<std::vector<std::tuple<State, std::vector<Letter>>>> closure(fsa.N);
 
 	for (State i = 0; i < fsa.N; ++i) {
 		stack.push(0);
 		visited[i] = true;
-		closure[i].push_back({i, {}});	// add the state itself with an empty word
+		closure[i].push_back({i, {}});	   // add the state itself with an empty word
 		while (!stack.empty()) {
-			auto p = stack.top();
+			auto p					= stack.top();
 			const auto [current, u] = closure[i][p];
 			stack.pop();
 
 			auto [i1, i2] = fsa.transitions.equal_range(current);
 			for (const auto &[_, value] : std::ranges::subrange(i1, i2)) {
 				const auto &[w1, id2, to] = value;
-				if (w1 == Letter::eps) {		// epsilon transition
-					visited[to] = true;
+				if (w1 == Letter::eps) {	 // epsilon transition
+					visited[to]	  = true;
 					auto new_word = u;
 					new_word.insert(new_word.end(), fsa.words.getWord(id2).begin(), fsa.words.getWord(id2).end());
 					closure[i].push_back({to, std::move(new_word)});
@@ -162,22 +159,42 @@ auto removeUpperEpsilonFST(TFSA<Letter> &&fsa) {
 			}
 		}
 
+		std::cout << "State " << i << " closure: ";
+		for(const auto &[c, w] : closure[i]) {
+			std::cout << "(" << c << ", ";
+			for (const auto &letter : w) {
+				if (letter < 128 && letter >= 32) std::cout << letter;
+				else std::cout << (int)letter;
+			}
+			std::cout << ") ";
+		}
+		std::cout << std::endl;
+
 		visited.assign(fsa.N, false);
 	}
 
+	for (auto &i : fsa.qFirsts) {
+		for (const auto &[c, w] : closure[i]) {
+			if (fsa.qFinals.contains(c)) {
+				fsa.qFinals.insert(i);
+				fsa.f_eps.insert(fsa.words.addWord(w));		// f(eps)
+			}
+		}
+	}
+
 	std::erase_if(fsa.transitions, [](const auto &pair) {
-		const auto &[from, value]  = pair;
+		const auto &[from, value] = pair;
 		const auto &[w1, id2, to] = value;
-		return w1 == Letter::eps;	 // remove epsilon transitions
+		return w1 == Letter::eps;	  // remove epsilon transitions
 	});
 
 	typename TFSA<Letter>::Map new_transitions;
 	for (State q1 = 0; q1 < fsa.N; ++q1) {
-		for(const auto &[q_, u] : closure[q1]) {
+		for (const auto &[q_, u] : closure[q1]) {
 			auto [i1, i2] = fsa.transitions.equal_range(q_);
 			for (const auto &[_, value] : std::ranges::subrange(i1, i2)) {
 				const auto &[sigma, id2, q__] = value;
-				const auto &v = fsa.words.getWord(id2);
+				const auto &v				  = fsa.words.getWord(id2);
 				for (const auto &[q2, w] : closure[q__]) {
 					auto new_word = u;
 					new_word.insert(new_word.end(), v.begin(), v.end());
@@ -186,18 +203,12 @@ auto removeUpperEpsilonFST(TFSA<Letter> &&fsa) {
 					new_transitions.insert({q1, {sigma, new_id, q2}});
 				}
 			}
-			if(fsa.qFinals.contains(q_)) {
-				// if q_ is a final state, then q1 is also a final state
-				fsa.qFinals.insert(q1);
-			}
 		}
 	}
 	fsa.transitions = std::move(new_transitions);
 
 	return std::move(fsa);
-
 }
-
 
 template <class Letter>
 auto trimFSA(TFSA<Letter> &&fsa) {
@@ -205,7 +216,7 @@ auto trimFSA(TFSA<Letter> &&fsa) {
 		fsa.N		= 0;
 		fsa.qFirsts = {0};
 		fsa.words.clear();
-		fsa.words.addWord(std::span<Letter>{});	 // add empty word
+		fsa.words.addWord(std::span<Letter>{});		// add empty word
 		fsa.transitions.clear();
 		return std::move(fsa);
 	}
@@ -274,28 +285,34 @@ auto trimFSA(TFSA<Letter> &&fsa) {
 	}
 
 	std::vector<bool> words_used(fsa.words.size(), false);
-	words_used[0] = true;	 // always keep the empty word
+	words_used[0] = true;
+	for (const auto &q : fsa.f_eps) {
+		words_used[q] = true;
+	}
 	for (const auto &[from, value] : fsa.transitions) {
 		const auto &[_, id, to] = value;
-		if (new_map[from] != -1u && new_map[to] != -1u) {
-			words_used[id] = true;
-		}
+		if (new_map[from] != -1u && new_map[to] != -1u) { words_used[id] = true; }
 	}
 
 	std::vector<StringID> words_index_map(fsa.words.size(), -1);
 	for (size_t i = 0; i < fsa.words.size(); ++i) {
 		if (words_used[i]) {
-			auto id = new_fsa.words.addWord(std::move(fsa.words.getWord(i)));
+			auto id			   = new_fsa.words.addWord(std::move(fsa.words.getWord(i)));
 			words_index_map[i] = id;
 		}
 	}
+	std::unordered_set<StringID> new_f_eps;
+	for (const auto &q : fsa.f_eps) {
+		if (words_used[q]) { new_f_eps.insert(words_index_map[q]); }
+	}
+	new_fsa.f_eps = std::move(new_f_eps);
 
 	for (const auto &[from, value] : fsa.transitions) {
 		const auto &[sigma, id, to] = value;
 		if (new_map[from] != -1u && new_map[to] != -1u) {
 			State	 new_from = new_map[from];
 			State	 new_to	  = new_map[to];
-			StringID new_id  = words_index_map[id];
+			StringID new_id	  = words_index_map[id];
 			new_fsa.transitions.insert({new_from, {sigma, new_id, new_to}});
 		}
 	}
@@ -307,6 +324,3 @@ template <class Letter>
 auto realtimeFST(FST<Letter> &&fst) {
 	return trimFSA(removeUpperEpsilonFST(expandFST(removeEpsilonFST(trimFSA(std::move(fst))))));
 }
-
-
-

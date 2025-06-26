@@ -98,3 +98,22 @@ set_target_properties(fst PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY ../
 )
 
+
+add_executable(exam
+	regex2.cpp
+	DPDA/utils.cpp
+	DPDA/token.cpp
+	Regex/regexParser.cpp
+	Regex/ambiguity.cpp
+	util/utils.cpp
+)
+
+target_compile_options(exam PRIVATE ${COMPILE_ARGS})
+target_link_options(exam PRIVATE ${COMPILE_ARGS})
+target_include_directories(exam PRIVATE .)
+set_target_properties(exam PROPERTIES
+	RUNTIME_OUTPUT_DIRECTORY ../
+)
+
+
+

@@ -95,16 +95,24 @@ bool isFunctional(const TFSA<Letter> &fst) {
 
 	using State = typename TFSA<Letter>::State;
 
+	// check output of empty word
+	int eps_out = -1;
+	for (const auto &q : fst.f_eps) {
+		if (eps_out == -1) {
+			eps_out = q;
+		} else if (!std::ranges::equal(fst.words[q], fst.words[eps_out])) return false;
+	}
+
 	std::unordered_map<std::tuple<State, State>, std::tuple<std::vector<Letter>, std::vector<Letter>>> Adm;
 	std::queue<std::tuple<State, State>>															   queue;
 
-	std::unordered_set<std::tuple<State, State>> coFinals;
+	std::vector<bool> coFinals(fst.N * fst.N, false);
 	{
 		std::vector<std::vector<std::tuple<Letter, State>>> reverseTransitions;
 		reverseTransitions.resize(fst.N);
 		for (const auto &[from, rhs] : fst.transitions) {
 			const auto &[l, _, to] = rhs;
-			reverseTransitions[to].emplace_back(l, from);		// reverse transitions
+			reverseTransitions[to].emplace_back(l, from);	  // reverse transitions
 		}
 
 		auto DeltaRev = [&reverseTransitions](State i, State j) {
@@ -120,10 +128,8 @@ bool isFunctional(const TFSA<Letter> &fst) {
 		std::queue<std::tuple<State, State>> queueRev;
 		for (const auto &q : fst.qFinals) {
 			for (const auto &q2 : fst.qFinals) {
-				if (q != q2) {	   // only consider pairs of different final states
-					queueRev.push({q, q2});
-					coFinals.insert({q, q2});
-				}
+				queueRev.push({q, q2});
+				coFinals[q * fst.N + q2] = true;	 // mark as co-final
 			}
 		}
 		while (!queueRev.empty()) {
@@ -135,14 +141,20 @@ bool isFunctional(const TFSA<Letter> &fst) {
 			for (const auto &[t1, t2] : Dq) {
 				auto &[_, i] = t1;
 				auto &[_, j] = t2;
-				if (coFinals.contains({i, j})) continue;	 // already processed
-				coFinals.insert({i, j});
+				if (coFinals[i * fst.N + j]) continue;
+				coFinals[i * fst.N + j] = true;		// mark as co-final
 				queueRev.push({i, j});
 			}
 		}
 	}
+	int cnt = 0;
+	for (const auto q : coFinals) {
+		if (q) cnt++;
+	}
+	std::cout << "coFinals: " << cnt << " / " << fst.N * fst.N << std::endl;
 
-	auto isCoFinal = [&coFinals](State i, State j) { return coFinals.contains({i, j}); };
+	auto isCoFinal = [&coFinals, &fst](State i, State j) { return coFinals[i * fst.N + j]; };
+	auto isFinal   = [&fst](State i, State j) { return fst.qFinals.contains(i) && fst.qFinals.contains(j); };
 
 	auto Delta = [&](State i, State j) {
 		auto [b1, e1] = fst.transitions.equal_range(i);
@@ -159,11 +171,11 @@ bool isFunctional(const TFSA<Letter> &fst) {
 			   });
 	};
 
-	auto isFinal = [&fst](State i, State j) { return fst.qFinals.contains(i) && fst.qFinals.contains(j); };
-
 	for (const auto &q : fst.qFirsts) {
-		queue.push({q, q});
-		Adm.insert({{q, q}, {{}, {}}});
+		for (const auto &q2 : fst.qFirsts) {
+			queue.push({q, q2});
+			Adm.insert({{q, q2}, {{}, {}}});
+		}
 	}
 	bool functional = true;
 	while (!queue.empty() && functional) {
@@ -195,18 +207,19 @@ bool isFunctional(const TFSA<Letter> &fst) {
 				if (q2_it == Adm.end()) queue.push(q2);
 				Adm.insert({{i, j}, {toLetter<Letter>(h_1), toLetter<Letter>(h_2)}});
 			} else {
-				// std::cout << "-> \"" << toString(h_1) << "\", \"" << toString(h_2) << "\"" << std::endl;
-				// std::cout << "len: " << h_1.size() << " " << h_2.size() << std::endl;
-				// std::cout << "balancible: " << balancible(h_1, h_2) << std::endl;
-				// std::cout << "isFinal: " << isFinal(i, j) << std::endl;
-				// std::cout << "Q = (" << q << ", " << h << ")"<< std::endl;
-				// std::cout << "q2 = (" << std::get<0>(q2) << ", " << std::get<1>(q2) << ")"<< std::endl;
-				// if (q2_it != Adm.end()) {
-				//	std::cout << "Adm(" << i << ", " << j << ") = (" << toString(std::get<0>(q2_it->second)) << ", "
-				//			  << toString(std::get<1>(q2_it->second)) << ")" << std::endl;
-				// } else {
-				//	std::cout << "Adm(" << i << ", " << j << ") not found" << std::endl;
-				// }
+				std::cout << "-> \"" << toString(h_1) << "\", \"" << toString(h_2) << "\"" << std::endl;
+				std::cout << "len: " << h_1.size() << " " << h_2.size() << std::endl;
+				std::cout << "balancible: " << balancible(h_1, h_2) << std::endl;
+				std::cout << "isFinal: " << isFinal(i, j) << std::endl;
+				std::cout << "Q = (" << q << ", " << h << ")" << std::endl;
+				std::cout << "q2 = (" << std::get<0>(q2) << ", " << std::get<1>(q2) << ")" << std::endl;
+				if (q2_it != Adm.end()) {
+					std::cout << "Adm(" << i << ", " << j << ") = (" << toString(std::get<0>(q2_it->second)) << ", "
+							  << toString(std::get<1>(q2_it->second)) << ")" << std::endl;
+				} else {
+					std::cout << "Adm(" << i << ", " << j << ") not found" << std::endl;
+				}
+				std::cout << "cofinal(" << i << ", " << j << ") = " << isCoFinal(i, j) << std::endl;
 
 				return false;	  // not functional
 			}

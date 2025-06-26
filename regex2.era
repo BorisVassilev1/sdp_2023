@@ -1,0 +1,77 @@
+ones =  ("I"^"1") | ("II"^"2") | ("III"^"3") | ("IV"^"4") | ("V"^"5") | ("VI"^"6") | ("VII"^"7") | ("VIII"^"8") | ("IX"^"9") ;
+ones0 = ones | (""^"0");
+
+tens =  ("X"^"1") | ("XX"^"2") | ("XXX"^"3") | ("XL"^"4") | ("L"^"5") | ("LX"^"6") | ("LXX"^"7") | ("LXXX"^"8") | ("XC"^"9") ;
+tens0 = tens | (""^"0");
+
+hundreds = ("C"^"1") | ("CC"^"2") | ("CCC"^"3") | ("CD"^"4") | ("D"^"5") | ("DC"^"6") | ("DCC"^"7") | ("DCCC"^"8") | ("CM"^"9") ;
+hundreds0 = hundreds | (""^"0");
+
+thousands = ("M"^"1") | ("MM"^"2") | ("MMM"^"3") ;
+thousands1 = ("M"^"1") | ("MM"^("0"*."2")) | ("MMM"^"3") ;
+
+thousands2 = ("M"^("1")) | ("MM"^"2") | ("MMM"^("0"*."3")) ;
+
+N1_99 = ones | (tens . ones0);
+N00_99 = tens0 . ones0;
+
+N1_999 = N1_99 | ( hundreds . N00_99) ;
+N000_999 = hundreds0 . N00_99 ;
+
+N = N1_999 | (thousands . N000_999);
+
+#N = ones | (tens . ones0) | (hundreds . tens0 . ones0) | (thousands . hundreds0 . tens0 . ones0)
+
+N1 = N1_999 | (thousands1 . N000_999);
+
+N2 = N1_999 | (thousands2 . N000_999) | (thousands1.(""^"00").ones);
+
+R = N+;
+
+printLanguage("N:", "/dev/stdout");
+
+testInfiniteAmbiguity(N);
+testFunctionality(N);
+testBoundedVariation(N);
+
+printLanguage("N+:", "/dev/stdout");
+
+testInfiniteAmbiguity(R);
+testFunctionality(R);
+testBoundedVariation(R);
+
+
+printLanguage("N +:", "/dev/stdout");
+B = N . ((" "^"").N)*;
+testInfiniteAmbiguity(B);
+testFunctionality(B);
+testBoundedVariation(B);
+
+printLanguage("S :", "/dev/stdout");
+
+S = ( ( ("M"^"1").(" "^""))* . N1_999 ) | ( ( ("M"^"1").(" "^" "))* .  (thousands . N000_999) );
+testInfiniteAmbiguity(S);
+testFunctionality(S);
+testBoundedVariation(S);
+
+
+printLanguage("N1+:", "/dev/stdout");
+R2 = N1+;
+testInfiniteAmbiguity(R2);
+
+
+#printLanguage(range(identity("MCMXXLIMCMX") @ R2), "/dev/stdout");
+
+#R3 = ((("I"^"1") | ("II"^"2") | ("III"^"3") | ("IV"^"4") | ("V"^"5") | ("VI"^"6") | ("VII"^"7") | ("VIII"^"8") | ("IX"^"9") | (( ("X"^"1") | ("XX"^"2") | ("XXX"^"3") | ("XL"^"4") | ("L"^"5") | ("LX"^"6") | ("LXX"^"7") | ("LXXX"^"8") | ("XC"^"9")).(("I"^"1") | ("II"^"2") | ("III"^"3") | ("IV"^"4") | ("V"^"5") | ("VI"^"6") | ("VII"^"7") | ("VIII"^"8") | ("IX"^"9")  | (""^"0")))) | ((("C"^"1") | ("CC"^"2") | ("CCC"^"3") | ("CD"^"4") | ("D"^"5") | ("DC"^"6") | ("DCC"^"7") | ("DCCC"^"8") | ("CM"^"9")).((("X"^"1") | ("XX"^"2") | ("XXX"^"3") | ("XL"^"4") | ("L"^"5") | ("LX"^"6") | ("LXX"^"7") | ("LXXX"^"8") | ("XC"^"9") | (""^"0")).(("I"^"1") | ("II"^"2") | ("III"^"3") | ("IV"^"4") | ("V"^"5") | ("VI"^"6") | ("VII"^"7") | ("VIII"^"8") | ("IX"^"9")  | (""^"0")))) | ((("M"^"1") | ("MM"^("0"*."2")) | ("MMM"^"3")) . ((("C"^"1") | ("CC"^"2") | ("CCC"^"3") | ("CD"^"4") | ("D"^"5") | ("DC"^"6") | ("DCC"^"7") | ("DCCC"^"8") | ("CM"^"9") | (""^"0")).((("X"^"1") | ("XX"^"2") | ("XXX"^"3") | ("XL"^"4") | ("L"^"5") | ("LX"^"6") | ("LXX"^"7") | ("LXXX"^"8") | ("XC"^"9") | (""^"0")).(("I"^"1") | ("II"^"2") | ("III"^"3") | ("IV"^"4") | ("V"^"5") | ("VI"^"6") | ("VII"^"7") | ("VIII"^"8") | ("IX"^"9")  | (""^"0"))))))+;
+
+printLanguage("N2+:", "/dev/stdout");
+
+R3 = N2+;
+testInfiniteAmbiguity(R3);
+
+#printLanguage(range(identity("M MMC MMMI MD MM MCML MMMCMXCIX") @ B), "/dev/stdout");
+
+sB = seq(B);
+stat(sB);
+traverse(sB,"M MMC MMMI MD MM MCML MMMCMXCIX");
+

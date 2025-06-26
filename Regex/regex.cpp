@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include "Regex/FST.hpp"
+#include "Regex/SSFT.hpp"
 #include "Regex/TFSA.hpp"
 #include "Regex/ambiguity.hpp"
 #include "Regex/functionality.hpp"
@@ -65,12 +66,10 @@ int main(int argc, char **argv) {
 	//
 
 	FST<Letter> fst;
-	BENCH(fst = makeFSA_BerriSethi<Letter>(*reg), 1, "BENCH makeFSA: ");
+	//BENCH(fst = makeFSA_BerriSethi<Letter>(*reg), 1, "BENCH makeFSA: ");
+	BENCH(fst = makeFSA_Thompson<Letter>(*reg), 1, "BENCH makeFSA Thompson: ");
 	std::cout << "FSA has " << fst.N << " states and " << fst.transitions.size() << " transitions and "
 			  << fst.words.size() << " words." << std::endl;
-	// BENCH(fsa = makeFSA_Thompson<Letter>(*reg), 1, "BENCH makeFSA Thompson: ");
-	// std::cout << "FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
-	//		  << fsa.words.size() << " words." << std::endl;
 
 	if (tokens.size() < 1000) { drawFSA(fst); }
 
@@ -105,7 +104,31 @@ int main(int argc, char **argv) {
 		if (tokens.size() < 1000) drawFSA(fsa);
 		std::cout << "Trimmed FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
 				  << fsa.words.size() << " words." << std::endl;
-		std::cout << "isFunctional: " << isFunctional(fsa) << std::endl;
+		bool isFunc = isFunctional(fsa);
+		std::cout << "isFunctional: " << isFunc << std::endl;
+
+		if(!isFunc) {
+			std::cout << "The FSA is not functional!" << std::endl;
+			return 1;
+		}
+		try {
+			std::cout << "converting to SSFT..." << std::endl;
+			auto ssfst = SSFT<Letter>(std::move(fsa));
+
+			std::cout << "SSFT has " << ssfst.N << " states and " << ssfst.transitions.size() << " transitions."
+					  << std::endl;
+
+			std::string input;
+			std::cin >> input;
+			auto [result, b] = ssfst.f(toLetter(input));
+			if (b) {
+				std::cout << "Input accepted: " << result << std::endl;
+			} else {
+				std::cout << "Input rejected." << std::endl;
+			}
+		} catch (const std::exception &e) {
+			std::cerr << "Error: " << e.what() << std::endl;
+		}
 		
 	}
 

@@ -47,16 +47,17 @@ bool testInfiniteAmbiguity(const FST<Letter> &fst) {
 	
 	if (fst.transitions.empty()) return false;
 	
-	disc.resize(fst.N, -1);
-	low.resize(fst.N, -1);
-	onstack.resize(fst.N, false);
-	scc.resize(fst.N, -1);
+	disc.assign(fst.N, -1);
+	low.assign(fst.N, -1);
+	onstack.assign(fst.N, false);
+	scc.assign(fst.N, -1);
 
 	tarjan<Letter>(0, fst.transitions);
 	
 	for(const auto &[k, v] : fst.transitions) {
 		auto &[id1, id2, i] = v;
-		if (id1 != 0 || id2 == 0) continue; // we only care about epsilon transitions
+		if (id1 != 0 || id2 == 0) continue; // transition is (\varepsilon, w)
+		if (i == k) return true;
 		if (i != k && scc[i] == scc[k] && scc[i] != -1) {
 			return true; // found a cycle in the epsilon transitions
 		}
