@@ -262,53 +262,6 @@ bool testBoundedVariation(const TFSA<Letter> &fst) {
 	using AdmElem = AdmMap::value_type;
 	std::queue<std::reference_wrapper<const AdmElem>> queue;
 
-	std::vector<bool> coFinals(fst.N * fst.N, false);
-	{
-		std::vector<std::vector<std::tuple<Letter, State>>> reverseTransitions;
-		reverseTransitions.resize(fst.N);
-		for (const auto &[from, rhs] : fst.transitions) {
-			const auto &[l, _, to] = rhs;
-			reverseTransitions[to].emplace_back(l, from);	  // reverse transitions
-		}
-
-		auto DeltaRev = [&reverseTransitions](State i, State j) {
-			return std::views::cartesian_product(reverseTransitions[i], reverseTransitions[j]) |
-				   std::views::filter([](const auto &pair) {
-					   const auto &[t1, t2] = pair;
-					   const auto &[a, _]	= t1;
-					   const auto &[b, _]	= t2;
-					   return a == b;	  // only consider transitions with the same Letter
-				   });
-		};
-
-		std::queue<std::tuple<State, State>> queueRev;
-		for (const auto &q : fst.qFinals) {
-			for (const auto &q2 : fst.qFinals) {
-				queueRev.push({q, q2});
-				coFinals[q * fst.N + q2] = true;	 // mark as co-final
-			}
-		}
-		while (!queueRev.empty()) {
-			auto Q = queueRev.front();
-			queueRev.pop();
-			auto &[q, h] = Q;
-
-			auto Dq = DeltaRev(q, h);
-			for (const auto &[t1, t2] : Dq) {
-				auto &[_, i] = t1;
-				auto &[_, j] = t2;
-				if (coFinals[i * fst.N + j]) continue;
-				coFinals[i * fst.N + j] = true;		// mark as co-final
-				queueRev.push({i, j});
-			}
-		}
-	}
-	int cnt = 0;
-	for (const auto q : coFinals) {
-		if (q) cnt++;
-	}
-	std::cout << "coFinals: " << cnt << " / " << fst.N * fst.N << std::endl;
-
 	auto Delta = [&](State i, State j) {
 		auto [b1, e1] = fst.transitions.equal_range(i);
 		auto [b2, e2] = fst.transitions.equal_range(j);
@@ -334,7 +287,7 @@ bool testBoundedVariation(const TFSA<Letter> &fst) {
 
 	unsigned int C = 0;
 	for (auto w : fst.words) {
-		if (w.size() > C) C = w.size();
+		C = std::max<unsigned int>(C, w.size());
 	}
 	auto MAX_DELAY = C * fst.N * fst.N;		// C * |Q|^2
 	auto curr_max  = 0u;
@@ -366,7 +319,6 @@ bool testBoundedVariation(const TFSA<Letter> &fst) {
 			boundedVariation &= h_1.size() < MAX_DELAY && h_2.size() < MAX_DELAY;
 			curr_max = std::max<unsigned int>(curr_max, h_1.size());
 			curr_max = std::max<unsigned int>(curr_max, h_2.size());
-			// std::printf("(%d, %d) -(%s,%s)> (%d, %d)\n", q, h, toString(h_1).c_str(), toString(h_2).c_str(), i, j);
 
 			sd.do_thing([&]() {
 				std::cout << "\rCurrent max delay: " << curr_max;
@@ -387,7 +339,7 @@ bool testBoundedVariation(const TFSA<Letter> &fst) {
 	std::cout << "\rCurrent max delay: " << curr_max;
 	std::cout << " Adm size: " << Adm.size() << " Delay upper bound: " << MAX_DELAY;
 	std::cout << " queue size: " << queue.size() << std::flush;
-	std::cout << "\n\n";
+	std::cout << "\n\n" << std::flush;
 
 	return true;
 }

@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <vector>
+#include <ranges>
 
 template <class Letter>
 class WordSet {
@@ -193,5 +194,60 @@ class UniqueWordSet {
 		words.clear();
 		wordsData.clear();
 		nextWordID = 0;
+	}
+};
+
+template <class Letter>
+class ExtendableWordSet {
+	std::vector<std::vector<Letter>> data;
+	struct WordData {
+		unsigned int base;
+		unsigned int start;
+		unsigned int length : 31;
+		bool		 canExtend : 1;
+	};
+	std::vector<WordData> wordsData;
+
+   public:
+	using WordID = unsigned int;
+
+	ExtendableWordSet() { addWord({}); }
+
+	auto operator[](size_t id) const {
+		if (id >= data.size()) { throw std::out_of_range("Invalid WordID"); }
+		return std::span{data[id].data(), data[id].size()};
+	}
+
+	auto getWord(WordID id) const {
+		if (id >= data.size()) { throw std::out_of_range("Invalid WordID"); }
+		return std::span{data[id].data(), data[id].size()};
+	}
+
+	WordID addWord(std::span<Letter> word) {
+		if (word.empty()) return 0;
+		data.push_back(std::vector<Letter>(word.begin(), word.end()));
+		wordsData.emplace_back({data.size() - 1, 0, word.size(), false});
+		return wordsData.size() - 1;
+	}
+
+	WordID extendWord(WordID id, std::span<Letter> extension) {
+		if (id >= data.size()) { throw std::out_of_range("Invalid WordID"); }
+		if (extension.empty()) return id;	  // No change if extension is empty
+		auto &[base, start, length, canExtend] = wordsData[id];
+		if (canExtend) {
+			data[base].insert(extension.begin(), extension.end());
+			canExtend = false;
+			wordsData.emplace_back({base, start, data[base].size() - start, true});
+			return wordsData.size() - 1;
+		} else {
+			return addWord(std::ranges::views::concat(getWord(id), extension));
+		}
+	}
+
+	void replaceWithSuffix(WordID id, size_t offset) {
+		auto &[base, start, length, canExtend] = wordsData[id];
+		assert(offset < length && "cannot shorten word beyond its length");
+		start += offset;
+		length -= offset;
 	}
 };

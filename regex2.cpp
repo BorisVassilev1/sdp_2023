@@ -37,8 +37,7 @@ auto N1 = std::format("({}) + ({}). ({})", N1_999, thousands1, N000_999);
 auto N2 = std::format("({}) + ({}). ({}) + ({}).<'','00'>.({})", N1_999, thousands2, N000_999, thousands1, ones);
 
 auto R = std::format("({})!", N);
-// auto R = std::format("({}).({})*", N, N);
-auto B = std::format("({}).(<'-', ''>.({}))*", N, N);
+auto B = std::format("({}).(<' ', ''>.({}))*", N, N);
 
 auto S = std::format("( ( <'M','1'>.<' ',''>)* . {} ) + ( ( <'M','1'>.<' ',' '>)* .  ({} . {}) )", N1_999, thousands,
 					 N000_999);
@@ -61,7 +60,7 @@ int main() {
 	std::cout << "FSA has " << fst.N << " states and " << fst.transitions.size() << " transitions." << std::endl;
 
 	bool infAmb = testInfiniteAmbiguity(fst);
-	//drawFSA(fst);
+	// drawFSA(fst);
 	std::cout << "infinite ambiguity: " << infAmb << std::endl;
 	if (infAmb) {
 		std::cerr << "The FSA is infinitely ambiguous!" << std::endl;
@@ -71,7 +70,7 @@ int main() {
 	auto realtime = realtimeFST(std::move(fst));
 	std::cout << "realtime FST has " << realtime.N << " states and " << realtime.transitions.size() << " transitions."
 			  << std::endl;
-	//drawFSA(realtime);
+	// drawFSA(realtime);
 
 	std::cout << "testing functionality..." << std::endl;
 	bool func = isFunctional(realtime);
@@ -95,15 +94,15 @@ int main() {
 		std::cout << "SSFT has " << ssfst.N << " states and " << ssfst.transitions.size() << " transitions."
 				  << std::endl;
 
-		// std::string input;
-		// std::getline(std::cin, input);
-		// auto [result, b] = ssfst.f(toLetter(input));
-		// if (b) {
-		//	std::cout << "output len: " << result.size() << std::endl;
-		//	std::cout << "Input accepted: " << result << std::endl;
-		// } else {
-		//	std::cout << "Input rejected." << std::endl;
-		// }
+		std::string input;
+		std::getline(std::cin, input);
+		auto [result, b] = ssfst.f(toLetter(input));
+		if (b) {
+			std::cout << "output len: " << result.size() << std::endl;
+			std::cout << "Input accepted: " << result << std::endl;
+		} else {
+			std::cout << "Input rejected." << std::endl;
+		}
 	} catch (const std::exception &e) { std::cerr << "Error: " << e.what() << std::endl; }
 
 	return 0;
