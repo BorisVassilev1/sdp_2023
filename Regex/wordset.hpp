@@ -1,6 +1,8 @@
 #pragma once
 
+#include <iostream>
 #include <iterator>
+#include <ostream>
 #include <span>
 #include <stdexcept>
 #include <unordered_map>
@@ -211,43 +213,62 @@ class ExtendableWordSet {
    public:
 	using WordID = unsigned int;
 
-	ExtendableWordSet() { addWord({}); }
+	ExtendableWordSet() {
+		data.emplace_back();
+		wordsData.push_back({0, 0, 0, false});
+	}
 
 	auto operator[](size_t id) const {
-		if (id >= data.size()) { throw std::out_of_range("Invalid WordID"); }
-		return std::span{data[id].data(), data[id].size()};
+		if (id >= wordsData.size()) { throw std::out_of_range("Invalid WordID"); }
+		const auto &[base, start, length, canExtend] = wordsData[id];
+		return std::span{data[base].data() + start, length};
 	}
 
 	auto getWord(WordID id) const {
-		if (id >= data.size()) { throw std::out_of_range("Invalid WordID"); }
-		return std::span{data[id].data(), data[id].size()};
+		if (id >= wordsData.size()) { throw std::out_of_range("Invalid WordID"); }
+		const auto &[base, start, length, canExtend] = wordsData[id];
+		return std::span{data[base].data() + start, length};
 	}
 
-	WordID addWord(std::span<Letter> word) {
+	template <class Input>
+	WordID addWord(Input &&word) {
 		if (word.empty()) return 0;
 		data.push_back(std::vector<Letter>(word.begin(), word.end()));
-		wordsData.emplace_back({data.size() - 1, 0, word.size(), false});
+		wordsData.push_back(
+			{static_cast<unsigned int>(data.size() - 1), 0, static_cast<unsigned int>(word.size()), true});
 		return wordsData.size() - 1;
 	}
 
-	WordID extendWord(WordID id, std::span<Letter> extension) {
-		if (id >= data.size()) { throw std::out_of_range("Invalid WordID"); }
-		if (extension.empty()) return id;	  // No change if extension is empty
+	template <class Input>
+	WordID extendWord(WordID id, Input &&extension) {
+		if (id >= wordsData.size()) { throw std::out_of_range("Invalid WordID"); }
+		if (extension.empty()) return id;
 		auto &[base, start, length, canExtend] = wordsData[id];
 		if (canExtend) {
-			data[base].insert(extension.begin(), extension.end());
+			data[base].insert(data[base].begin(), extension.begin(), extension.end());
 			canExtend = false;
-			wordsData.emplace_back({base, start, data[base].size() - start, true});
+			wordsData.push_back(
+				{base, start, static_cast<unsigned int>(data[base].size() - start), true});		// Update length
 			return wordsData.size() - 1;
 		} else {
-			return addWord(std::ranges::views::concat(getWord(id), extension));
+			if (length + extension.size() == 0) return 0;
+			data.push_back(std::vector<Letter>(data[base].begin() + start, data[base].begin() + start + length));
+			data.back().insert(data.back().end(), extension.begin(), extension.end());
+			wordsData.push_back(
+				{static_cast<unsigned int>(data.size() - 1), 0, static_cast<unsigned int>(data.back().size()), true});
+			return wordsData.size() - 1;
+			// return addWord(std::views::concat(getWord(id), extension));
 		}
 	}
 
-	void replaceWithSuffix(WordID id, size_t offset) {
+	WordID replaceWithSuffix(WordID id, size_t offset) {
 		auto &[base, start, length, canExtend] = wordsData[id];
-		assert(offset < length && "cannot shorten word beyond its length");
+		if (offset > length) [[unlikely]]
+			std::cout << "Warning: shortening word with offset " << offset << " from length " << length << std::endl;
+		assert(offset <= length && "cannot shorten word beyond its length");
+		if (offset == length) return 0;
 		start += offset;
 		length -= offset;
+		return id;
 	}
 };

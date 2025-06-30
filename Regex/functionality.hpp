@@ -262,6 +262,8 @@ bool testBoundedVariation(const TFSA<Letter> &fst) {
 	using AdmElem = AdmMap::value_type;
 	std::queue<std::reference_wrapper<const AdmElem>> queue;
 
+	std::vector<unsigned int> longestDelay(fst.N * fst.N, 0);
+
 	auto Delta = [&](State i, State j) {
 		auto [b1, e1] = fst.transitions.equal_range(i);
 		auto [b2, e2] = fst.transitions.equal_range(j);
@@ -319,6 +321,12 @@ bool testBoundedVariation(const TFSA<Letter> &fst) {
 			boundedVariation &= h_1.size() < MAX_DELAY && h_2.size() < MAX_DELAY;
 			curr_max = std::max<unsigned int>(curr_max, h_1.size());
 			curr_max = std::max<unsigned int>(curr_max, h_2.size());
+
+			auto &longest = longestDelay[i * fst.N + j];
+			if (longest > h_1.size() && longest > h_2.size()) continue;
+
+			longest = std::max<unsigned int>(longest, h_1.size());
+			longest = std::max<unsigned int>(longest, h_2.size());
 
 			sd.do_thing([&]() {
 				std::cout << "\rCurrent max delay: " << curr_max;
