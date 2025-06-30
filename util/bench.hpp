@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <functional>
 
 #define BENCH(x, n, s)                                                                                    \
 	{                                                                                                     \
@@ -33,3 +34,58 @@ inline std::string gen_random_string(const int min, const int max) {
 	int len = min + rand() % (max - min + 1);
 	return gen_random_string(len);
 }
+
+class SlowDown {
+	std::chrono::high_resolution_clock::duration delay = std::chrono::milliseconds(100);
+
+   public:
+	std::chrono::high_resolution_clock::time_point last;
+
+   public:
+	SlowDown(std::chrono::high_resolution_clock::duration delay = std::chrono::milliseconds(100))
+		: delay(delay), last() {}
+
+	void do_thing(const std::function<void(void)> &f) {
+		auto now = std::chrono::high_resolution_clock::now();
+		if (now - last > delay) {
+			f();
+			last = now;
+		}
+	}
+};
+
+class SlowDown2 {
+	time_t delay;
+
+   public:
+	time_t last;
+
+   public:
+	SlowDown2(time_t delay) : delay(delay), last() {}
+
+	void do_thing(const std::function<void(void)> &f) {
+		auto now = time(0);
+		if (now - last > delay) [[unlikely]] {
+			f();
+			last = now;
+		}
+	}
+};
+
+class SlowDown3 {
+	uint64_t delay;
+
+   public:
+	uint64_t last;
+
+   public:
+	SlowDown3(auto delay = std::chrono::milliseconds(100)) : delay(delay.count() * 4000000), last(0) {}
+
+	void do_thing(const std::function<void(void)> &f) {
+		auto now = __builtin_ia32_rdtsc();
+		if (now - last > delay) {
+			f();
+			last = now;
+		}
+	}
+};

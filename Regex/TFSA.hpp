@@ -123,8 +123,11 @@ void drawFSA(const TFSA<Letter> &fsa) {
 	p.in() << std::endl;
 	p.in().close();
 	p.wait();
-	std::cout << getString(p.out()) << std::endl;
-	std::cout << getString(p.err()) << std::endl;
+	auto out = getString(p.out()), err = getString(p.err());
+	if(!out.empty())
+		std::cout << out << std::endl;
+	if(!err.empty())
+		std::cout << err << std::endl;
 }
 
 // https://lml.bas.bg/~stoyan/finite-state-techniques.pdf#theorem.4.4.8
@@ -158,17 +161,6 @@ auto removeUpperEpsilonFST(TFSA<Letter> &&fsa) {
 				}
 			}
 		}
-
-		std::cout << "State " << i << " closure: ";
-		for(const auto &[c, w] : closure[i]) {
-			std::cout << "(" << c << ", ";
-			for (const auto &letter : w) {
-				if (letter < 128 && letter >= 32) std::cout << letter;
-				else std::cout << (int)letter;
-			}
-			std::cout << ") ";
-		}
-		std::cout << std::endl;
 
 		visited.assign(fsa.N, false);
 	}

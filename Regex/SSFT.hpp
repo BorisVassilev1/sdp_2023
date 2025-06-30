@@ -8,6 +8,7 @@
 #include "Regex/TFSA.hpp"
 #include "Regex/functionality.hpp"
 #include "Regex/wordset.hpp"
+#include "util/bench.hpp"
 #include <ranges>
 
 // Subsequential Finite-State Transducer (SSFST)
@@ -51,9 +52,6 @@ class SSFT {
 		};
 		std::stack<State> queue;
 
-		// if(fsa.f_eps.size() > 1) {
-		//	throw std::runtime_error("not functional");
-		// }
 		if (!fsa.f_eps.empty()) {
 			auto wordID		= *fsa.f_eps.begin();
 			this->output[0] = words.addWord(fsa.words[wordID]);		// output for the initial state
@@ -70,6 +68,9 @@ class SSFT {
 		queue.push(newState());
 
 		std::cout << std::endl;
+
+		using namespace std::chrono_literals;
+		SlowDown sd(100ms);
 
 		while (!queue.empty()) {
 			State current = queue.top();
@@ -100,8 +101,8 @@ class SSFT {
 						auto new_id		  = words.addWord(wordToDelay);
 						auto temp_id	  = temporaryWords.addWord(wordToDelay);
 						auto [to, to_ind] = localNewState();
-						auto k			  = transitions.insert({{current, s}, {new_id, to_ind}});
-						currentTransitions.emplace_back(std::ref(*k.first));
+						auto [t_it, b]	  = transitions.insert({{current, s}, {new_id, to_ind}});
+						currentTransitions.emplace_back(std::ref(*t_it));
 						to.get().emplace_back(next, temp_id);
 					} else {
 						auto &[_, rhs]		= *it;
@@ -145,6 +146,10 @@ class SSFT {
 
 			std::vector<int> stateRemap(nextStates.size(), -1);
 			for (const auto &[i, nextState] : std::views::enumerate(nextStates)) {
+				// sort and remove duplicates for uniqueness
+				std::sort(nextState.begin(), nextState.end());
+				nextState.erase(std::unique(nextState.begin(), nextState.end()), nextState.end());
+
 				// check if the next state is already in the states vector
 				auto it = stateMap.find(nextState);
 				if (it != stateMap.end()) {
@@ -164,10 +169,8 @@ class SSFT {
 					}
 				}
 
-				std::sort(nextState.begin(), nextState.end());
-				nextState.erase(std::unique(nextState.begin(), nextState.end()), nextState.end());
-
-				auto [inserted_it, _] = stateMap.insert({std::move(nextState), newIndex});
+				auto [inserted_it, isInserted] = stateMap.insert({std::move(nextState), newIndex});
+				assert(isInserted);
 				states.emplace_back(inserted_it->first);
 				queue.push(newIndex);
 			}
@@ -182,8 +185,53 @@ class SSFT {
 				to = stateRemap[to];
 			}
 
-			std::cout << "\rCurrent max delay: " << curr_max;
-			std::cout << " Current states count: " << states.size() << " Upper bound: " << MAX_DELAY << std::flush;
+			sd.do_thing([&]() {
+				std::cout << "\rCurrent max delay: " << curr_max;
+				std::cout << " Current states count: " << states.size() << " Upper bound: " << MAX_DELAY;
+				std::cout << " transitions: " << transitions.size() << std::flush;
+			});
+
+			if (curr_max >= 5) {
+				ShellProcess p("dot -Tsvg > a.svg && feh ./a.svg");
+				auto		&in = p.in();
+				in << "digraph SSFT {\n";
+				in << "  rankdir=LR;\n";
+				in << "  node [shape=circle];\n";
+				in << "  init [label=\"N=" << states.size() << "\", shape=square];\n";
+				in << "  init -> 0;\n";		// initial state
+				for (const auto [i, state] : std::ranges::views::enumerate(states)) {
+					in << "  " << i << " [label=\"";
+					for (const auto &[q, id] : state.get()) {
+						in << "(" << q << ", ";
+						for (const auto &letter : stateDelays[id]) {
+							if (letter < 128 && letter >= 32) in << letter;
+							else in << (int)letter;
+						}
+						in << ")\n ";
+					}
+					in << "\"";
+					if (qFinals.contains(i)) in << ", shape=doublecircle";
+					in << "];\n";	  // final States
+				}
+
+				for (const auto &[from, value] : transitions) {
+					const auto &[s, l]		   = from;
+					const auto &[outputID, to] = value;
+					in << "  " << s << " -> " << to << " [label=\"<" << l << ", ";
+					for (const auto &letter : words[outputID]) {
+						if (letter < 128 && letter >= 32) in << letter;
+						else in << (int)letter;
+					}
+					in << ">\"];\n";
+				}
+				in << "}\n";
+
+				p.in() << std::endl;
+				p.in().close();
+				p.wait();
+				std::cout << getString(p.out()) << std::endl;
+				std::cout << getString(p.err()) << std::endl;
+			}
 
 			// clear temporary data to conserve memory allocation
 			nextStates.clear();
@@ -193,7 +241,7 @@ class SSFT {
 		this->N = states.size();
 
 		// print in dot format
-		if (N < 1000) {
+		if (N < 100) {
 			ShellProcess p("dot -Tsvg > a.svg && feh ./a.svg");
 			auto		&in = p.in();
 			in << "digraph SSFT {\n";
@@ -234,9 +282,11 @@ class SSFT {
 			std::cout << getString(p.out()) << std::endl;
 			std::cout << getString(p.err()) << std::endl;
 		}
+		std::cout << std::endl;
 	}
 
 	auto f(const std::vector<Letter> &input) const {
+		std::cout << "Input size: " << input.size() << std::endl;
 		std::vector<Letter> output;
 		State				current = 0;	 // initial state
 		for (const auto &letter : input) {
@@ -246,10 +296,11 @@ class SSFT {
 			output.insert(output.end(), words[outputID].begin(), words[outputID].end());
 			current = next;
 		}
-		if (qFinals.contains(current))
-			output.insert(output.end(), words[this->output.at(current)].begin(), words[this->output.at(current)].end());
-		else return std::pair{output, false};	  // not in final state
-		return std::pair{output, true};			  // in final state
+		if (qFinals.contains(current)) {
+			auto word = words[this->output.at(current)];
+			output.insert(output.end(), word.begin(), word.end());
+		} else return std::pair{output, false};		// not in final state
+		return std::pair{output, true};				// in final state
 	}
 
 	void print(std::ostream &out) const {
@@ -289,6 +340,7 @@ void drawFSA(const SSFT<Letter> &fsa) {
 	p.in() << std::endl;
 	p.in().close();
 	p.wait();
-	std::cout << getString(p.out()) << std::endl;
-	std::cout << getString(p.err()) << std::endl;
+	auto out = getString(p.out()), err = getString(p.err());
+	if (!out.empty()) std::cout << out << std::endl;
+	if (!err.empty()) std::cout << err << std::endl;
 }

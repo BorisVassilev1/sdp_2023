@@ -36,26 +36,32 @@ auto N		  = std::format("({}) + (({}). ({}))", N1_999, thousands, N000_999);
 auto N1 = std::format("({}) + ({}). ({})", N1_999, thousands1, N000_999);
 auto N2 = std::format("({}) + ({}). ({}) + ({}).<'','00'>.({})", N1_999, thousands2, N000_999, thousands1, ones);
 
-auto R = std::format("({}).({})*", N, N);
-auto B = std::format("({}).(<' ', ''>.({}))*", ones0, ones0);
+auto R = std::format("({})!", N);
+// auto R = std::format("({}).({})*", N, N);
+auto B = std::format("({}).(<'-', ''>.({}))*", N, N);
 
 auto S = std::format("( ( <'M','1'>.<' ',''>)* . {} ) + ( ( <'M','1'>.<' ',' '>)* .  ({} . {}) )", N1_999, thousands,
 					 N000_999);
 
 auto K	= "(" + identity("abcde") + ")*.<'abcabcaab', ':))'>"s;
-auto R2 = std::format("({}).({})*", N1, N1);
-auto R3 = std::format("({}).({})*", N2, N2);
+auto R2 = std::format("({})!", N1);
+auto R3 = std::format("({})!", N2);
+
+/* test:
+M MC MMMI MD MM MCML MMMCMXCIX
+*/
 
 int main() {
-	std::cout << "regex: " << B << std::endl;
+	std::cout << "regex: " << S << std::endl;
 
-	auto regex = parseRegex(B);
-	auto fst   = makeFSA_BerriSethi<Letter>(*regex);
+	auto regex = parseRegex(S);
+	auto fst   = (FST<Letter>)makeFSA_BerriSethi<Letter>(*regex);
+	fst		   = trimFSA<Letter>(std::move(fst));
 
 	std::cout << "FSA has " << fst.N << " states and " << fst.transitions.size() << " transitions." << std::endl;
 
 	bool infAmb = testInfiniteAmbiguity(fst);
-	drawFSA(fst);
+	//drawFSA(fst);
 	std::cout << "infinite ambiguity: " << infAmb << std::endl;
 	if (infAmb) {
 		std::cerr << "The FSA is infinitely ambiguous!" << std::endl;
@@ -65,13 +71,20 @@ int main() {
 	auto realtime = realtimeFST(std::move(fst));
 	std::cout << "realtime FST has " << realtime.N << " states and " << realtime.transitions.size() << " transitions."
 			  << std::endl;
-	drawFSA(realtime);
+	//drawFSA(realtime);
 
 	std::cout << "testing functionality..." << std::endl;
 	bool func = isFunctional(realtime);
 	std::cout << "functionality: " << func << std::endl;
 	if (!func) {
 		std::cerr << "The FST is not functional!" << std::endl;
+		return 1;
+	}
+
+	bool bvar = testBoundedVariation(realtime);
+	std::cout << "bounded variation: " << bvar << std::endl;
+	if (!bvar) {
+		std::cerr << "The FST does not satisfy bounded variation!" << std::endl;
 		return 1;
 	}
 
@@ -82,14 +95,15 @@ int main() {
 		std::cout << "SSFT has " << ssfst.N << " states and " << ssfst.transitions.size() << " transitions."
 				  << std::endl;
 
-		std::string input;
-		std::cin >> input;
-		auto [result, b] = ssfst.f(toLetter(input));
-		if (b) {
-			std::cout << "Input accepted: " << result << std::endl;
-		} else {
-			std::cout << "Input rejected." << std::endl;
-		}
+		// std::string input;
+		// std::getline(std::cin, input);
+		// auto [result, b] = ssfst.f(toLetter(input));
+		// if (b) {
+		//	std::cout << "output len: " << result.size() << std::endl;
+		//	std::cout << "Input accepted: " << result << std::endl;
+		// } else {
+		//	std::cout << "Input rejected." << std::endl;
+		// }
 	} catch (const std::exception &e) { std::cerr << "Error: " << e.what() << std::endl; }
 
 	return 0;

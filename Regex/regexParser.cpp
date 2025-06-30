@@ -41,7 +41,7 @@ TokenizedString tokenize(const std::string &text) {
 CFG<Token> createRegexGrammar() {
 	CFG<Token> g(Union, Token::eof);
 	g.nonTerminals = {Concatenation, Concatenation_, Union, Union_, KleeneStar, KleeneStar_, Tuple, Braces};
-	g.terminals	   = {Token::eof, Identifier, '.', '+', '*', '<', ',', '>', '(', ')'};
+	g.terminals	   = {Token::eof, Identifier, '.', '+', '*', '<', ',', '>', '(', ')', '!'};
 
 	g.addRule(Union, {Concatenation, Union_});
 	g.addRule(Union_, {'+', Concatenation, Union_});
@@ -51,6 +51,7 @@ CFG<Token> createRegexGrammar() {
 	g.addRule(Concatenation_, {});
 	g.addRule(KleeneStar, {Braces, KleeneStar_});
 	g.addRule(KleeneStar_, {'*'});
+	g.addRule(KleeneStar_, {'!'});
 	g.addRule(KleeneStar_, {});
 	g.addRule(Tuple, {'<', Identifier, ',', Identifier, '>'});
 	g.addRule(Braces, {'(', Union, ')'});
@@ -90,7 +91,10 @@ std::unique_ptr<Regex> parseTreeToRegex(const ParseNode<Token> *root, TokenizedS
 		return std::make_unique<ConcatRegex>(parseTreeToRegex(root->children[0].get(), owner),
 											 parseTreeToRegex(root->children[1].get(), owner));
 	} else if (root->value == KleeneStar) {
-		return std::make_unique<KleeneStarRegex>(parseTreeToRegex(root->children[0].get(), owner));
+		if ((size_t)root->value.data == (size_t)'!')
+			return std::make_unique<KleenePlusRegex>(parseTreeToRegex(root->children[0].get(), owner));
+		else return std::make_unique<KleeneStarRegex>(parseTreeToRegex(root->children[0].get(), owner));
+
 	} else if (root->value == Tuple) {
 		char *left	 = reinterpret_cast<char *>(root->children[0]->value.data);
 		char *right	 = reinterpret_cast<char *>(root->children[1]->value.data);

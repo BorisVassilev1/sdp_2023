@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <iterator>
 #include <ranges>
 #include <string_view>
@@ -9,6 +10,8 @@
 #include <cassert>
 #include <queue>
 #include "Regex/TFSA.hpp"
+#include "util/bench.hpp"
+#include "util/utils.hpp"
 
 using sv = std::string_view;
 
@@ -188,11 +191,11 @@ bool isFunctional(const TFSA<Letter> &fst) {
 		// std::cout << "\'" << u << "\',\'" << v << "\'" << std::endl;
 		auto Dq = Delta(q, h);
 		for (const auto &[t1, t2] : Dq) {
-			auto &[_, value1] = t1;
-			auto &[_, value2] = t2;
-			auto &[_, id1, i] = value1;
-			auto &[_, id2, j] = value2;
-			auto [h_1, h_2]	  = w_noref(u, v, fst.words[id1], fst.words[id2]);
+			auto &[_, value1]  = t1;
+			auto &[_, value2]  = t2;
+			auto &[l1, id1, i] = value1;
+			auto &[l2, id2, j] = value2;
+			auto [h_1, h_2]	   = w_noref(u, v, fst.words[id1], fst.words[id2]);
 
 			auto q2 = std::tuple(i, j);
 			//  functional(i+1) := ∀(q′, h′) ∈ Dq : (balancible(h′) ∧
@@ -204,8 +207,10 @@ bool isFunctional(const TFSA<Letter> &fst) {
 				q2_it == Adm.end() || (eq(h_1, std::get<0>(q2_it->second)) && eq(h_2, std::get<1>(q2_it->second)));
 
 			if (functional) {
-				if (q2_it == Adm.end()) queue.push(q2);
-				Adm.insert({{i, j}, {toLetter<Letter>(h_1), toLetter<Letter>(h_2)}});
+				if (q2_it == Adm.end()) {
+					queue.push(q2);
+					Adm.insert({{i, j}, {toLetter<Letter>(h_1), toLetter<Letter>(h_2)}});
+				}
 			} else {
 				std::cout << "-> \"" << toString(h_1) << "\", \"" << toString(h_2) << "\"" << std::endl;
 				std::cout << "len: " << h_1.size() << " " << h_2.size() << std::endl;
@@ -213,18 +218,176 @@ bool isFunctional(const TFSA<Letter> &fst) {
 				std::cout << "isFinal: " << isFinal(i, j) << std::endl;
 				std::cout << "Q = (" << q << ", " << h << ")" << std::endl;
 				std::cout << "q2 = (" << std::get<0>(q2) << ", " << std::get<1>(q2) << ")" << std::endl;
+				std::cout << "Adm(" << q << ", " << h << ") = (" << toString(u) << "," << toString(v) << ")"
+						  << ", len1: " << u.size() << ", len2: " << v.size() << std::endl;
 				if (q2_it != Adm.end()) {
-					std::cout << "Adm(" << i << ", " << j << ") = (" << toString(std::get<0>(q2_it->second)) << ", "
+					std::cout << "Adm(" << i << ", " << j << ") = (" << toString(std::get<0>(q2_it->second)) << ","
 							  << toString(std::get<1>(q2_it->second)) << ")" << std::endl;
 				} else {
 					std::cout << "Adm(" << i << ", " << j << ") not found" << std::endl;
 				}
 				std::cout << "cofinal(" << i << ", " << j << ") = " << isCoFinal(i, j) << std::endl;
+				std::cout << "l1: " << l1 << ", l2: " << l2 << std::endl;
+				std::cout << "output1: \"" << toString(fst.words[id1]) << "\", output2: \"" << toString(fst.words[id2])
+						  << "\"" << std::endl;
+				std::cout << "length1: " << fst.words[id1].size() << ", length2: " << fst.words[id2].size()
+						  << std::endl;
 
 				return false;	  // not functional
 			}
 		}
 	}
+
+	return true;
+}
+
+/// expects trimmed real-time FST
+template <class Letter>
+bool testBoundedVariation(const TFSA<Letter> &fst) {
+	// create the squared putput transducer and compute Adm(q) for every state q in it;
+
+	using State = typename TFSA<Letter>::State;
+
+	// check output of empty word
+	int eps_out = -1;
+	for (const auto &q : fst.f_eps) {
+		if (eps_out == -1) {
+			eps_out = q;
+		} else if (!std::ranges::equal(fst.words[q], fst.words[eps_out])) return false;
+	}
+
+	using Delay	 = std::tuple<std::vector<Letter>, std::vector<Letter>>;
+	using AdmMap = std::unordered_set<std::tuple<std::tuple<State, State>, Delay>>;
+	AdmMap Adm;
+	using AdmElem = AdmMap::value_type;
+	std::queue<std::reference_wrapper<const AdmElem>> queue;
+
+	std::vector<bool> coFinals(fst.N * fst.N, false);
+	{
+		std::vector<std::vector<std::tuple<Letter, State>>> reverseTransitions;
+		reverseTransitions.resize(fst.N);
+		for (const auto &[from, rhs] : fst.transitions) {
+			const auto &[l, _, to] = rhs;
+			reverseTransitions[to].emplace_back(l, from);	  // reverse transitions
+		}
+
+		auto DeltaRev = [&reverseTransitions](State i, State j) {
+			return std::views::cartesian_product(reverseTransitions[i], reverseTransitions[j]) |
+				   std::views::filter([](const auto &pair) {
+					   const auto &[t1, t2] = pair;
+					   const auto &[a, _]	= t1;
+					   const auto &[b, _]	= t2;
+					   return a == b;	  // only consider transitions with the same Letter
+				   });
+		};
+
+		std::queue<std::tuple<State, State>> queueRev;
+		for (const auto &q : fst.qFinals) {
+			for (const auto &q2 : fst.qFinals) {
+				queueRev.push({q, q2});
+				coFinals[q * fst.N + q2] = true;	 // mark as co-final
+			}
+		}
+		while (!queueRev.empty()) {
+			auto Q = queueRev.front();
+			queueRev.pop();
+			auto &[q, h] = Q;
+
+			auto Dq = DeltaRev(q, h);
+			for (const auto &[t1, t2] : Dq) {
+				auto &[_, i] = t1;
+				auto &[_, j] = t2;
+				if (coFinals[i * fst.N + j]) continue;
+				coFinals[i * fst.N + j] = true;		// mark as co-final
+				queueRev.push({i, j});
+			}
+		}
+	}
+	int cnt = 0;
+	for (const auto q : coFinals) {
+		if (q) cnt++;
+	}
+	std::cout << "coFinals: " << cnt << " / " << fst.N * fst.N << std::endl;
+
+	auto Delta = [&](State i, State j) {
+		auto [b1, e1] = fst.transitions.equal_range(i);
+		auto [b2, e2] = fst.transitions.equal_range(j);
+		auto r1		  = std::ranges::subrange(b1, e1);
+		auto r2		  = std::ranges::subrange(b2, e2);
+		return std::views::cartesian_product(r1, r2) | std::views::filter([&](const auto &pair) {
+				   const auto &[t1, t2]	   = pair;
+				   const auto &[_, value1] = t1;
+				   const auto &[_, value2] = t2;
+				   const auto &[a, _, to1] = value1;
+				   const auto &[b, _, to2] = value2;
+				   return a == b;
+			   });
+	};
+
+	for (auto &q : fst.qFirsts) {
+		for (auto &q2 : fst.qFirsts) {
+			auto [it, b] = Adm.insert({{q, q2}, {{}, {}}});
+			if (b) [[likely]]
+				queue.emplace(std::ref(*it));
+		}
+	}
+
+	unsigned int C = 0;
+	for (auto w : fst.words) {
+		if (w.size() > C) C = w.size();
+	}
+	auto MAX_DELAY = C * fst.N * fst.N;		// C * |Q|^2
+	auto curr_max  = 0u;
+
+	bool boundedVariation = true;
+
+	using namespace std::chrono_literals;
+	SlowDown3 sd(100ms);
+	while (!queue.empty() && boundedVariation) {
+		auto Q = queue.front();
+		// std::cout << Q << std::endl;
+		auto &[q_1, delay] = Q.get();
+		auto &[q, h]	   = q_1;
+		queue.pop();
+
+		auto &[u, v] = delay;
+		// std::cout << "\'" << u << "\',\'" << v << "\'" << std::endl;
+		auto Dq = Delta(q, h);
+		for (const auto &[t1, t2] : Dq) {
+			auto &[_, value1] = t1;
+			auto &[_, value2] = t2;
+			auto &[_, id1, i] = value1;
+			auto &[_, id2, j] = value2;
+			auto [h_1, h_2]	  = w_noref(u, v, fst.words[id1], fst.words[id2]);
+
+			auto q2 = std::tuple(i, j);
+			// boundedVariation(i+1) :=
+			// ∀(q′, (u′, v′)) ∈ Dq : ((|u′| < Z) ∧ (|v′| < Z));
+			boundedVariation &= h_1.size() < MAX_DELAY && h_2.size() < MAX_DELAY;
+			curr_max = std::max<unsigned int>(curr_max, h_1.size());
+			curr_max = std::max<unsigned int>(curr_max, h_2.size());
+			// std::printf("(%d, %d) -(%s,%s)> (%d, %d)\n", q, h, toString(h_1).c_str(), toString(h_2).c_str(), i, j);
+
+			sd.do_thing([&]() {
+				std::cout << "\rCurrent max delay: " << curr_max;
+				std::cout << " Adm size: " << Adm.size() << " Delay upper bound: " << MAX_DELAY;
+				std::cout << " queue size: " << queue.size() << std::flush;
+			});
+
+			if (boundedVariation) {
+				// if (q2_it == Adm.end()) queue.push(q2);
+				auto [inserted_it, b] = Adm.insert({{i, j}, {toLetter<Letter>(h_1), toLetter<Letter>(h_2)}});
+				if (b) [[likely]]
+					queue.emplace(std::ref(*inserted_it));
+
+			} else return false;
+		}
+	}
+
+	std::cout << "\rCurrent max delay: " << curr_max;
+	std::cout << " Adm size: " << Adm.size() << " Delay upper bound: " << MAX_DELAY;
+	std::cout << " queue size: " << queue.size() << std::flush;
+	std::cout << "\n\n";
 
 	return true;
 }

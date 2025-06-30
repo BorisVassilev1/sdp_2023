@@ -48,20 +48,24 @@ class RegexParser : public Parser<Token> {
 		++k;
 
 		bool skipped_star = false;
+		bool is_excl = false;
 		for (size_t i = 0; i < product.size(); ++i) {
 			if (product[i] == word[j]) {
-				if (word[j] == Identifier || word[j] == '*') {
+				if (word[j] == Identifier || word[j] == '*' || word[j] == '!') {
 					children.push_back(std::make_unique<ParseNode<Token>>(word[j]));
 				}
 				++j;
 			} else {
 				auto child = makeParseTree(productions, word, k, j);
-				if (child->value == '*') skipped_star = true;
+				if (child->value == '*' || child->value == '!') skipped_star = true;
+				if (child->value == '!') is_excl = true;
 				if (!child->children.empty()) children.push_back(std::move(child));
 			}
 		}
 		if (children.size() == 1 && !skipped_star) { return std::move(children[0]); }
-		return std::make_unique<ParseNode<Token>>(std::get<2>(productions[old_k].get().first), std::move(children));
+		auto t = std::get<2>(productions[old_k].get().first);
+		if(is_excl) t.data = reinterpret_cast<uint8_t *>('!');
+		return std::make_unique<ParseNode<Token>>(t, std::move(children));
 	}
 
 	auto parse(const std::vector<Token> &tokens) {
@@ -123,6 +127,20 @@ class KleeneStarRegex : public Regex {
 		out << "(";
 		if (child) child->print(out);
 		out << ")*";
+	}
+
+	int size() const override { return (child ? child->size() : 0) + 1; }
+};
+
+class KleenePlusRegex : public Regex {
+	public: 
+	std::unique_ptr<Regex> child;
+
+	KleenePlusRegex(std::unique_ptr<Regex> child) : child(std::move(child)) {}
+	void print(std::ostream &out) const override {
+		out << "(";
+		if (child) child->print(out);
+		out << ")!";
 	}
 
 	int size() const override { return (child ? child->size() : 0) + 1; }

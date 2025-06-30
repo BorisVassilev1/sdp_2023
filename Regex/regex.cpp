@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
 
 	FST<Letter> fst;
 	//BENCH(fst = makeFSA_BerriSethi<Letter>(*reg), 1, "BENCH makeFSA: ");
-	BENCH(fst = makeFSA_Thompson<Letter>(*reg), 1, "BENCH makeFSA Thompson: ");
+	BENCH(fst = makeFSA_BerriSethi<Letter>(*reg), 1, "BENCH makeFSA Thompson: ");
 	std::cout << "FSA has " << fst.N << " states and " << fst.transitions.size() << " transitions and "
 			  << fst.words.size() << " words." << std::endl;
 

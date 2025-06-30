@@ -69,9 +69,14 @@ class FST {
 // Berry-Sethi constructions
 
 template <class Letter>
-class BS_WordFSA : public FST<Letter> {
+class BS_FSA : public FST<Letter> {
    public:
-	BS_WordFSA(std::vector<Letter> &&word1, std::vector<Letter> &&word2) : FST<Letter>() {
+};
+
+template <class Letter>
+class BS_WordFSA : public BS_FSA<Letter> {
+   public:
+	BS_WordFSA(std::vector<Letter> &&word1, std::vector<Letter> &&word2) : BS_FSA<Letter>() {
 		this->N		  = 2;
 		this->qFirsts = {0};
 		this->qFinals = {1};
@@ -81,12 +86,12 @@ class BS_WordFSA : public FST<Letter> {
 };
 
 template <class Letter>
-class BS_UnionFSA : public FST<Letter> {
+class BS_UnionFSA : public BS_FSA<Letter> {
    public:
 	using State	   = FST<Letter>::State;
 	using StringID = FST<Letter>::StringID;
 
-	BS_UnionFSA(FST<Letter> &&fst1, FST<Letter> &&fst2) : FST<Letter>() {
+	BS_UnionFSA(BS_FSA<Letter> &&fst1, BS_FSA<Letter> &&fst2) : BS_FSA<Letter>() {
 		if (fst1.qFinals.empty() && fst2.qFinals.empty()) {
 			this->N		  = 0;
 			this->qFirsts = {0};
@@ -99,17 +104,42 @@ class BS_UnionFSA : public FST<Letter> {
 			return;
 		}
 
-		this->N		  = fst1.N + fst2.N - 1;
-		this->qFirsts = std::move(fst1.qFirsts);
+		bool canOptimizeFinals = true;
+		{
+			for (auto f : fst1.qFinals) {
+				if (fst1.transitions.find(f) != fst1.transitions.end()) {
+					canOptimizeFinals = false;
+					break;
+				}
+			}
+			for (auto f : fst2.qFinals) {
+				if (fst2.transitions.find(f) != fst2.transitions.end()) {
+					canOptimizeFinals = false;
+					break;
+				}
+			}
+		}
+
+		this->N = fst1.N + fst2.N - 1;
+		if (canOptimizeFinals) ++this->N;
+		State newFinal = this->N - 1;
+		this->qFirsts  = std::move(fst1.qFirsts);
 
 		this->transitions = std::move(fst1.transitions);
+		if (canOptimizeFinals)
+			for (auto &[from, value] : this->transitions) {
+				auto &[id1, id2, to] = value;
+				if (fst1.qFinals.contains(to)) { to = newFinal; }
+			}
 		for (const auto &[from, value] : fst2.transitions) {
 			const auto &[id1, id2, to] = value;
 			State new_from			   = from + fst1.N - 1;
 			if (from == 0) new_from = 0;
 			StringID new_id1 = id1 ? id1 + fst1.words.size() - 1 : 0;
 			StringID new_id2 = id2 ? id2 + fst1.words.size() - 1 : 0;
-			this->transitions.insert({new_from, {new_id1, new_id2, to + fst1.N - 1}});
+			State	 new_to	 = to + fst1.N - 1;
+			if (canOptimizeFinals && fst2.qFinals.contains(to)) new_to = newFinal;
+			this->transitions.insert({new_from, {new_id1, new_id2, new_to}});
 		}
 
 		this->words = std::move(fst1.words);
@@ -118,20 +148,25 @@ class BS_UnionFSA : public FST<Letter> {
 			this->words.push_back(std::move(*it));
 		}
 
-		this->qFinals = std::move(fst1.qFinals);
-		for (const auto &q : fst2.qFinals) {
-			this->qFinals.insert(q + fst1.N - 1);
+		if (canOptimizeFinals) {
+			this->qFinals = {newFinal};
+		} else {
+			this->qFinals = std::move(fst1.qFinals);
+			for (const auto &q : fst2.qFinals) {
+				this->qFinals.insert(q + fst1.N - 1);
+			}
 		}
 	}
 };
 
 template <class Letter>
-class BS_ConcatFSA : public FST<Letter> {
+class BS_ConcatFSA : public BS_FSA<Letter> {
    public:
 	using State	   = FST<Letter>::State;
 	using StringID = FST<Letter>::StringID;
 
-	BS_ConcatFSA(FST<Letter> &&fsa1, FST<Letter> &&fsa2) {
+	BS_ConcatFSA(BS_FSA<Letter> &&fsa1, BS_FSA<Letter> &&fsa2) : BS_FSA<Letter>() {
+		//: BS_FSA<Letter>(false) {
 		if (fsa1.qFinals.empty() || fsa2.qFinals.empty()) {
 			this->N		  = 0;
 			this->qFirsts = {0};
@@ -180,12 +215,13 @@ class BS_ConcatFSA : public FST<Letter> {
 };
 
 template <class Letter>
-class BS_KleeneStarFSA : public FST<Letter> {
+class BS_KleeneStarFSA : public BS_FSA<Letter> {
    public:
-	BS_KleeneStarFSA(FST<Letter> &&fsa) {
+	BS_KleeneStarFSA(BS_FSA<Letter> &&fsa, bool includeEpsilon = true) : BS_FSA<Letter>() {
 		if (fsa.qFinals.empty()) {
 			this->N		  = 0;
 			this->qFirsts = {0};
+			if (includeEpsilon) this->qFinals = {0};
 			return;
 		}
 		this->N		  = fsa.N;
@@ -208,14 +244,14 @@ class BS_KleeneStarFSA : public FST<Letter> {
 		this->words = std::move(fsa.words);
 
 		this->qFinals = std::move(fsa.qFinals);
-		this->qFinals.insert(0);	 // add the new initial state as a final state
+		if (includeEpsilon) this->qFinals.insert(0);	 // add the new initial state as a final state
 	}
 };
 
 template <class Letter>
-FST<Letter> makeFSA_BerriSethi(Regex &regex) {
+BS_FSA<Letter> makeFSA_BerriSethi(Regex &regex) {
 	// static int counter = 0;
-	FST<Letter> fsa;
+	BS_FSA<Letter> fsa;
 	if (auto *r = dynamic_cast<TupleRegex *>(&regex)) {
 		fsa = BS_WordFSA<Letter>(toLetter<Letter>(std::move(r->left)), toLetter<Letter>(std::move(r->right)));
 	} else if (auto *r = dynamic_cast<UnionRegex *>(&regex)) {
@@ -223,12 +259,11 @@ FST<Letter> makeFSA_BerriSethi(Regex &regex) {
 	} else if (auto *r = dynamic_cast<ConcatRegex *>(&regex)) {
 		fsa = BS_ConcatFSA<Letter>(makeFSA_BerriSethi<Letter>(*r->left), makeFSA_BerriSethi<Letter>(*r->right));
 	} else if (auto *r = dynamic_cast<KleeneStarRegex *>(&regex)) {
-		fsa = BS_KleeneStarFSA<Letter>(makeFSA_BerriSethi<Letter>(*r->child));
+		fsa = BS_KleeneStarFSA<Letter>(makeFSA_BerriSethi<Letter>(*r->child), true);
+	} else if (auto *r = dynamic_cast<KleenePlusRegex *>(&regex)) {
+		fsa = BS_KleeneStarFSA<Letter>(makeFSA_BerriSethi<Letter>(*r->child), true);
 	}
-	// std::ofstream out("fsa_" + std::to_string(counter++) + ".dot");
-	// fsa.print(out);
 	return fsa;
-	// throw std::runtime_error("Unknown regex type for FSA construction: " + std::string(typeid(regex).name()));
 }
 
 // Thompson's construction
@@ -336,7 +371,7 @@ class TH_ConcatFSA : public FST<Letter> {
 template <class Letter>
 class TH_KleeneStarFSA : public FST<Letter> {
    public:
-	TH_KleeneStarFSA(FST<Letter> &&fst) {
+	TH_KleeneStarFSA(FST<Letter> &&fst, bool includeEpsilon = true) {
 		if (fst.qFinals.empty()) {
 			this->N		  = 0;
 			this->qFirsts = {0};
@@ -354,7 +389,7 @@ class TH_KleeneStarFSA : public FST<Letter> {
 			this->transitions.insert({q, {0, 0, *fst.qFirsts.begin()}});
 		}
 		this->transitions.insert({*this->qFirsts.begin(), {0, 0, *fst.qFirsts.begin()}});
-		this->transitions.insert({*this->qFirsts.begin(), {0, 0, this->N - 1}});
+		if (includeEpsilon) this->transitions.insert({*this->qFirsts.begin(), {0, 0, this->N - 1}});
 
 		this->words = std::move(fst.words);
 	}
@@ -369,7 +404,9 @@ FST<Letter> makeFSA_Thompson(Regex &regex) {
 	} else if (auto *r = dynamic_cast<ConcatRegex *>(&regex)) {
 		return TH_ConcatFSA<Letter>(makeFSA_Thompson<Letter>(*r->left), makeFSA_Thompson<Letter>(*r->right));
 	} else if (auto *r = dynamic_cast<KleeneStarRegex *>(&regex)) {
-		return TH_KleeneStarFSA<Letter>(makeFSA_Thompson<Letter>(*r->child));
+		return TH_KleeneStarFSA<Letter>(makeFSA_Thompson<Letter>(*r->child), true);
+	} else if (auto *r = dynamic_cast<KleenePlusRegex *>(&regex)) {
+		return TH_KleeneStarFSA<Letter>(makeFSA_Thompson<Letter>(*r->child), false);
 	}
 	throw std::runtime_error("Unknown regex type for FSA construction: " + std::string(typeid(regex).name()));
 }
@@ -388,9 +425,7 @@ void drawFSA(const FST<Letter> &fsa) {
 template <class Letter>
 inline void saveFSA(const FST<Letter> &fsa, const std::string &filename) {
 	std::ofstream out(filename);
-	if (!out.is_open()) {
-		throw std::runtime_error("Could not open file " + filename + " for writing.");
-	}
+	if (!out.is_open()) { throw std::runtime_error("Could not open file " + filename + " for writing."); }
 	fsa.print(out);
 	out.close();
 }
@@ -470,7 +505,7 @@ auto trimFSA(FST<Letter> &&fsa) {
 	}
 
 	std::vector<bool> words_used(fsa.words.size(), false);
-	words_used[0] = true;	 // always keep the empty word
+	words_used[0] = true;	  // always keep the empty word
 	for (const auto &[from, value] : fsa.transitions) {
 		const auto &[id1, id2, to] = value;
 		if (new_map[from] != -1u && new_map[to] != -1u) {
@@ -504,7 +539,7 @@ auto trimFSA(FST<Letter> &&fsa) {
 
 template <class Letter>
 auto removeEpsilonFST(FST<Letter> &&fsa) {
-	using State	   = typename FST<Letter>::State;
+	using State = typename FST<Letter>::State;
 
 	std::stack<State>				stack;
 	std::vector<bool>				visited(fsa.N, false);
@@ -559,4 +594,3 @@ auto removeEpsilonFST(FST<Letter> &&fsa) {
 	fsa.transitions = std::move(new_transitions);
 	return std::move(fsa);
 }
-
