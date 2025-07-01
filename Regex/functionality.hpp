@@ -241,6 +241,30 @@ bool isFunctional(const TFSA<Letter> &fst) {
 	return true;
 }
 
+namespace cmp {
+template <class Letter>
+using State = typename TFSA<Letter>::State;
+template <class Letter>
+using Delay = std::tuple<std::vector<Letter>, std::vector<Letter>>;
+template <class Letter>
+using AdmMap = std::unordered_set<std::tuple<std::tuple<State<Letter>, State<Letter>>, Delay<Letter>>>;
+template <class Letter>
+using AdmElem = AdmMap<Letter>::value_type;
+
+template <class Letter>
+struct Cmp {
+	using datatype = std::reference_wrapper<const AdmElem<Letter>>;
+	bool operator()(const datatype &a, const datatype &b) const {
+		auto &[q1, delay1] = a.get();
+		auto &[q2, delay2] = b.get();
+		auto &[u1, v1]	   = delay1;
+		auto &[u2, v2]	   = delay2;
+		return u1.size() + v1.size() < u2.size() + v2.size();
+	}
+};
+
+};	   // namespace cmp
+
 /// expects trimmed real-time FST
 template <class Letter>
 bool testBoundedVariation(const TFSA<Letter> &fst) {
@@ -260,7 +284,10 @@ bool testBoundedVariation(const TFSA<Letter> &fst) {
 	using AdmMap = std::unordered_set<std::tuple<std::tuple<State, State>, Delay>>;
 	AdmMap Adm;
 	using AdmElem = AdmMap::value_type;
-	std::queue<std::reference_wrapper<const AdmElem>> queue;
+
+	std::priority_queue<std::reference_wrapper<const AdmElem>, std::vector<std::reference_wrapper<const AdmElem>>,
+						cmp::Cmp<Letter>>
+		queue;
 
 	std::vector<unsigned int> longestDelay(fst.N * fst.N, 0);
 
@@ -301,7 +328,7 @@ bool testBoundedVariation(const TFSA<Letter> &fst) {
 	using namespace std::chrono_literals;
 	SlowDown3 sd(100ms);
 	while (!queue.empty() && boundedVariation) {
-		auto Q = queue.front();
+		auto Q = queue.top();
 		// std::cout << Q << std::endl;
 		auto &[q_1, delay] = Q.get();
 		auto &[q, h]	   = q_1;
