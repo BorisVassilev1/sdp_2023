@@ -191,47 +191,47 @@ class SSFT {
 				std::cout << " transitions: " << transitions.size() << std::flush;
 			});
 
-			if (curr_max >= 5) {
-				ShellProcess p("dot -Tsvg > a.svg && feh ./a.svg");
-				auto		&in = p.in();
-				in << "digraph SSFT {\n";
-				in << "  rankdir=LR;\n";
-				in << "  node [shape=circle];\n";
-				in << "  init [label=\"N=" << states.size() << "\", shape=square];\n";
-				in << "  init -> 0;\n";		// initial state
-				for (const auto [i, state] : std::ranges::views::enumerate(states)) {
-					in << "  " << i << " [label=\"";
-					for (const auto &[q, id] : state.get()) {
-						in << "(" << q << ", ";
-						for (const auto &letter : stateDelays[id]) {
-							if (letter < 128 && letter >= 32) in << letter;
-							else in << (int)letter;
-						}
-						in << ")\n ";
-					}
-					in << "\"";
-					if (qFinals.contains(i)) in << ", shape=doublecircle";
-					in << "];\n";	  // final States
-				}
+			//if (curr_max >= 5) {
+			//	ShellProcess p("dot -Tsvg > a.svg && feh ./a.svg");
+			//	auto		&in = p.in();
+			//	in << "digraph SSFT {\n";
+			//	in << "  rankdir=LR;\n";
+			//	in << "  node [shape=circle];\n";
+			//	in << "  init [label=\"N=" << states.size() << "\", shape=square];\n";
+			//	in << "  init -> 0;\n";		// initial state
+			//	for (const auto [i, state] : std::ranges::views::enumerate(states)) {
+			//		in << "  " << i << " [label=\"";
+			//		for (const auto &[q, id] : state.get()) {
+			//			in << "(" << q << ", ";
+			//			for (const auto &letter : stateDelays[id]) {
+			//				if (letter < 128 && letter >= 32) in << letter;
+			//				else in << (int)letter;
+			//			}
+			//			in << ")\n ";
+			//		}
+			//		in << "\"";
+			//		if (qFinals.contains(i)) in << ", shape=doublecircle";
+			//		in << "];\n";	  // final States
+			//	}
 
-				for (const auto &[from, value] : transitions) {
-					const auto &[s, l]		   = from;
-					const auto &[outputID, to] = value;
-					in << "  " << s << " -> " << to << " [label=\"<" << l << ", ";
-					for (const auto &letter : words[outputID]) {
-						if (letter < 128 && letter >= 32) in << letter;
-						else in << (int)letter;
-					}
-					in << ">\"];\n";
-				}
-				in << "}\n";
+			//	for (const auto &[from, value] : transitions) {
+			//		const auto &[s, l]		   = from;
+			//		const auto &[outputID, to] = value;
+			//		in << "  " << s << " -> " << to << " [label=\"<" << l << ", ";
+			//		for (const auto &letter : words[outputID]) {
+			//			if (letter < 128 && letter >= 32) in << letter;
+			//			else in << (int)letter;
+			//		}
+			//		in << ">\"];\n";
+			//	}
+			//	in << "}\n";
 
-				p.in() << std::endl;
-				p.in().close();
-				p.wait();
-				std::cout << getString(p.out()) << std::endl;
-				std::cout << getString(p.err()) << std::endl;
-			}
+			//	p.in() << std::endl;
+			//	p.in().close();
+			//	p.wait();
+			//	std::cout << getString(p.out()) << std::endl;
+			//	std::cout << getString(p.err()) << std::endl;
+			//}
 
 			// clear temporary data to conserve memory allocation
 			nextStates.clear();

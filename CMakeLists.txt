@@ -117,3 +117,18 @@ set_target_properties(exam PROPERTIES
 
 
 
+add_executable(exam2
+	regex3.cpp
+	DPDA/utils.cpp
+	DPDA/token.cpp
+	Regex/regexParser.cpp
+	Regex/ambiguity.cpp
+	util/utils.cpp
+)
+
+target_compile_options(exam2 PRIVATE ${COMPILE_ARGS})
+target_link_options(exam2 PRIVATE ${COMPILE_ARGS})
+target_include_directories(exam2 PRIVATE .)
+set_target_properties(exam2 PROPERTIES
+	RUNTIME_OUTPUT_DIRECTORY ../
+)

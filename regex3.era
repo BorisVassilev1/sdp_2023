@@ -1,0 +1,67 @@
+ones =  ("I"^"1") | ("II"^"2") | ("III"^"3") | ("IV"^"4") | ("V"^"5") | ("VI"^"6") | ("VII"^"7") | ("VIII"^"8") | ("IX"^"9") ;
+ones0 = ones | (""^"0");
+
+tens =  ("X"^"1") | ("XX"^"2") | ("XXX"^"3") | ("XL"^"4") | ("L"^"5") | ("LX"^"6") | ("LXX"^"7") | ("LXXX"^"8") | ("XC"^"9") ;
+tens0 = tens | (""^"0");
+
+hundreds = ("C"^"1") | ("CC"^"2") | ("CCC"^"3") | ("CD"^"4") | ("D"^"5") | ("DC"^"6") | ("DCC"^"7") | ("DCCC"^"8") | ("CM"^"9") ;
+hundreds0 = hundreds | (""^"0");
+
+thousands = ("M"^"1") | ("MM"^"2") | ("MMM"^"3")  | ("MF"^"4")  | ("F"^"5")  | ("FM"^"6")  | ("FMM"^"7")  | ("FT"^"9");
+thousands0 = thousands | (""^"0");
+
+tthousands = ("T"^"1") | ("TT"^"2") | ("TTT"^"3");
+
+
+N1_99 = ones | (tens . ones0);
+N00_99 = tens0 . ones0;
+
+N1_999 = N1_99 | ( hundreds . N00_99) ;
+N000_999 = hundreds0 . N00_99 ;
+
+N1_9999 = N1_999 | (thousands . N000_999);
+N0000_9999 = thousands0 . N000_999;
+
+N1_39999 = N1_9999 | (tthousands . N0000_9999) ;
+
+
+printLanguage("N:", "/dev/stdout");
+
+testInfiniteAmbiguity(N1_39999);						-> 0
+testFunctionality(N1_39999);							-> 1
+testBoundedVariation(N1_39999);							-> 1
+
+printLanguage("N+:", "/dev/stdout");
+
+R = N1_39999+;
+testInfiniteAmbiguity(R);								-> 0
+testFunctionality(R);									-> 0
+testBoundedVariation(R);
+
+
+printLanguage("N +:", "/dev/stdout");
+B = N1_39999 . ((" "^""). N1_39999)*;
+testInfiniteAmbiguity(B);								-> 0
+testFunctionality(B);									-> 1
+testBoundedVariation(B);								-> 1
+
+printLanguage("S :", "/dev/stdout");
+
+S = ( ( ("T"^"1").(" "^""))* . N1_9999 ) | ( ( ("T"^"1").(" "^" "))* .  (tthousands . N0000_9999) );
+testInfiniteAmbiguity(S);								-> 0
+testFunctionality(S);									-> 1
+testBoundedVariation(S);
+
+printLanguage("S1 :", "/dev/stdout");
+
+S1 = ( ( (("T"^"1")|("M"^"1")).(" "^""))* . N1_9999 ) | ( ( (("T"^"1")|("M"^"1")).(" "^" "))* .  (tthousands . N0000_9999) );
+testInfiniteAmbiguity(S1);
+testFunctionality(S1);
+testBoundedVariation(S1);
+
+printLanguage("S2 :", "/dev/stdout");
+
+S2 = ( ( (("T"^"1")|("M"^"2")).(" "^""))* . N1_9999 ) | ( ( (("T"^"1")|("M"^"2")).(" "^" "))* .  (tthousands . N0000_9999) );
+testInfiniteAmbiguity(S2);
+testFunctionality(S2);
+testBoundedVariation(S2);

@@ -294,6 +294,8 @@ bool testBoundedVariation(const TFSA<Letter> &fst) {
 	auto MAX_DELAY = C * fst.N * fst.N;		// C * |Q|^2
 	auto curr_max  = 0u;
 
+	std::cout << "C = " << C << ", MAX_DELAY = " << MAX_DELAY << std::endl;
+
 	bool boundedVariation = true;
 
 	using namespace std::chrono_literals;
@@ -323,7 +325,7 @@ bool testBoundedVariation(const TFSA<Letter> &fst) {
 			curr_max = std::max<unsigned int>(curr_max, h_2.size());
 
 			auto &longest = longestDelay[i * fst.N + j];
-			if (longest > h_1.size() && longest > h_2.size()) continue;
+			if (longest > h_1.size() && longest > h_2.size()) { continue; }
 
 			longest = std::max<unsigned int>(longest, h_1.size());
 			longest = std::max<unsigned int>(longest, h_2.size());
