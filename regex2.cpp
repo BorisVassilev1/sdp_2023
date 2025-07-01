@@ -37,7 +37,14 @@ auto N2 = std::format("({}) + ({}). ({}) + ({}).<'','00'>.({})", N1_999, thousan
 auto R = std::format("({})!", N);
 auto B = std::format("({}).(<' ', ''>.({}))*", N, N);
 
-auto S = std::format("( ( <'M','1'>.<' ',''>)* . {} ) + ( ( <'M','1'>.<' ',' '>)* .  ({} . {}) )", N1_999, thousands,
+auto S = std::format("( ( <'M','1'>.<' ',''>)* . ({}) ) + ( ( <'M','1'>.<' ',' '>)* .  (({}) . ({})) )", N1_999, thousands,
+					 N000_999);
+
+
+auto S1 = std::format("( ( (<'M','1'>+ <'D','1'>).<' ',''>)* . ({}) ) + ( ((<'M','1'> + <'D', '1'>).<' ',' '>)* .  (({}) . ({})) )", N1_999, thousands,
+					 N000_999);
+
+auto S2 = std::format("( ( (<'M','1'>+ <'D','2'>).<' ',''>)* . ({}) ) + ( ((<'M','1'> + <'D', '2'>).<' ',' '>)* .  (({}) . ({})) )", N1_999, thousands,
 					 N000_999);
 
 auto K	= "(" + identity("abcde") + ")*.<'abcabcaab', ':))'>"s;
@@ -49,9 +56,9 @@ M MC MMMI MD MM MCML MMMCMXCIX
 */
 
 int main() {
-	std::cout << "regex: " << S << std::endl;
+	std::cout << "regex: " << S1 << std::endl;
 
-	auto regex = parseRegex(S);
+	auto regex = parseRegex(S1);
 	auto fst   = (FST<Letter>)makeFSA_BerriSethi<Letter>(*regex);
 	fst		   = trimFSA<Letter>(std::move(fst));
 

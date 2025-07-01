@@ -263,6 +263,15 @@ struct Cmp {
 	}
 };
 
+template <class Letter>
+struct Cmp2 {
+	using datatype = std::tuple<State<Letter>, State<Letter>, std::reference_wrapper<const Delay<Letter>>>;
+	bool operator()(const datatype &a, const datatype &b) const {
+		auto &[u1, v1] = std::get<2>(a).get();
+		auto &[u2, v2] = std::get<2>(b).get();
+		return u1.size() + v1.size() < u2.size() + v2.size();
+	}
+};
 };	   // namespace cmp
 
 /// expects trimmed real-time FST
