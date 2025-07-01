@@ -10,9 +10,7 @@
 using namespace std::string_literals;
 
 auto ones =
-	//" <'I','1'> + <'II','2'> + <'III','3'> + <'IV','4'> + <'V','5'> + <'VI','6'> + <'VII','7'> + <'VIII','8'> +
-	//<'IX','9'> "s;
-	" <'I','1'> "s;
+	" <'I','1'> + <'II','2'> + <'III','3'> + <'IV','4'> + <'V','5'> + <'VI','6'> + <'VII','7'> + <'VIII','8'> + <'IX','9'> "s;
 
 auto ones0 = ones + " + <'','0'>";
 auto tens =
@@ -51,9 +49,9 @@ M MC MMMI MD MM MCML MMMCMXCIX
 */
 
 int main() {
-	std::cout << "regex: " << S << std::endl;
+	std::cout << "regex: " << B << std::endl;
 
-	auto regex = parseRegex(S);
+	auto regex = parseRegex(B);
 	auto fst   = (FST<Letter>)makeFSA_BerriSethi<Letter>(*regex);
 	fst		   = trimFSA<Letter>(std::move(fst));
 
