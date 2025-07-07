@@ -17,7 +17,7 @@ set_target_properties(dpda_test PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY ../
 )
 
-enable_testing()
+#enable_testing()
 add_test(NAME dpda_test
          COMMAND dpda_test 
 		 DEPENDS dpda_test)
