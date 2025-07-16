@@ -137,6 +137,7 @@ add_library(DPDA STATIC
 	DPDA/language.cpp
 	DPDA/utils.cpp
 	DPDA/token.cpp
+	util/utils.cpp
 )
 target_compile_options(DPDA PRIVATE ${COMPILE_ARGS})
 target_link_options(DPDA PRIVATE ${COMPILE_ARGS})
