@@ -1,10 +1,13 @@
 #pragma once
 
 #include <DPDA/dpda.h>
+#include <chrono>
 #include <functional>
 #include <memory>
+#include <ratio>
 #include <unordered_map>
 #include "DPDA/token.h"
+#include "util/utils.hpp"
 #include <DPDA/utils.h>
 #include <DPDA/cfg.h>
 
@@ -88,11 +91,10 @@ class Parser : public DPDA<State<Letter>, Letter> {
 		// this does not work on clang 20.1.6 c++26
 		// msg += std::format("\n{: >{}}", '^', len + 1);
 		msg += "\n";
-		for (size_t i = 0; i < len+1; ++i) {
+		for (size_t i = 0; i < len + 1; ++i) {
 			msg += " ";
 		}
 		msg += '^';
-
 
 		throw ParseError(msg, position);
 	}
@@ -210,8 +212,12 @@ class Parser : public DPDA<State<Letter>, Letter> {
 	 * @return std::unique_ptr<ParseNode<Letter>>
 	 */
 	std::unique_ptr<ParseNode<Letter>> parse(const std::vector<Letter> &word) const {
+		auto start					 = std::chrono::high_resolution_clock::now();
 		auto [accepted, productions] = generateProductions(word);
+		auto end					 = std::chrono::high_resolution_clock::now();
 		if (!accepted) { return nullptr; }
+		dbLog(dbg::LOG_DEBUG, "productions done: ", productions.size(), " in ",
+			  std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count(), "ms");
 
 		int	 i = 0, k = 0;
 		auto parseTree = makeParseTree(productions, word, k, i);
