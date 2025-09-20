@@ -17,7 +17,7 @@ set_target_properties(dpda_test PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY ../
 )
 
-enable_testing()
+#enable_testing()
 add_test(NAME dpda_test
          COMMAND dpda_test 
 		 DEPENDS dpda_test)
@@ -49,7 +49,7 @@ add_test(NAME cfg_test
 		 DEPENDS cfg_test)
 
 
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND}
+add_custom_target(DPDA_check COMMAND ${CMAKE_CTEST_COMMAND}
                   DEPENDS cfg_test dpda_test)
 
 add_executable(language 
@@ -132,3 +132,17 @@ target_include_directories(exam2 PRIVATE .)
 set_target_properties(exam2 PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY ../
 )
+
+add_library(DPDA STATIC
+	DPDA/language.cpp
+	DPDA/utils.cpp
+	DPDA/token.cpp
+	util/utils.cpp
+)
+target_compile_options(DPDA PRIVATE ${COMPILE_ARGS})
+target_link_options(DPDA PRIVATE ${COMPILE_ARGS})
+target_include_directories(DPDA PUBLIC .)
+	
+
+
+

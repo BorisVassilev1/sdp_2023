@@ -45,8 +45,8 @@ inline auto typename_demangle(const char *n) {
 	return r;
 }
 
-template<class T>
-inline auto  type_name(T *v) {
+template <class T>
+inline auto type_name(T *v) {
 	return typename_demangle(typeid(v).name());
 }
 
@@ -71,8 +71,8 @@ namespace dbg {
  * @brief Log levels
  */
 enum {
-	LOG_INFO	= (0),
-	LOG_DEBUG	= (1),
+	LOG_DEBUG	= (0),
+	LOG_INFO	= (1),
 	LOG_WARNING = (2),
 	LOG_ERROR	= (3),
 };
@@ -82,7 +82,7 @@ enum {
 #define COLOR_GREEN	 "\x1B[0;92m"
 #define COLOR_YELLOW "\x1B[0;93m"
 
-static const char *log_colors[]{COLOR_RESET, COLOR_GREEN, COLOR_YELLOW, COLOR_RED};
+static const char *log_colors[]{COLOR_GREEN, COLOR_RESET, COLOR_YELLOW, COLOR_RED};
 
 std::mutex &getMutex();
 
@@ -94,7 +94,7 @@ std::mutex &getMutex();
 template <class... Types>
 bool inline f_dbLog(std::ostream &out, Types... args) {
 	std::lock_guard lock(dbg::getMutex());
-	(out << ... << args) << std::endl;
+	(out << ... << args) << std::flush;
 	return 1;
 }
 
@@ -106,13 +106,33 @@ bool inline f_dbLog(std::ostream &out, Types... args) {
 #ifndef NDEBUG
 	#define DBG_DEBUG
 	#define DBG_LOG_LEVEL -1
-	#define dbLog(severity, ...)                                                                                   \
-		severity >= DBG_LOG_LEVEL                                                                                  \
-			? (dbg::f_dbLog(std::cerr, dbg::log_colors[severity], "[", #severity, "] ", __VA_ARGS__, COLOR_RESET)) \
-			: 0;
 #else
-	#define DBG_LOG_LEVEL		 3
-	#define dbLog(severity, ...) ((void)0)
+	#define DBG_LOG_LEVEL 1
 #endif
 
-}
+#define dbLog(severity, ...)                                                                                       \
+	{                                                                                                              \
+		if constexpr (severity >= DBG_LOG_LEVEL) {                                                                 \
+			if constexpr (severity >= dbg::LOG_WARNING) {                                                          \
+				dbg::f_dbLog(std::cerr, dbg::log_colors[severity], "[", #severity, "] ", __VA_ARGS__, COLOR_RESET, \
+							 '\n');                                                                                \
+			} else {                                                                                               \
+				dbg::f_dbLog(std::cout, dbg::log_colors[severity], "[", #severity, "] ", __VA_ARGS__, COLOR_RESET, \
+							 '\n');                                                                                \
+			}                                                                                                      \
+		}                                                                                                          \
+	}
+#define dbLogR(severity, ...)                                                                               \
+	{                                                                                                       \
+		if constexpr (severity >= DBG_LOG_LEVEL) {                                                          \
+			if constexpr (severity >= dbg::LOG_WARNING) {                                                   \
+				dbg::f_dbLog(std::cerr, '\r', dbg::log_colors[severity], "[", #severity, "] ", __VA_ARGS__, \
+							 COLOR_RESET);                                                                  \
+			} else {                                                                                        \
+				dbg::f_dbLog(std::cout, '\r', dbg::log_colors[severity], "[", #severity, "] ", __VA_ARGS__, \
+							 COLOR_RESET);                                                                  \
+			}                                                                                               \
+		}                                                                                                   \
+	}
+
+}	  // namespace dbg
