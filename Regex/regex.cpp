@@ -114,6 +114,7 @@ int main(int argc, char **argv) {
 		try {
 			std::cout << "converting to SSFT..." << std::endl;
 			auto ssfst = SSFT<Letter>(std::move(fsa));
+			drawFSA(ssfst);
 
 			std::cout << "SSFT has " << ssfst.N << " states and " << ssfst.transitions.size() << " transitions."
 					  << std::endl;

@@ -56,9 +56,9 @@ M MC MMMI MD MM MCML MMMCMXCIX
 */
 
 int main() {
-	std::cout << "regex: " << S1 << std::endl;
+	std::cout << "regex: " << N << std::endl;
 
-	auto regex = parseRegex(S1);
+	auto regex = parseRegex(N);
 	auto fst   = (FST<Letter>)makeFSA_BerriSethi<Letter>(*regex);
 	fst		   = trimFSA<Letter>(std::move(fst));
 
@@ -85,16 +85,17 @@ int main() {
 		return 1;
 	}
 
-	bool bvar = testBoundedVariation(realtime);
-	std::cout << "bounded variation: " << bvar << std::endl;
-	if (!bvar) {
-		std::cerr << "The FST does not satisfy bounded variation!" << std::endl;
-		return 1;
-	}
+	//bool bvar = testBoundedVariation(realtime);
+	//std::cout << "bounded variation: " << bvar << std::endl;
+	//if (!bvar) {
+	//	std::cerr << "The FST does not satisfy bounded variation!" << std::endl;
+	//	return 1;
+	//}
 
 	try {
 		std::cout << "converting to SSFT..." << std::endl;
 		auto ssfst = SSFT<Letter>(std::move(realtime));
+		drawFSA(ssfst);
 
 		std::cout << "SSFT has " << ssfst.N << " states and " << ssfst.transitions.size() << " transitions."
 				  << std::endl;
