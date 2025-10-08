@@ -114,11 +114,9 @@ inline void hash_combine(std::size_t &seed, T const &v) {
 template <class... Args>
 struct std::hash<std::tuple<Args...>> {
 	std::size_t operator()(const std::tuple<Args...> &t) const {
-		std::size_t result = 0;
-		[&]<std::size_t... p>(std::index_sequence<p...>) {
-			(hash_combine(result, std::get<p>(t)), ...);
+		return [&]<std::size_t... p>(std::index_sequence<p...>) {
+			return ((std::hash<NthTypeOf<p, Args...>>{}(std::get<p>(t))) ^ ...);
 		}(std::make_index_sequence<std::tuple_size_v<std::tuple<Args...>>>{});
-		return result;
 	}
 };
 
