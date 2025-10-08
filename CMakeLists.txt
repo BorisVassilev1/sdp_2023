@@ -9,6 +9,7 @@ set(COMPILE_ARGS
 add_executable(dpda_test 
 	DPDA/dpda_test.cpp
 	DPDA/utils.cpp
+	util/utils.cpp
 )
 target_compile_options(dpda_test PRIVATE ${COMPILE_ARGS})
 target_link_options(dpda_test PRIVATE ${COMPILE_ARGS})
@@ -25,6 +26,7 @@ add_test(NAME dpda_test
 add_executable(cfg_test 
 	DPDA/cfg_test.cpp
 	DPDA/utils.cpp
+	util/utils.cpp
 )
 target_compile_options(cfg_test PRIVATE ${COMPILE_ARGS})
 target_link_options(cfg_test PRIVATE ${COMPILE_ARGS})
@@ -56,6 +58,7 @@ add_executable(language
 	DPDA/language.cpp
 	DPDA/utils.cpp
 	DPDA/token.cpp
+	util/utils.cpp
 )
 target_compile_options(language PRIVATE ${COMPILE_ARGS})
 target_link_options(language PRIVATE ${COMPILE_ARGS})

@@ -20,5 +20,5 @@ int main() {
 	g.printParseTable();
 
 	srand(time(0));
-	std::cout << g.generate(90, 110) << std::endl;
+	//std::cout << g.generate(90, 110) << std::endl;
 }

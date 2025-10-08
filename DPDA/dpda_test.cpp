@@ -7,7 +7,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
-#include "dpda.h"
+#include <DPDA/dpda.h>
 
 #define s	 0
 #define _f	 1

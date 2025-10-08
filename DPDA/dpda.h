@@ -174,9 +174,11 @@ class DPDA {
 		out << "digraph {\n overlap = false; splines = true; nodesep = 0.3; layout = dot;\n";
 		out << "node [shape=doublecircle];\"" << qFinal << "\";\nnode [shape=circle];\n";
 		for (const auto &[u, v] : delta) {
-			out << "\t\"" << std::get<0>(u) << "\" -> \"" << std::get<0>(v) << "\" [xlabel = \""
-				<< std::get<1>(u) << ", " << std::get<2>(u);
-			if (!std::get<1>(v).empty()) { out << " / " << std::get<1>(v); }
+			const auto &[q1, a, x] = u;
+			const auto &[q2, w]   = v;
+			out << "\t\"" << q1 << "\" -> \"" << q2 << "\" [xlabel = \""
+				<< a << ", " << x;
+			if (!w.empty()) { out << " / " << w; }
 			out << "\" , minlen = \"3\"];" << std::endl;
 		}
 		out << "}";
