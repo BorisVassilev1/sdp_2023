@@ -174,16 +174,17 @@ class Parser : public DPDA<State<Letter>, Letter> {
 
 		std::stack<ParsingState> parseStack;
 		parseStack.push({std::make_unique<ParseNode<Letter>>(g.start), 0, 0});
-		unsigned int word_position = 0;		// position in output_word
-		unsigned int next_production	 = 0;		// index of production to use
+		unsigned int word_position	 = 0;	  // position in output_word
+		unsigned int next_production = 0;	  // index of production to use
 
 		while (word_position < word.size()) {
 			auto &[topNode, idx, prod_index] = parseStack.top();
 			const auto &[from, to]			 = productions[prod_index].get();
-			const auto &[_, _, A]			 = from;
 			const auto &[_, product]		 = to;
 
 			if (idx == product.size()) {
+				if (product.empty()) topNode->children.push_back(std::make_unique<ParseNode<Letter>>(Letter::eps));
+
 				if (parseStack.size() == 1) break;
 				auto [childNode, _, _] = std::move(parseStack.top());
 				parseStack.pop();
