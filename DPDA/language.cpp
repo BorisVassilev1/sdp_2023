@@ -148,7 +148,7 @@ std::unordered_set<Token> binaryOpsPri = {
 	Assignment, Arithmetic, Term, Comparison,
 	// CommaSep,
 };
-std::unordered_set<Token> binaryOpsSec		  = {Assignment_, Arithmetic_, Term_, Comparison_};
+std::unordered_set<Token> binaryOpsSec		  = {Assignment_, Arithmetic_, Term_, Comparison_, ParamList};
 std::unordered_set<Token> punctuation		  = {'(', ')', '[', ']', '{', '}', ';'};
 std::unordered_set<Token> preservePunctuation = {Scope};
 std::unordered_set<Token> Params			  = {ParamList};
@@ -244,9 +244,6 @@ std::unique_ptr<ASTNode> makeAST(const std::unique_ptr<ParseNode<Token>> &parseN
 			if (b) node->children.push_back(std::move(b));
 		} else return nullptr;
 	} else {
-		if(node->type == ParamList) {
-			std::cout << "Params: " << parseNode << std::endl;
-		}
 		if (parseNode->children.size() > 0 && parseNode->children[0]->value == Token::eps) return nullptr;
 
 		for (const auto &child : parseNode->children) {

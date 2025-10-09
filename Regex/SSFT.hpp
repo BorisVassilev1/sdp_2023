@@ -254,8 +254,8 @@ class SSFT {
 				for (const auto &[q, id] : state.get()) {
 					in << "(" << q << ", ";
 					for (const auto &letter : stateDelays[id]) {
-						if (size_t(letter) < 128 && size_t(letter) >= 32) in << letter;
-						else in << (size_t)letter;
+						if (uint8_t(letter) < 128 && uint8_t(letter) >= 32) in << letter;
+						else in << (int)letter;
 					}
 					in << ")\n ";
 				}
@@ -269,8 +269,8 @@ class SSFT {
 				const auto &[outputID, to] = value;
 				in << "  " << s << " -> " << to << " [label=\"<" << l << ", ";
 				for (const auto &letter : words[outputID]) {
-					if (size_t(letter) < 128 && size_t(letter) >= 32) in << letter;
-					else in << (size_t)letter;
+					if (uint8_t(letter) < 128 && uint8_t(letter) >= 32) in << letter;
+					else in << (int)letter;
 				}
 				in << ">\"];\n";
 			}
@@ -313,8 +313,8 @@ class SSFT {
 			if (qFinals.contains(q)) {
 				out << "  " << q << " [shape=doublecircle, label=\"";
 				for (const auto &letter : words[output.at(q)]) {
-					if (size_t(letter) < 128 && size_t(letter) >= 32) out << letter;
-					else out << (size_t)letter;
+					if (uint8_t(letter) < 128 && uint8_t(letter) >= 32) out << letter;
+					else out << (int)letter;
 				}
 				out << "\"];\n";									   // final States with output
 			} else out << "  " << q << " [shape=doublecircle];\n";	   // final States
@@ -324,8 +324,8 @@ class SSFT {
 			const auto &[outputID, to] = value;
 			out << "  " << s << " -> " << to << " [label=\"<" << l << ", ";
 			for (const auto &letter : words[outputID]) {
-				if (size_t(letter) < 128 && size_t(letter) >= 32) out << letter;
-				else out << (size_t)letter;
+				if (uint8_t(letter) < 128 && uint8_t(letter) >= 32) out << letter;
+				else out << (int)letter;
 			}
 			out << ">\"];\n";
 		}

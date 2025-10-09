@@ -23,8 +23,6 @@ struct Token {
 	constexpr Token(char value) : value(value) {}
 	Token(const Token &other, uint8_t *data) : value(other.value), data(data) {}
 
-	static inline constexpr const Token createTokenIKWIAD(std::size_t value) { return Token(value); }
-
 	explicit constexpr operator std::size_t() const { return value; }
 	explicit constexpr operator char() const { return value; }
 	explicit constexpr operator bool() const { return value; }

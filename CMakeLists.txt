@@ -151,5 +151,19 @@ target_link_options(DPDA PRIVATE ${COMPILE_ARGS})
 target_include_directories(DPDA PUBLIC .)
 	
 
+add_executable(langdef
+	lang/langdef.cpp
+	DPDA/utils.cpp
+	DPDA/token.cpp
+	util/utils.cpp
+	Regex/regexParser.cpp
+	Regex/ambiguity.cpp
+)
 
+target_compile_options(langdef PRIVATE ${COMPILE_ARGS})
+target_link_options(langdef PRIVATE ${COMPILE_ARGS})
+target_include_directories(langdef PRIVATE .)
+set_target_properties(langdef PROPERTIES
+	RUNTIME_OUTPUT_DIRECTORY ../
+)
 

@@ -6,6 +6,8 @@
 #include "Regex/wordset.hpp"
 #include "util/bench.hpp"
 
+namespace rgx {
+
 extern const Token Identifier;
 extern const Token Tuple;
 extern const Token Concatenation;
@@ -169,6 +171,7 @@ extern std::string Alphabet;
 
 std::string identity(const std::string &alphabet);
 std::string optionalReplace(const std::string &regex, const std::string &alphabet = Alphabet);
+};
 
-std::ostream &operator<<(std::ostream &out, const Regex &regex);
-std::ostream &operator<<(std::ostream &out, std::unique_ptr<Regex> &regex);
+std::ostream &operator<<(std::ostream &out, const rgx::Regex &regex);
+std::ostream &operator<<(std::ostream &out, std::unique_ptr<rgx::Regex> &regex);

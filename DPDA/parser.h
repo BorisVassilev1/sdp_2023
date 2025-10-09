@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <ratio>
+#include <stack>
 #include <unordered_map>
 #include "DPDA/token.h"
 #include "util/utils.hpp"
@@ -73,8 +74,15 @@ class Parser : public DPDA<State<Letter>, Letter> {
 			msg = std::format("unexpected '{}' - not a valid terminal", word[offset]);
 			++position;		// automaton has not consumed the letter so it's not offset-1
 		} else if (!stack.empty() && current_state > Letter::size) {
-			auto &firsts = *this->first.find(stack.back());
-			msg			 = std::format("expected one of {}, but got '{}'", firsts.second, currentLetter);
+			std::unordered_set<Letter> expected;
+			auto					  &firsts = *this->first.find(stack.back());
+			expected						  = firsts.second;
+			if (this->nullable.find(stack.back())->second) {
+				auto &follows = *this->follow.find(stack.back());
+				expected.insert(follows.second.begin(), follows.second.end());
+			}
+
+			msg = std::format("expected one of {}, but got '{}'", expected, currentLetter);
 		} else if (stack.empty() && offset == word.size()) {
 			msg = std::format("unexpected end of file");
 		} else if (current_state > Letter::size) {
@@ -91,7 +99,7 @@ class Parser : public DPDA<State<Letter>, Letter> {
 		// this does not work on clang 20.1.6 c++26
 		// msg += std::format("\n{: >{}}", '^', len + 1);
 		msg += "\n";
-		for (size_t i = 0; i < len + 1; ++i) {
+		for (size_t i = 0; i < len; ++i) {
 			msg += " ";
 		}
 		msg += '^';
@@ -156,23 +164,47 @@ class Parser : public DPDA<State<Letter>, Letter> {
 	 */
 	std::unique_ptr<ParseNode<Letter>> makeParseTree(
 		const std::vector<std::reference_wrapper<const typename DeltaMap::value_type>> &productions,
-		const std::vector<Letter> &word, int &k, int &j) const {
-		auto  node	  = std::make_unique<ParseNode<Letter>>(std::get<2>(productions[k].get().first));
-		auto &product = std::get<1>(productions[k].get().second);
-		++k;
-		if (product.empty()) node->children.push_back(std::make_unique<ParseNode<Letter>>(Letter::eps));
+		const std::vector<Letter>													   &word) const {
+		// stack implementation
+		struct ParsingState {
+			std::unique_ptr<ParseNode<Letter>> node;
+			unsigned int					   output_index;	 // where to continue from when backtracking
+			unsigned int					   prod_index;		 // index of production generating that node
+		};
 
-		for (size_t i = 0; i < product.size(); ++i) {
-			if (product[i] == word[j]) {
-				node->children.push_back(std::make_unique<ParseNode<Letter>>(word[j]));
-				++j;
-			} else {
-				auto child = makeParseTree(productions, word, k, j);
-				node->children.push_back(std::move(child));
+		std::stack<ParsingState> parseStack;
+		parseStack.push({std::make_unique<ParseNode<Letter>>(g.start), 0, 0});
+		unsigned int word_position = 0;		// position in output_word
+		unsigned int next_production	 = 0;		// index of production to use
+
+		while (word_position < word.size()) {
+			auto &[topNode, idx, prod_index] = parseStack.top();
+			const auto &[from, to]			 = productions[prod_index].get();
+			const auto &[_, _, A]			 = from;
+			const auto &[_, product]		 = to;
+
+			if (idx == product.size()) {
+				if (parseStack.size() == 1) break;
+				auto [childNode, _, _] = std::move(parseStack.top());
+				parseStack.pop();
+
+				auto &[topNode, idx, prod_index] = parseStack.top();
+				topNode->children.emplace_back(std::move(childNode));
+				++idx;
+
+				continue;
+			}
+
+			if (product[idx] == word[word_position]) {	   // terminal
+				topNode->children.push_back(std::make_unique<ParseNode<Letter>>(word[word_position]));
+				++word_position;
+				++idx;
+			} else {	 // non-terminal
+				parseStack.push({std::make_unique<ParseNode<Letter>>(product[idx]), 0, ++next_production});
 			}
 		}
 
-		return node;
+		return std::move(parseStack.top().node);
 	}
 
 	using ProductionVector = std::vector<std::reference_wrapper<const typename DeltaMap::value_type>>;
@@ -219,8 +251,7 @@ class Parser : public DPDA<State<Letter>, Letter> {
 		dbLog(dbg::LOG_DEBUG, "productions done: ", productions.size(), " in ",
 			  std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count(), "ms");
 
-		int	 i = 0, k = 0;
-		auto parseTree = makeParseTree(productions, word, k, i);
+		auto parseTree = makeParseTree(productions, word);
 
 		return parseTree;
 	}

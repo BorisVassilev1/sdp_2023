@@ -18,6 +18,12 @@ class CFG {
    public:
 	using Rule = std::pair<Letter, std::vector<Letter>>;
 
+
+	struct Production {
+		std::vector<Letter> rhs;
+		std::vector<bool> ignore;	 // whether to ignore the symbol in a parsing tree
+	};
+
 	std::unordered_multimap<Letter, std::vector<Letter>> rules;
 	std::unordered_set<Letter, std::hash<Letter>>		 terminals;
 	std::unordered_set<Letter, std::hash<Letter>>		 nonTerminals;
@@ -25,7 +31,10 @@ class CFG {
 	Letter												 eof = Letter::eof;
 
    public:
-	CFG(const Letter &start, const Letter &eof) : start(start), eof(eof) {}
+	CFG(const Letter &start, const Letter &eof) : start(start), eof(eof) {
+		terminals.insert(eof);
+		nonTerminals.insert(start);
+	}
 
 	/**
 	 * @brief computes if symbols are nullable

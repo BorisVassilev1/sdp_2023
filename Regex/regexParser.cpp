@@ -2,6 +2,7 @@
 #include "util/bench.hpp"
 #include <stack>
 
+namespace rgx {
 const Token Identifier	   = Token::createToken("id");
 const Token Tuple		   = Token::createToken("tuple");
 const Token Concatenation  = Token::createToken("concat");
@@ -177,3 +178,4 @@ std::ostream &operator<<(std::ostream &out, std::unique_ptr<Regex> &regex) {
 	}
 	return out;
 }
+};	   // namespace rgx

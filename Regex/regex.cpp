@@ -18,7 +18,7 @@ void generate1M() {
 	srand(std::chrono::system_clock::now().time_since_epoch().count());
 	std::ofstream out("regex_1M.txt");
 	for (int i = 0; i < 1000; ++i) {
-		out << generateRegexString(1000) << std::endl;
+		out << rgx::generateRegexString(1000) << std::endl;
 		if (i != 999) {
 			out << " + ";
 		} else {
@@ -28,7 +28,7 @@ void generate1M() {
 }
 
 int main(int argc, char **argv) {
-	RegexParser parser;
+	rgx::RegexParser parser;
 
 	if (argc == 2 && std::string(argv[1]) == "--generate") {
 		generate1M();
@@ -50,12 +50,12 @@ int main(int argc, char **argv) {
 
 	std::string text = buffer.str();
 
-	BENCH(tokenize(text), 100, "BENCH tokenize : ");
-	auto tokens = tokenize(text);
+	BENCH(rgx::tokenize(text), 100, "BENCH tokenize : ");
+	auto tokens = rgx::tokenize(text);
 	if (tokens.size() < 1000) { std::cout << "tokens: " << tokens << std::endl; }
 
-	BENCH({ parseRegex(text); }, 10, "BENCH parsing regex: ");
-	auto reg = parseRegex(text);
+	BENCH({ rgx::parseRegex(text); }, 10, "BENCH parsing regex: ");
+	auto reg = rgx::parseRegex(text);
 	std::cout << reg->size() << " tokens in regex." << std::endl;
 	if (tokens.size() < 1000) {
 		std::cout << "regex: " << std::endl;

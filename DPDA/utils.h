@@ -100,17 +100,6 @@ std::ostream &operator<<(std::ostream &out, const std::pair<A, B> &t);
 template <class T>
 std::ostream &operator<<(std::ostream &out, std::vector<T> v);
 
-// Code from boost
-// Reciprocal of the golden ratio helps spread entropy
-//     and handles duplicates.
-// See Mike Seymour in magic-numbers-in-boosthash-combine:
-//     http://stackoverflow.com/questions/4948780
-
-template <class T>
-constexpr inline void hash_combine(std::size_t &seed, T const &v) {
-	seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
-
 template <class... Args>
 struct std::hash<std::tuple<Args...>> {
 	constexpr std::size_t operator()(const std::tuple<Args...> &t) const {

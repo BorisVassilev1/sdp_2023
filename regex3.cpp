@@ -56,7 +56,7 @@ auto S2 = std::format(
 int main() {
 	std::cout << "regex: " << S << std::endl;
 
-	auto regex = parseRegex(S);
+	auto regex = rgx::parseRegex(S);
 	auto fst   = (FST<Letter>)makeFSA_BerriSethi<Letter>(*regex);
 	fst		   = trimFSA<Letter>(std::move(fst));
 

@@ -58,7 +58,7 @@ M MC MMMI MD MM MCML MMMCMXCIX
 int main() {
 	std::cout << "regex: " << N << std::endl;
 
-	auto regex = parseRegex(N);
+	auto regex = rgx::parseRegex(N);
 	auto fst   = (FST<Letter>)makeFSA_BerriSethi<Letter>(*regex);
 	fst		   = trimFSA<Letter>(std::move(fst));
 
