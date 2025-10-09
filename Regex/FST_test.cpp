@@ -83,7 +83,7 @@ void test_replace() {
 	std::cout << "Optional replace: " << t << std::endl;
 
 	BENCH(makeFSA_BerriSethi<Letter>(*t), 100, "BENCH makeFSA Berry-Sethi: ");
-	auto fst = makeFSA_BerriSethi<Letter>(*t);
+	FST<Letter> fst = makeFSA_BerriSethi<Letter>(*t);
 	// fst.print(std::cout);
 
 	BENCH(makeFSA_Thompson<Letter>(*t), 100, "BENCH makeFSA Thompson: ");

@@ -27,7 +27,7 @@ class FST {
 	std::vector<std::vector<Letter>> words;		// words on the tapes
 	Map								 transitions;
 
-	FST() : N(0) {}
+	constexpr FST() : N(0) {}
 
 	void addTransition(State from, std::vector<Letter> &&w1, std::vector<Letter> &&w2, State to) {
 		StringID id1;

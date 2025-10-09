@@ -20,7 +20,7 @@ struct Token {
 	Token &operator=(const Token &other) = default;
 	Token &operator=(Token &&other)		 = default;
 
-	Token(char value) : value(value) {}
+	constexpr Token(char value) : value(value) {}
 	Token(const Token &other, uint8_t *data) : value(other.value), data(data) {}
 
 	static inline constexpr const Token createTokenIKWIAD(std::size_t value) { return Token(value); }

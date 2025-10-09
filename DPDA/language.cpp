@@ -145,13 +145,10 @@ std::vector<Token> tokenize(std::string &text) {
 }
 
 std::unordered_set<Token> binaryOpsPri = {
-	Assignment,
-	Arithmetic,
-	Term,
-	Comparison,
-	//CommaSep,
+	Assignment, Arithmetic, Term, Comparison,
+	// CommaSep,
 };
-std::unordered_set<Token> binaryOpsSec		  = {Assignment_, Arithmetic_, Term_, Comparison_, ParamList};
+std::unordered_set<Token> binaryOpsSec		  = {Assignment_, Arithmetic_, Term_, Comparison_};
 std::unordered_set<Token> punctuation		  = {'(', ')', '[', ']', '{', '}', ';'};
 std::unordered_set<Token> preservePunctuation = {Scope};
 std::unordered_set<Token> Params			  = {ParamList};
@@ -181,9 +178,7 @@ struct std::formatter<ASTNode> : ostream_formatter {};
 
 std::unique_ptr<ASTNode> makeAST(const std::unique_ptr<ParseNode<Token>> &parseNode) {
 	auto node = std::make_unique<ASTNode>(parseNode->value);
-	if(parseNode->value == Token::eps) {
-		return nullptr;
-	}
+	if (parseNode->value == Token::eps) { return nullptr; }
 
 	if (node->type == Program) {
 		std::function<void(const std::unique_ptr<ParseNode<Token>> &)> cut;
@@ -202,10 +197,8 @@ std::unique_ptr<ASTNode> makeAST(const std::unique_ptr<ParseNode<Token>> &parseN
 	} else if (punctuation.contains(node->type)) {
 		return nullptr;
 	} else if (binaryOpsPri.contains(node->type)) {
-		if(parseNode->children.size() == 0) {
-			return node;
-		}
-		if(parseNode->children.size() == 1) {
+		if (parseNode->children.size() == 0) { return node; }
+		if (parseNode->children.size() == 1) {
 			auto newChild = makeAST(parseNode->children[0]);
 			if (newChild) node->children.push_back(std::move(newChild));
 			return node;
@@ -251,6 +244,9 @@ std::unique_ptr<ASTNode> makeAST(const std::unique_ptr<ParseNode<Token>> &parseN
 			if (b) node->children.push_back(std::move(b));
 		} else return nullptr;
 	} else {
+		if(node->type == ParamList) {
+			std::cout << "Params: " << parseNode << std::endl;
+		}
 		if (parseNode->children.size() > 0 && parseNode->children[0]->value == Token::eps) return nullptr;
 
 		for (const auto &child : parseNode->children) {

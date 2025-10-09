@@ -68,26 +68,26 @@ class State {
 
 template <>
 struct std::hash<Letter> {
-	size_t operator()(const Letter &x) const { return hash<char>()(x); }
+	constexpr size_t operator()(const Letter &x) const { return hash<char>()(x); }
 };
 
 template <>
 struct std::hash<std::span<Letter>> {
-	size_t operator()(const std::span<Letter> &x) const {
+	constexpr size_t operator()(const std::span<Letter> &x) const {
 		return std::hash<std::string_view>()(std::string_view(reinterpret_cast<const char *>(x.data()), x.size()));
 	}
 };
 
 template <>
 struct std::hash<std::vector<Letter>> {
-	size_t operator()(const std::vector<Letter> &x) const {
+	constexpr size_t operator()(const std::vector<Letter> &x) const {
 		return std::hash<std::string_view>()(std::string_view(reinterpret_cast<const char *>(x.data()), x.size()));
 	}
 };
 
 template <class Letter>
 struct std::hash<State<Letter>> {
-	size_t operator()(const State<Letter> &x) const { return hash<size_t>()(x); }
+	constexpr size_t operator()(const State<Letter> &x) const { return hash<size_t>()(x); }
 };
 
 template <int N, typename... Ts>
@@ -107,13 +107,13 @@ std::ostream &operator<<(std::ostream &out, std::vector<T> v);
 //     http://stackoverflow.com/questions/4948780
 
 template <class T>
-inline void hash_combine(std::size_t &seed, T const &v) {
+constexpr inline void hash_combine(std::size_t &seed, T const &v) {
 	seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
 template <class... Args>
 struct std::hash<std::tuple<Args...>> {
-	std::size_t operator()(const std::tuple<Args...> &t) const {
+	constexpr std::size_t operator()(const std::tuple<Args...> &t) const {
 		return [&]<std::size_t... p>(std::index_sequence<p...>) {
 			return ((std::hash<NthTypeOf<p, Args...>>{}(std::get<p>(t))) ^ ...);
 		}(std::make_index_sequence<std::tuple_size_v<std::tuple<Args...>>>{});

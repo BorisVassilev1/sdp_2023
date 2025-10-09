@@ -59,6 +59,8 @@ add_executable(language
 	DPDA/utils.cpp
 	DPDA/token.cpp
 	util/utils.cpp
+	Regex/regexParser.cpp
+	Regex/ambiguity.cpp
 )
 target_compile_options(language PRIVATE ${COMPILE_ARGS})
 target_link_options(language PRIVATE ${COMPILE_ARGS})
@@ -141,6 +143,8 @@ add_library(DPDA STATIC
 	DPDA/utils.cpp
 	DPDA/token.cpp
 	util/utils.cpp
+	Regex/regexParser.cpp
+	Regex/ambiguity.cpp
 )
 target_compile_options(DPDA PRIVATE ${COMPILE_ARGS})
 target_link_options(DPDA PRIVATE ${COMPILE_ARGS})

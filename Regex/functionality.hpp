@@ -23,7 +23,7 @@ std::string toString(T &&t) {
 
 template <class Letter, class T>
 std::vector<Letter> toLetter(T &&t) {
-	return std::vector(std::begin(t), std::end(t));
+	return std::vector<Letter>(std::begin(t), std::end(t));
 }
 
 template <class U, class V>
