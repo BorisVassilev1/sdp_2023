@@ -8,15 +8,15 @@ int main() {
 
 	using namespace ll1g;
 
-	auto g = Seq(Letter('S'),
+	auto g = Seq(Letter('S'), {true, false, true},
 		Letter('['),
 		Optional(Letter('A'),
 			Seq(Letter('B'),
 				Letter('1'),
 				Repeat(Letter('C'),
 					Word(Letter('D'),
-						toLetter(",1")
-					)
+						toLetter(",1"), {true, false}
+					), INT_MAX, true
 				)
 			)
 		),
@@ -32,7 +32,10 @@ int main() {
 	//parser.parse(toLetter("[1]#"));
 	//parser.parse(toLetter("[1,1]#"));
 	//parser.parse(toLetter("[1,1,1]#"));
-	auto pt = parser.parse(toLetter("[1,1,1,1,1]#"));
+	auto pt = parser.parse("[1,1,1,1,1]#");
+	std::cout << pt << std::endl;
+
+	pt = parser.ASTparse("[1,1,1,1,1]#");
 	std::cout << pt << std::endl;
 
 	return 0;

@@ -135,7 +135,7 @@ class Parser : public DPDA<State<Letter>, Letter> {
 						addTransition(f(l), Letter::eps, A, f(l), v);
 					}
 				} else {
-					const auto &firstA = grammar.first(v, nullable, first);
+					const auto &firstA = grammar.first(v.rhs, nullable, first);
 					for (const auto l : firstA) {
 						addTransition(f(l), Letter::eps, A, f(l), v);
 					}
@@ -154,12 +154,8 @@ class Parser : public DPDA<State<Letter>, Letter> {
 	/**
 	 * @brief Constructs a parse tree from a word and a series of productions
 	 *
-	 * @tparam T
-	 * @tparam U
 	 * @param productions
 	 * @param word
-	 * @param k - start index for productions
-	 * @param j - start index for word
 	 * @return requires&&
 	 */
 	std::unique_ptr<ParseNode<Letter>> makeParseTree(
@@ -198,6 +194,59 @@ class Parser : public DPDA<State<Letter>, Letter> {
 
 			if (product[idx] == word[word_position]) {	   // terminal
 				topNode->children.push_back(std::make_unique<ParseNode<Letter>>(word[word_position]));
+				++word_position;
+				++idx;
+			} else {	 // non-terminal
+				parseStack.push({std::make_unique<ParseNode<Letter>>(product[idx]), 0, ++next_production});
+			}
+		}
+
+		return std::move(parseStack.top().node);
+	}
+
+	std::unique_ptr<ParseNode<Letter>> makeAST(
+		const std::vector<std::reference_wrapper<const typename DeltaMap::value_type>> &productions,
+		const std::vector<Letter>													   &word) const {
+		// stack implementation
+		struct ParsingState {
+			std::unique_ptr<ParseNode<Letter>> node;
+			unsigned int					   output_index;	 // where to continue from when backtracking
+			unsigned int					   prod_index;		 // index of production generating that node
+		};
+
+		std::stack<ParsingState> parseStack;
+		parseStack.push({std::make_unique<ParseNode<Letter>>(g.start), 0, 0});
+		unsigned int word_position	 = 0;	  // position in output_word
+		unsigned int next_production = 0;	  // index of production to use
+
+		while (word_position < word.size()) {
+			auto &[topNode, idx, prod_index] = parseStack.top();
+			const auto &[from, to]			 = productions[prod_index].get();
+			const auto &[_, product]		 = to;
+
+			if (idx == product.size()) {
+				if (parseStack.size() == 1) break;
+				auto [childNode, _, _] = std::move(parseStack.top());
+				parseStack.pop();
+
+				int threshhold = g.getNonTerminalData(childNode->value).upwardSpillThreshold;
+
+				auto &[topNode, idx, prod_index] = parseStack.top();
+				if( threshhold < 0 || childNode->children.size() > size_t(threshhold)) {
+					topNode->children.emplace_back(std::move(childNode));
+				} else {
+					for(auto &c : childNode->children) {
+						topNode->children.emplace_back(std::move(c));
+					}
+				}
+				++idx;
+
+				continue;
+			}
+
+			if (product[idx] == word[word_position]) {	   // terminal
+				if(!product.ignore[idx])
+					topNode->children.push_back(std::make_unique<ParseNode<Letter>>(word[word_position]));
 				++word_position;
 				++idx;
 			} else {	 // non-terminal
@@ -257,6 +306,19 @@ class Parser : public DPDA<State<Letter>, Letter> {
 		return parseTree;
 	}
 
+	std::unique_ptr<ParseNode<Letter>> ASTparse(const std::vector<Letter> &word) const {
+		auto start					 = std::chrono::high_resolution_clock::now();
+		auto [accepted, productions] = generateProductions(word);
+		auto end					 = std::chrono::high_resolution_clock::now();
+		if (!accepted) { return nullptr; }
+		dbLog(dbg::LOG_DEBUG, "productions done: ", productions.size(), " in ",
+			  std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count(), "ms");
+
+		auto parseTree = makeAST(productions, word);
+
+		return parseTree;
+	}
+
 	/**
 	 * @brief same as the other method, but for strings
 	 *
@@ -272,6 +334,16 @@ class Parser : public DPDA<State<Letter>, Letter> {
 		}
 		if (word.back() != Letter::eof) w.push_back(Letter::eof);
 		return parse(w);
+	}
+
+	template <typename U = Letter>
+	std::unique_ptr<ParseNode<Letter>> ASTparse(const std::string &word) const {
+		std::vector<Letter> w;
+		for (std::size_t i = 0; i < word.size(); ++i) {
+			w.push_back(Letter(word[i]));
+		}
+		if (word.back() != Letter::eof) w.push_back(Letter::eof);
+		return ASTparse(w);
 	}
 
 	const CFG<Letter> &getGrammar() const { return g; }

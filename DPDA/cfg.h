@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <iostream>
+#include <cassert>
 #include "utils.h"
 #include <format>
 
@@ -18,17 +19,39 @@ class CFG {
    public:
 	using Rule = std::pair<Letter, std::vector<Letter>>;
 
-
 	struct Production {
 		std::vector<Letter> rhs;
-		std::vector<bool> ignore;	 // whether to ignore the symbol in a parsing tree
+		std::vector<bool>	ignore;		// whether to ignore the symbol in a parsing tree
+		bool				hasSemanticAction = true;
+
+		template <class U>
+			requires std::is_convertible_v<typename std::remove_reference_t<U>::value_type, Letter>
+		Production(U &&rhs) : rhs(std::forward<U>(rhs)), ignore(rhs.size(), false) {}
+
+		template <class U>
+			requires std::is_convertible_v<typename std::remove_reference_t<U>::value_type, Letter>
+		Production(U &&rhs, const std::vector<bool> &ignore, bool hasSemanticAction = true)
+			: rhs(std::forward<U>(rhs)), ignore(ignore), hasSemanticAction(hasSemanticAction) {}
+
+		auto				 begin() const { return rhs.begin(); }
+		auto				 end() const { return rhs.end(); }
+		auto				 empty() const { return rhs.empty(); }
+		auto				 size() const { return rhs.size(); }
+		auto				 operator[](std::size_t i) const { return rhs[i]; }
+		friend std::ostream &operator<<(std::ostream &os, const Production &p) { return os << p.rhs; }
 	};
 
-	std::unordered_multimap<Letter, std::vector<Letter>> rules;
-	std::unordered_set<Letter, std::hash<Letter>>		 terminals;
-	std::unordered_set<Letter, std::hash<Letter>>		 nonTerminals;
-	Letter												 start;
-	Letter												 eof = Letter::eof;
+	struct NonTerminalData {
+		int upwardSpillThreshold = -1;	   // if >= 0, the non-terminal will disappear in the AST if it has <= children
+	};
+
+	std::unordered_map<Letter, NonTerminalData> nonTerminalData;
+
+	std::unordered_multimap<Letter, Production>	  rules;
+	std::unordered_set<Letter, std::hash<Letter>> terminals;
+	std::unordered_set<Letter, std::hash<Letter>> nonTerminals;
+	Letter										  start;
+	Letter										  eof = Letter::eof;
 
    public:
 	CFG(const Letter &start, const Letter &eof) : start(start), eof(eof) {
@@ -242,6 +265,17 @@ class CFG {
 	 * @brief Computes and prints the parse table to stdout
 	 */
 	void printParseTable() const {
+		for (const auto l : nonTerminals) {
+			std::cout << l << "\t";
+			if (nonTerminalData.contains(l)) {
+				const auto &d = nonTerminalData.find(l)->second;
+				std::cout << "[spill threshold: " << d.upwardSpillThreshold << "]";
+			} else {
+				std::cout << "[no data]";
+			}
+			std::cout << std::endl;
+		}
+
 		const auto nullable = findNullables();
 		const auto first	= findFirsts(nullable);
 		const auto follow	= findFollows(nullable, first);
@@ -253,7 +287,7 @@ class CFG {
 					std::cout << A << ", " << l << " ~~> " << A << " -> " << Letter::eps << std::endl;
 				}
 			} else {
-				const auto &firstA = this->first(v, nullable, first);
+				const auto &firstA = this->first(v.rhs, nullable, first);
 				for (const auto l : firstA) {
 					std::cout << A << ", " << l << " ~~> " << A << " -> " << v << std::endl;
 				}
@@ -277,7 +311,12 @@ class CFG {
 	 * @param a - nonterminal
 	 * @param w - a word
 	 */
-	void addRule(Letter a, const std::vector<Letter> &w) { rules.insert({a, w}); }
+	void addRule(Letter a, const Production &w) {
+		if (!nonTerminals.contains(a)) { nonTerminals.insert(a); }
+		if (!nonTerminalData.contains(a)) { nonTerminalData.insert({a, NonTerminalData()}); }
+		rules.insert({a, w});
+	}
+	void addRule(Letter a, const std::vector<Letter> &w) { addRule(a, Production(w)); }
 
 	/**
 	 * @brief adds the rule (a -> w) to the grammar. Available only if \ref{Letter} can be implicitly constructed from
@@ -317,13 +356,13 @@ class CFG {
 		auto [b, e] = rules.equal_range(l);
 		auto size	= std::distance(b, e) - isNullable;
 
-		int val = (rand()+1) % size;
+		int val = (rand() + 1) % size;
 		std::advance(b, val);
 		auto [_, w] = *b;
 
 		std::vector<Letter> result;
 
-		for (Letter &l : w) {
+		for (const Letter &l : w) {
 			if (nonTerminals.contains(l)) {
 				auto [v, b] = generate(max - result.size(), l, nullables);
 				if (!b) return {{}, false};
@@ -334,5 +373,16 @@ class CFG {
 		}
 
 		return {result, true};
+	}
+
+	auto &getNonTerminalData(Letter l) {
+		assert(nonTerminals.contains(l));
+		return nonTerminalData[l];
+	}
+
+	const auto &getNonTerminalData(Letter l) const {
+		assert(nonTerminals.contains(l));
+		assert(nonTerminalData.contains(l));
+		return nonTerminalData.find(l)->second;
 	}
 };
