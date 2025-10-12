@@ -70,9 +70,13 @@ class Parser : public DPDA<State<Letter>, Letter> {
 		size_t		position = offset > 0 ? offset - 1 : 0;
 		std::string msg;
 		Letter		currentLetter = Letter(current_state - Letter::size);
+
+		dbLog(dbg::LOG_ERROR, "-------------");
+		printState(current_state, offset, stack, word);
+		dbLog(dbg::LOG_ERROR, "-------------");
+
 		if (current_state == 1 && !g.terminals.contains(word[offset])) {
 			msg = std::format("unexpected '{}' - not a valid terminal", word[offset]);
-			++position;		// automaton has not consumed the letter so it's not offset-1
 		} else if (!stack.empty() && current_state > Letter::size) {
 			std::unordered_set<Letter> expected;
 			auto					  &firsts = *this->first.find(stack.back());
@@ -81,8 +85,9 @@ class Parser : public DPDA<State<Letter>, Letter> {
 				auto &follows = *this->follow.find(stack.back());
 				expected.insert(follows.second.begin(), follows.second.end());
 			}
+			auto filtered = expected | std::views::filter([&](const Letter l) { return g.terminals.contains(l); });
 
-			msg = std::format("expected one of {}, but got '{}'", expected, currentLetter);
+			msg = std::format("expected one of {}, but got '{}'", filtered, currentLetter);
 		} else if (stack.empty() && offset == word.size()) {
 			msg = std::format("unexpected end of file");
 		} else if (current_state > Letter::size) {
@@ -95,7 +100,9 @@ class Parser : public DPDA<State<Letter>, Letter> {
 		for (size_t i = std::max((int)position - 5, 0); i < std::min(position + 5, word.size()); ++i) {
 			msg += std::format("{}", word[i]);
 		}
-		std::size_t len = getLengthOfTokens(word, std::max((int)position - 5, 0), 5);
+
+		int			tokensBefore = std::min((int)position, 5);
+		std::size_t len			 = getLengthOfTokens(word, position - tokensBefore, tokensBefore);
 		// this does not work on clang 20.1.6 c++26
 		// msg += std::format("\n{: >{}}", '^', len + 1);
 		msg += "\n";
@@ -123,6 +130,23 @@ class Parser : public DPDA<State<Letter>, Letter> {
 		  nullable(grammar.findNullables()),
 		  first(grammar.findFirsts(nullable)),
 		  follow(grammar.findFollows(nullable, first)) {
+		bool intersection = false;
+		for (const auto l : grammar.terminals) {
+			if (grammar.nonTerminals.contains(l)) {
+				intersection = true;
+				break;
+			}
+		}
+		for (const auto l : grammar.nonTerminals) {
+			if (grammar.terminals.contains(l)) {
+				intersection = true;
+				break;
+			}
+		}
+		if (intersection) {
+			throw std::runtime_error("Grammar is not LL(1): intersection between terminals and nonterminals");
+		}
+
 		addTransition(0, Letter::eps, Letter::eps, 1, {grammar.start});
 
 		auto f = [](const Letter l) -> LState { return Letter::size + std::size_t(l); };
@@ -222,6 +246,7 @@ class Parser : public DPDA<State<Letter>, Letter> {
 		while (word_position < word.size()) {
 			auto &[topNode, idx, prod_index] = parseStack.top();
 			const auto &[from, to]			 = productions[prod_index].get();
+			const auto &[_, _, A]		 = from;
 			const auto &[_, product]		 = to;
 
 			if (idx == product.size()) {
@@ -229,13 +254,33 @@ class Parser : public DPDA<State<Letter>, Letter> {
 				auto [childNode, _, _] = std::move(parseStack.top());
 				parseStack.pop();
 
-				int threshhold = g.getNonTerminalData(childNode->value).upwardSpillThreshold;
-
+				const auto &NTData = g.getNonTerminalData(A);
 				auto &[topNode, idx, prod_index] = parseStack.top();
-				if( threshhold < 0 || childNode->children.size() > size_t(threshhold)) {
+
+				// throw out the node if it is empty and we ignore empty
+				if (NTData.ignoreEmpty && childNode->children.size() == 0) {
+					++idx;
+					continue;
+				}
+				// throw out the node if it has a single child and we ignore single child
+				if (NTData.ignoreSingleChild && childNode->children.size() == 1) {
+					if (product.replaceWith != Letter::eps) {
+						topNode->value = product.replaceWith;
+					}
+
+					topNode->children.emplace_back(std::move(childNode->children[0]));
+					++idx;
+					continue;
+				}
+
+				if (NTData.upwardSpillThreshold < 0 || childNode->children.size() > size_t(NTData.upwardSpillThreshold)) {
+
+					if (product.replaceWith != Letter::eps) {
+						childNode->value = product.replaceWith;
+					}
 					topNode->children.emplace_back(std::move(childNode));
-				} else {
-					for(auto &c : childNode->children) {
+				} else { // spill upwards if we have few children
+					for (auto &c : childNode->children) {
 						topNode->children.emplace_back(std::move(c));
 					}
 				}
@@ -245,7 +290,7 @@ class Parser : public DPDA<State<Letter>, Letter> {
 			}
 
 			if (product[idx] == word[word_position]) {	   // terminal
-				if(!product.ignore[idx])
+				if (!product.ignore[idx])
 					topNode->children.push_back(std::make_unique<ParseNode<Letter>>(word[word_position]));
 				++word_position;
 				++idx;

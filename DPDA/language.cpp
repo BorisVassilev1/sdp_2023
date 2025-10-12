@@ -12,96 +12,141 @@
 #include <string_view>
 #include <DPDA/earley.hpp>
 #include <util/bench.hpp>
+#include <lang/grammar_factory.hpp>
 
 const Token Program		= Token::createToken("Program");
 const Token Number		= Token::createToken("Number");
-const Token Number_		= Token::createToken("Number'");
 const Token Identifier	= Token::createToken("Identifier");
-const Token Identifier_ = Token::createToken("Identifier'");
 const Token NL			= Token::createToken("NL", '\n');
 const Token Expression	= Token::createToken("Expression");
-const Token Expression_ = Token::createToken("Expression'");
 const Token Assignment	= Token::createToken("Assignment");
-const Token Assignment_ = Token::createToken("Assignment'");
 const Token Arithmetic	= Token::createToken("Arithmetic");
-const Token Arithmetic_ = Token::createToken("Arithmetic'");
 const Token Term		= Token::createToken("Term");
-const Token Term_		= Token::createToken("Term'");
 const Token Factor		= Token::createToken("Factor");
 const Token Conditional = Token::createToken("Conditional");
 const Token Comparison	= Token::createToken("Comparison");
-const Token Comparison_ = Token::createToken("Comparison'");
 const Token CommaSep	= Token::createToken("CommaSep");
-const Token CommaSep_	= Token::createToken("CommaSep'");
 const Token ParamList	= Token::createToken("ParamList");
 const Token Scope		= Token::createToken("Scope");
+const Token ParenthesisExpr = Token::createToken("(Expr)");
+const Token ParenthesisParamList = Token::createToken("(ParamList)");
+const Token BracketParamList	 = Token::createToken("[ParamList]");
 
 const Token If	  = Token::createToken("if");
 const Token While = Token::createToken("while");
 const Token For	  = Token::createToken("for");
 
-std::unique_ptr<CFG<Token>> g = nullptr;
+CFG<Token> createCFGNew() {
+	using namespace ll1g;
 
-void createCFG() {
-	g = std::make_unique<CFG<Token>>(Program, Token::eof);
+	Token current = Token::eps;
+	auto  NT	  = [&]() {
+		assert(current != Token::eps && "Cannot create dependent token from eps");
+		return current = Token::createDependentToken(current);
+	};
+	
+	current = Program;
+	auto program = Repeat(Program,
+		Choice(NT(),
+			Expression,
+			Conditional,
+			Scope
+		),
+		INT_MAX
+	);
+	
+	current = Expression;
+	auto expression = Seq(Expression, {false, true},
+		Optional(NT(), Assignment),
+		Token(';')
+	);
+	expression.setIgnoreEmpty(false);
+	//expression.setIgnoreSingleChild(false);
 
-	g->terminals.insert({NL, '.', ',', ';', '(', ')', '[', ']', '{', '}', '=', '+', '-', '*', '/', '<', '>'});
-	g->terminals.insert(Token::eof);
-	g->terminals.insert(If);
-	g->terminals.insert(While);
-	g->terminals.insert(For);
-	g->terminals.insert(Number);
-	g->terminals.insert(Identifier);
+	current = Assignment;
+	auto assignment = Seq(Assignment, 
+		Comparison,
+		RepeatChoice(NT(),
+			Production({Token('='), Comparison}, {true, false}, Token('='))
+		)
+	);
 
-	g->nonTerminals = {Program,		Expression, Expression_, Assignment, Assignment_, Arithmetic,
-					   Arithmetic_, Term,		Term_,		 Factor,	 Conditional, Comparison,
-					   Comparison_, CommaSep,	CommaSep_,	 ParamList,	 Scope};
+	current = Comparison;
+	auto comparison = Seq(Comparison,
+		Arithmetic,
+		RepeatChoice(NT(),
+			Production({Token('<'), Arithmetic}, {true, false}, Token('<')),
+			Production({Token('>'), Arithmetic}, {true, false}, Token('>'))
+		)
+	);
 
-	g->addRule(Program, {Expression, Program});
-	g->addRule(Program, {Conditional, ';', Program});
-	g->addRule(Program, {Scope, Program});
-	g->addRule(Program, {});
+	current = Arithmetic;
+	auto arithmetic = Seq(Arithmetic,
+		Term,
+		RepeatChoice(NT(),
+			Production({Token('+'), Term}, {true, false}, Token('+')),
+			Production({Token('-'), Term}, {true, false}, Token('-'))
+		)
+	);
 
-	g->addRule(Scope, {'{', Program, '}'});
+	current = Term;
+	auto term = Seq(Term,
+		Factor,
+		RepeatChoice(NT(),
+			Production({Token('*'), Factor}, {true, false}, Token('*')),
+			Production({Token('/'), Factor}, {true, false}, Token('/'))
+		)
+	);
 
-	g->addRule(Expression, {Assignment, ';'});
-	g->addRule(Expression, {';'});
-	g->addRule(Assignment, {Comparison, Assignment_});
-	g->addRule(Assignment_, {'=', Comparison, Assignment_});
-	g->addRule(Assignment_, {});
+	current = ParenthesisExpr;
+	auto parenthesisExpr = Word(ParenthesisExpr, {Token('('), Assignment, Token(')')}, {true, false, true});
+	parenthesisExpr.setIgnoreEmpty(false);
+	parenthesisExpr.setIgnoreSingleChild(false);
 
-	g->addRule(Comparison, {Arithmetic, Comparison_});
-	g->addRule(Comparison_, {'<', Arithmetic, Comparison_});
-	g->addRule(Comparison_, {'>', Arithmetic, Comparison_});
-	g->addRule(Comparison_, {});
+	current = Factor;
+	auto factor = Choice(Factor,
+		std::vector{Identifier, ParamList},
+		std::vector{Number},
+		std::move(parenthesisExpr) // move the entire grammar 
+	);
 
-	g->addRule(Arithmetic, {Term, Arithmetic_});
-	g->addRule(Arithmetic_, {'+', Term, Arithmetic_});
-	g->addRule(Arithmetic_, {'-', Term, Arithmetic_});
-	g->addRule(Arithmetic_, {});
+	current = Scope;
+	auto scope = Word(Scope, {'{', Program, '}'}, {true, false, true});
+	scope.setIgnoreEmpty(false);
+	scope.setIgnoreSingleChild(false);
 
-	g->addRule(Term, {Factor, Term_});
-	g->addRule(Term_, {'*', Factor, Term_});
-	g->addRule(Term_, {'/', Factor, Term_});
-	g->addRule(Term_, {});
+	current = Conditional;
+	auto conditional = Choice(Conditional,
+		Production({If, '(', Assignment, ')', Scope}, {true, true, false, true, false}, If),
+		Production({While, '(', Assignment, ')', Scope}, {true, true, false, true, false}, While),
+		Production({For, '(', Expression, Expression, Assignment, ')', Scope}, {true, true, false, false, false, true, false}, For)
+	);
+	conditional.setIgnoreEmpty(false);
 
-	g->addRule(Factor, {Identifier, ParamList});
-	g->addRule(Factor, {Number});
-	g->addRule(Factor, {'(', Assignment, ')'});
+	current = ParamList;
+	auto paramList = Optional(ParamList,
+		RepeatChoice(NT(),
+			Word(ParenthesisParamList, {'(', CommaSep, ')'}, {true, false, true}),
+			Word(BracketParamList, {'[', CommaSep, ']'}, {true, false, true})
+		)
+	);
 
-	g->addRule(Conditional, {If, '(', Assignment, ')', '{', Program, '}'});
-	g->addRule(Conditional, {While, '(', Assignment, ')', '{', Program, '}'});
-	g->addRule(Conditional, {For, '(', Expression, Expression, Assignment, ')', '{', Program, '}'});
+	current = CommaSep;
+	auto commaSep = Optional(CommaSep,
+		Seq(NT(),
+			Assignment,
+			Repeat(NT(),
+				Word(NT(), {',', Assignment},{true, false}), INT_MAX
+			)
+		)
+	);
 
-	g->addRule(ParamList, {});
-	g->addRule(ParamList, {'(', CommaSep, ')', ParamList});
-	g->addRule(ParamList, {'[', CommaSep, ']', ParamList});
-
-	g->addRule(CommaSep, {Assignment, CommaSep_});
-	g->addRule(CommaSep, {});
-	g->addRule(CommaSep_, {',', Assignment, CommaSep_});
-	g->addRule(CommaSep_, {});
+	auto g = Combine(program, expression, assignment, comparison, arithmetic, term, factor, scope, conditional, paramList, commaSep);
+	//g.printParseTable();
+	return g;
 }
+
+std::unique_ptr<CFG<Token>> g{nullptr};
 
 std::vector<Token> tokenize(std::string &text) {
 	std::vector<Token> res;
@@ -144,18 +189,9 @@ std::vector<Token> tokenize(std::string &text) {
 	return res;
 }
 
-std::unordered_set<Token> binaryOpsPri = {
-	Assignment, Arithmetic, Term, Comparison,
-	// CommaSep,
-};
-std::unordered_set<Token> binaryOpsSec		  = {Assignment_, Arithmetic_, Term_, Comparison_, ParamList};
-std::unordered_set<Token> punctuation		  = {'(', ')', '[', ']', '{', '}', ';'};
-std::unordered_set<Token> preservePunctuation = {Scope};
-std::unordered_set<Token> Params			  = {ParamList};
-
 struct ASTNode {
-	std::vector<std::unique_ptr<ASTNode>> children;
 	Token								  type;
+	std::vector<std::unique_ptr<ASTNode>> children;
 
    public:
 	ASTNode(Token type) : type(type) {}
@@ -176,89 +212,6 @@ std::ostream &operator<<(std::ostream &out, const std::unique_ptr<ASTNode> &node
 template <>
 struct std::formatter<ASTNode> : ostream_formatter {};
 
-std::unique_ptr<ASTNode> makeAST(const std::unique_ptr<ParseNode<Token>> &parseNode) {
-	auto node = std::make_unique<ASTNode>(parseNode->value);
-	if (parseNode->value == Token::eps) { return nullptr; }
-
-	if (node->type == Program) {
-		std::function<void(const std::unique_ptr<ParseNode<Token>> &)> cut;
-		cut = [&](const std::unique_ptr<ParseNode<Token>> &parseNode) -> void {
-			if (parseNode->value != Program) return;
-			if (parseNode->children.size() < 2) return;
-
-			auto newChild = makeAST(parseNode->children[0]);
-			if (newChild) node->children.push_back(std::move(newChild));
-
-			for (std::size_t i = 1; i < parseNode->children.size(); ++i) {
-				cut(parseNode->children[i]);
-			}
-		};
-		cut(parseNode);
-	} else if (punctuation.contains(node->type)) {
-		return nullptr;
-	} else if (binaryOpsPri.contains(node->type)) {
-		if (parseNode->children.size() == 0) { return node; }
-		if (parseNode->children.size() == 1) {
-			auto newChild = makeAST(parseNode->children[0]);
-			if (newChild) node->children.push_back(std::move(newChild));
-			return node;
-		}
-		if (parseNode->children[1]->children[0]->value == Token::eps) {
-			auto newChild = makeAST(parseNode->children[0]);
-			if (newChild) node->children.push_back(std::move(newChild));
-		} else {
-			node->type = parseNode->children[1]->children[0]->value;
-			auto a	   = makeAST(parseNode->children[0]);
-			auto b	   = makeAST(parseNode->children[1]);
-			if (a) node->children.push_back(std::move(a));
-			if (b) node->children.push_back(std::move(b));
-
-			std::function<void(std::unique_ptr<ASTNode> &)> cut;
-			cut = [&node, &cut](std::unique_ptr<ASTNode> &Node) -> void {
-				if (Node->type != node->type) return;
-				if (Node->children.size() < 2) return;
-				if (&Node == &node) return cut(Node->children[1]);
-
-				ASTNode *child = Node.get();
-
-				node->children.push_back(std::move(child->children[0]));
-				std::swap(node->children.back(), node->children[node->children.size() - 2]);
-
-				if (child->children[1]->type != node->type) {
-					auto last			  = std::move(child->children[1]);
-					node->children.back() = std::move(last);
-					return;
-				}
-
-				cut(child->children[1]);
-			};
-			cut(node);
-		}
-	} else if (binaryOpsSec.contains(node->type)) {
-		if (parseNode->children.size() == 2) return makeAST(parseNode->children[1]);
-		else if (parseNode->children.size() == 3) {
-			node->type = parseNode->children[0]->value;
-			auto a	   = makeAST(parseNode->children[1]);
-			auto b	   = makeAST(parseNode->children[2]);
-			if (a) node->children.push_back(std::move(a));
-			if (b) node->children.push_back(std::move(b));
-		} else return nullptr;
-	} else {
-		if (parseNode->children.size() > 0 && parseNode->children[0]->value == Token::eps) return nullptr;
-
-		for (const auto &child : parseNode->children) {
-			auto newChild = makeAST(child);
-			if (newChild) node->children.push_back(std::move(newChild));
-		}
-	}
-
-	if (node->children.size() == 1 && !preservePunctuation.contains(node->type)) {
-		return std::move(node->children[0]);
-	}
-
-	return node;
-}
-
 void random_tokens(std::vector<Token> &text, std::ostream &os) {
 	for (Token &i : text) {
 		if (i == Number) {
@@ -272,8 +225,7 @@ void random_tokens(std::vector<Token> &text, std::ostream &os) {
 }
 
 int main(int argc, char **argv) {
-	createCFG();
-
+	g = std::make_unique<CFG<Token>>(createCFGNew());
 	// g->printParseTable();
 	if (argc >= 2 && std::string(argv[1]) == "generate") {
 		srand(time(0));
@@ -290,8 +242,8 @@ int main(int argc, char **argv) {
 			Parser<Token> parser(*g);
 			// parser.enable_print = true;
 
-			EarleyParser<Token> earleyParser(*g);
-			earleyParser.expect_eof = true;
+			//EarleyParser<Token> earleyParser(*g);
+			//earleyParser.expect_eof = true;
 
 			std::stringstream buffer;
 			std::string		  fileName = "test_file.txt";
@@ -314,15 +266,16 @@ int main(int argc, char **argv) {
 
 			BENCH(parser.parse(tokens), 10, "BENCH building parse tree: ");
 			auto t = parser.parse(tokens);
+			std::cout << t << std::endl;
 
 			// BENCH(earleyParser.recognize(tokens), 10, "BENCH earley parse: ");
 			// assert(earleyParser.recognize(tokens));
 			//  std::cout << t << std::endl;
 
-			BENCH(makeAST(t), 100, "BENCH building AST: ");
+			//BENCH(parser.ASTparse(tokens), 100, "BENCH building AST: ");
 			if (tokens.size() < 1000) {
-				auto ast = makeAST(t);
-				std::cout << ast << std::endl;
+				auto ast = parser.ASTparse(tokens);
+				std::cout << (ASTNode*)ast.get() << std::endl;
 			}
 
 		} catch (const std::exception &e) { std::cerr << e << std::endl; }

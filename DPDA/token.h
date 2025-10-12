@@ -32,6 +32,7 @@ struct Token {
 	static const Token eof;
 
 	static Token createToken(const std::string &name, std::size_t value = ++size);
+	static Token createDependentToken(const Token &base);
 
 	bool				 operator==(const Token &other) const { return value == other.value; }
 	bool				 operator!=(const Token &other) const { return value != other.value; }

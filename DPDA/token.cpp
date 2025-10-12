@@ -16,6 +16,11 @@ Token Token::createToken(const std::string &name, std::size_t value) {
 	return Token(value);
 }
 
+Token Token::createDependentToken(const Token &base) {
+	getTokenNames().insert({++Token::size, getTokenNames().find(base.value)->second + "'" });
+	return Token(Token::size);
+}
+
 std::ostream &operator<<(std::ostream &out, const Token &v) {
 	if(v.value && v.value < 128) return out << static_cast<char>(v.value);
 	auto it = getTokenNames().find(v.value);

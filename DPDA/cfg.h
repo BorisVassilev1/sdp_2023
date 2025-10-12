@@ -10,6 +10,49 @@
 #include <format>
 
 /**
+ * @brief The right side of a production rule in a Context-Free Grammar
+ * @tparam Letter - Type of symbols in the alphabet
+ */
+template <class Letter>
+struct Production {
+	std::vector<Letter> rhs;
+	std::vector<bool>	ignore;			 // whether to ignore the symbol in a parsing tree
+	Letter				replaceWith;	 // if != eps, replace the non-terminal that produced this production
+										 // with this symbol in the AST
+
+	Production(std::vector<Letter> &&rhs) : rhs(std::move(rhs)), ignore(rhs.size(), false), replaceWith(Letter::eps) {}
+	Production(const std::vector<Letter> &rhs) : rhs(rhs), ignore(rhs.size(), false), replaceWith(Letter::eps) {}
+
+	Production(std::vector<Letter> &&rhs, const std::vector<bool> &ignore, Letter replaceWith = Letter::eps)
+		: rhs(std::move(rhs)), ignore(ignore), replaceWith(replaceWith) {}
+
+	Production(const std::vector<Letter> &rhs, const std::vector<bool> &ignore, Letter replaceWith = Letter::eps)
+		: rhs(rhs), ignore(ignore), replaceWith(replaceWith) {}
+
+	auto				 begin() const { return rhs.begin(); }
+	auto				 end() const { return rhs.end(); }
+	auto				 empty() const { return rhs.empty(); }
+	auto				 size() const { return rhs.size(); }
+	auto				 operator[](std::size_t i) const { return rhs[i]; }
+	friend std::ostream &operator<<(std::ostream &os, const Production &p) { return os << p.rhs; }
+
+	auto push_back(const Letter &l) {
+		ignore.push_back(false);
+		return rhs.push_back(l);
+	}
+};
+
+template <class Letter>
+Production(std::vector<Letter> &&) -> Production<Letter>;
+template <class Letter>
+Production(const std::vector<Letter> &) -> Production<Letter>;
+template <class Letter>
+Production(std::vector<Letter> &&, const std::vector<bool> &, Letter) -> Production<Letter>;
+template <class Letter>
+Production(const std::vector<Letter> &, const std::vector<bool> &, Letter) -> Production<Letter>;
+
+
+/**
  * @brief A Context-Free Grammar
  *
  * @tparam Letter - Type of symbols in the alphabet
@@ -17,32 +60,13 @@
 template <class Letter>
 class CFG {
    public:
-	using Rule = std::pair<Letter, std::vector<Letter>>;
-
-	struct Production {
-		std::vector<Letter> rhs;
-		std::vector<bool>	ignore;		// whether to ignore the symbol in a parsing tree
-		bool				hasSemanticAction = true;
-
-		template <class U>
-			requires std::is_convertible_v<typename std::remove_reference_t<U>::value_type, Letter>
-		Production(U &&rhs) : rhs(std::forward<U>(rhs)), ignore(rhs.size(), false) {}
-
-		template <class U>
-			requires std::is_convertible_v<typename std::remove_reference_t<U>::value_type, Letter>
-		Production(U &&rhs, const std::vector<bool> &ignore, bool hasSemanticAction = true)
-			: rhs(std::forward<U>(rhs)), ignore(ignore), hasSemanticAction(hasSemanticAction) {}
-
-		auto				 begin() const { return rhs.begin(); }
-		auto				 end() const { return rhs.end(); }
-		auto				 empty() const { return rhs.empty(); }
-		auto				 size() const { return rhs.size(); }
-		auto				 operator[](std::size_t i) const { return rhs[i]; }
-		friend std::ostream &operator<<(std::ostream &os, const Production &p) { return os << p.rhs; }
-	};
+	using Production = struct Production<Letter>;
+	using Rule = std::pair<Letter, Production>;
 
 	struct NonTerminalData {
-		int upwardSpillThreshold = -1;	   // if >= 0, the non-terminal will disappear in the AST if it has <= children
+		int	 upwardSpillThreshold = -1;		// if >= 0, the non-terminal will disappear in the AST if it has <= children
+		bool ignoreEmpty		  = true;
+		bool ignoreSingleChild	  = true;
 	};
 
 	std::unordered_map<Letter, NonTerminalData> nonTerminalData;
@@ -385,4 +409,10 @@ class CFG {
 		assert(nonTerminalData.contains(l));
 		return nonTerminalData.find(l)->second;
 	}
+
+	void setIgnoreEmpty(bool ignore) { getNonTerminalData(start).ignoreEmpty = ignore; }
+
+	void setUpwardSpillThreshold(int threshold) { getNonTerminalData(start).upwardSpillThreshold = threshold; }
+
+	void setIgnoreSingleChild(bool ignore) { getNonTerminalData(start).ignoreSingleChild = ignore; }
 };

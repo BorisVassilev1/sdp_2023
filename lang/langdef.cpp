@@ -14,9 +14,9 @@ int main() {
 			Seq(Letter('B'),
 				Letter('1'),
 				Repeat(Letter('C'),
-					Word(Letter('D'),
+					Production<Letter>(
 						toLetter(",1"), {true, false}
-					), INT_MAX, true
+					), INT_MAX
 				)
 			)
 		),
