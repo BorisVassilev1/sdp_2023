@@ -253,7 +253,7 @@ BS_FSA<Letter> makeFSA_BerriSethi(rgx::Regex &regex) {
 	using namespace rgx;
 	// static int counter = 0;
 	BS_FSA<Letter> fsa;
-	if (auto *r = dynamic_cast<TupleRegex *>(&regex)) {
+	if (auto *r = dynamic_cast<TupleRegex<char> *>(&regex)) {
 		fsa = BS_WordFSA<Letter>(toLetter<Letter>(std::move(r->left)), toLetter<Letter>(std::move(r->right)));
 	} else if (auto *r = dynamic_cast<UnionRegex *>(&regex)) {
 		fsa = BS_UnionFSA<Letter>(makeFSA_BerriSethi<Letter>(*r->left), makeFSA_BerriSethi<Letter>(*r->right));
@@ -399,7 +399,7 @@ class TH_KleeneStarFSA : public FST<Letter> {
 template <class Letter>
 FST<Letter> makeFSA_Thompson(rgx::Regex &regex) {
 	using namespace rgx;
-	if (auto *r = dynamic_cast<TupleRegex *>(&regex)) {
+	if (auto *r = dynamic_cast<TupleRegex<char> *>(&regex)) {
 		return TH_WordFSA<Letter>(toLetter<Letter>(std::move(r->left)), toLetter<Letter>(std::move(r->right)));
 	} else if (auto *r = dynamic_cast<UnionRegex *>(&regex)) {
 		return TH_UnionFSA<Letter>(makeFSA_Thompson<Letter>(*r->left), makeFSA_Thompson<Letter>(*r->right));

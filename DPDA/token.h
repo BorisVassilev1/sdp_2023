@@ -25,6 +25,8 @@ struct Token {
 
 	explicit constexpr operator std::size_t() const { return value; }
 	explicit constexpr operator char() const { return value; }
+	explicit constexpr operator uint8_t() const { return value; }
+	explicit constexpr operator int() const { return value; }
 	explicit constexpr operator bool() const { return value; }
 
 	static std::size_t size;

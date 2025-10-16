@@ -62,7 +62,7 @@ auto w(U &&u, V &&v, W &&alpha, X &&beta) {
 	return std::tuple((remainderSuffix(c, std::move(u_alpha))), (remainderSuffix(c, std::move(v_beta))));
 }
 
-template <class U, class V, class W, class X>
+template <class Letter, class U, class V, class W, class X>
 auto w_noref(U &&u, V &&v, W &&alpha, X &&beta) {
 	auto u_alpha = std::views::concat(u, alpha);
 	auto v_beta	 = std::views::concat(v, beta);
@@ -195,7 +195,7 @@ bool isFunctional(const TFSA<Letter> &fst) {
 			auto &[_, value2]  = t2;
 			auto &[l1, id1, i] = value1;
 			auto &[l2, id2, j] = value2;
-			auto [h_1, h_2]	   = w_noref(u, v, fst.words[id1], fst.words[id2]);
+			auto [h_1, h_2]	   = w_noref<Letter>(u, v, fst.words[id1], fst.words[id2]);
 
 			auto q2 = std::tuple(i, j);
 			//  functional(i+1) := ∀(q′, h′) ∈ Dq : (balancible(h′) ∧

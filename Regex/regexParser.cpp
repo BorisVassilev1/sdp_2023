@@ -61,7 +61,7 @@ CFG<Token> createRegexGrammar() {
 }
 
 std::unique_ptr<Regex> generateRegex() {
-	if (rand() % 2) return std::make_unique<TupleRegex>(gen_random_string(0, 3), gen_random_string(0, 3));
+	if (rand() % 2) return std::make_unique<TupleRegex<char>>(gen_random_string(0, 3), gen_random_string(0, 3));
 
 	int r = rand() % 3;
 	switch (r) {
@@ -100,7 +100,7 @@ std::unique_ptr<Regex> parseTreeToRegex(const ParseNode<Token> *root, TokenizedS
 		char *left	 = reinterpret_cast<char *>(root->children[0]->value.data);
 		char *right	 = reinterpret_cast<char *>(root->children[1]->value.data);
 		auto  left_s = std::string(left), right_s = std::string(right);
-		return std::make_unique<TupleRegex>(std::move(left_s), std::move(right_s));
+		return std::make_unique<TupleRegex<char>>(std::move(left_s), std::move(right_s));
 	}
 	return nullptr;
 }

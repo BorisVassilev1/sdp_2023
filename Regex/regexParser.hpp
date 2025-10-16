@@ -50,7 +50,7 @@ class RegexParser : public Parser<Token> {
 		++k;
 
 		bool skipped_star = false;
-		bool is_excl = false;
+		bool is_excl	  = false;
 		for (size_t i = 0; i < product.size(); ++i) {
 			if (product[i] == word[j]) {
 				if (word[j] == Identifier || word[j] == '*' || word[j] == '!') {
@@ -66,7 +66,7 @@ class RegexParser : public Parser<Token> {
 		}
 		if (children.size() == 1 && !skipped_star) { return std::move(children[0]); }
 		auto t = std::get<2>(productions[old_k].get().first);
-		if(is_excl) t.data = reinterpret_cast<uint8_t *>('!');
+		if (is_excl) t.data = reinterpret_cast<uint8_t *>('!');
 		return std::make_unique<ParseNode<Token>>(t, std::move(children));
 	}
 
@@ -135,7 +135,7 @@ class KleeneStarRegex : public Regex {
 };
 
 class KleenePlusRegex : public Regex {
-	public: 
+   public:
 	std::unique_ptr<Regex> child;
 
 	KleenePlusRegex(std::unique_ptr<Regex> child) : child(std::move(child)) {}
@@ -148,11 +148,15 @@ class KleenePlusRegex : public Regex {
 	int size() const override { return (child ? child->size() : 0) + 1; }
 };
 
+template <class Letter = char>
 class TupleRegex : public Regex {
    public:
-	std::string left;
-	std::string right;
-	TupleRegex(std::string left, std::string right) : left(left), right(right) {}
+	std::vector<Letter> left;
+	std::vector<Letter> right;
+	
+	TupleRegex(std::string left, std::string right) requires std::is_same_v<Letter, char>
+	: left(left.begin(), left.end()), right(right.begin(), right.end()) {}
+	TupleRegex(std::vector<Letter> left, std::vector<Letter> right) : left(std::move(left)), right(std::move(right)) {}
 
 	void print(std::ostream &out) const override { out << "<'" << left << "','" << right << "'>"; }
 
@@ -171,7 +175,7 @@ extern std::string Alphabet;
 
 std::string identity(const std::string &alphabet);
 std::string optionalReplace(const std::string &regex, const std::string &alphabet = Alphabet);
-};
+};	   // namespace rgx
 
 std::ostream &operator<<(std::ostream &out, const rgx::Regex &regex);
 std::ostream &operator<<(std::ostream &out, std::unique_ptr<rgx::Regex> &regex);

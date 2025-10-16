@@ -52,7 +52,7 @@ class TFSA {
 			auto w2				= words.getWord(id2);
 			out << "  " << from << " -> " << to << " [label=\"<" << w1 << ",";
 			for (const auto &letter : w2) {
-				if (letter < 128 && letter >= 32) out << letter;
+				if ((uint8_t(letter) < 128 && uint8_t(letter) >= 32) || size_t(letter) > 256) out << letter;
 				else out << (int)letter;
 			}
 			out << ">\"];\n";

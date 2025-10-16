@@ -29,7 +29,7 @@ class SSFT {
 
 	// accepts a trimmed TFSA and builds a subsequential finite-state transducer
 	// tests for bounded variation
-	SSFT(TFSA<Letter> &&fsa) {
+	SSFT(TFSA<Letter> &&fsa, bool resolveNonFunctionality = false) {
 		unsigned int C = 0;
 		for (auto w : fsa.words) {
 			if (w.size() > C) C = w.size();
@@ -161,11 +161,37 @@ class SSFT {
 				State newIndex = newState();
 				stateRemap[i]  = newIndex;
 
+				State bestOutToKeep = -1;
 				for (const auto &[q, delayID] : nextState) {
 					if (fsa.qFinals.contains(q)) {
 						qFinals.insert(newIndex);
-						auto output			   = words.addWord(stateDelays[delayID]);
+						auto output = words.addWord(stateDelays[delayID]);
+						// if there is already an output for this state and it is different
+						if (this->output.contains(newIndex) &&
+							!std::ranges::equal(stateDelays[delayID], words[this->output[newIndex]])) {
+							if (!resolveNonFunctionality)
+								throw std::runtime_error("Non-functional transducer detected");
+							else {
+								// try to resolve by choosing the output that ends in this state
+								assert(bestOutToKeep != -1ull);
+								auto [b1, e1] = fsa.transitions.equal_range(bestOutToKeep);
+								auto [b2, e2] = fsa.transitions.equal_range(q);
+
+								bool bestHasFuture = b1 != e1;
+								bool currHasFuture = b2 != e2;
+								std::cout << "conflict at state " << newIndex << " between outputs "
+										  << words[this->output[newIndex]][0] << " and " << words[output][0]
+										  << std::endl;
+								
+
+								if (bestHasFuture && currHasFuture) {
+									throw std::runtime_error(
+										"Failed to resolve non-functionality, both outputs have perspective");
+								} else if (currHasFuture) continue; // do not write
+							}
+						}
 						this->output[newIndex] = output;
+						bestOutToKeep		 = q;
 					}
 				}
 
@@ -191,7 +217,7 @@ class SSFT {
 				std::cout << " transitions: " << transitions.size() << std::flush;
 			});
 
-			//if (curr_max >= 5) {
+			// if (curr_max >= 1) {
 			//	ShellProcess p("dot -Tsvg > a.svg && feh ./a.svg");
 			//	auto		&in = p.in();
 			//	in << "digraph SSFT {\n";
@@ -204,7 +230,7 @@ class SSFT {
 			//		for (const auto &[q, id] : state.get()) {
 			//			in << "(" << q << ", ";
 			//			for (const auto &letter : stateDelays[id]) {
-			//				if (letter < 128 && letter >= 32) in << letter;
+			//				if (uint8_t(letter) < 128 && uint8_t(letter) >= 32) in << letter;
 			//				else in << (int)letter;
 			//			}
 			//			in << ")\n ";
@@ -219,7 +245,7 @@ class SSFT {
 			//		const auto &[outputID, to] = value;
 			//		in << "  " << s << " -> " << to << " [label=\"<" << l << ", ";
 			//		for (const auto &letter : words[outputID]) {
-			//			if (letter < 128 && letter >= 32) in << letter;
+			//			if (uint8_t(letter) < 128 && uint8_t(letter) >= 32) in << letter;
 			//			else in << (int)letter;
 			//		}
 			//		in << ">\"];\n";
@@ -254,7 +280,7 @@ class SSFT {
 				for (const auto &[q, id] : state.get()) {
 					in << "(" << q << ", ";
 					for (const auto &letter : stateDelays[id]) {
-						if (uint8_t(letter) < 128 && uint8_t(letter) >= 32) in << letter;
+						if ((uint8_t(letter) < 128 && uint8_t(letter) >= 32) || size_t(letter) > 256) in << letter;
 						else in << (int)letter;
 					}
 					in << ")\n ";
@@ -269,7 +295,7 @@ class SSFT {
 				const auto &[outputID, to] = value;
 				in << "  " << s << " -> " << to << " [label=\"<" << l << ", ";
 				for (const auto &letter : words[outputID]) {
-					if (uint8_t(letter) < 128 && uint8_t(letter) >= 32) in << letter;
+					if ((uint8_t(letter) < 128 && uint8_t(letter) >= 32) || size_t(letter) > 256) in << letter;
 					else in << (int)letter;
 				}
 				in << ">\"];\n";
@@ -313,7 +339,7 @@ class SSFT {
 			if (qFinals.contains(q)) {
 				out << "  " << q << " [shape=doublecircle, label=\"";
 				for (const auto &letter : words[output.at(q)]) {
-					if (uint8_t(letter) < 128 && uint8_t(letter) >= 32) out << letter;
+					if ((uint8_t(letter) < 128 && uint8_t(letter) >= 32) || size_t(letter) > 256) out << letter;
 					else out << (int)letter;
 				}
 				out << "\"];\n";									   // final States with output
@@ -324,7 +350,7 @@ class SSFT {
 			const auto &[outputID, to] = value;
 			out << "  " << s << " -> " << to << " [label=\"<" << l << ", ";
 			for (const auto &letter : words[outputID]) {
-				if (uint8_t(letter) < 128 && uint8_t(letter) >= 32) out << letter;
+				if ((uint8_t(letter) < 128 && uint8_t(letter) >= 32) || size_t(letter) > 256) out << letter;
 				else out << (int)letter;
 			}
 			out << ">\"];\n";
