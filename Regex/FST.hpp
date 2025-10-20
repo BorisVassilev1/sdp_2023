@@ -414,6 +414,52 @@ FST<Letter> makeFSA_Thompson(rgx::Regex &regex) {
 }
 
 template <class Letter>
+class StupidUnionFSA : public FST<Letter> {
+	
+public:
+	StupidUnionFSA(FST<Letter> &&fst1, FST<Letter> &&fst2) {
+		if (fst1.qFinals.empty() && fst2.qFinals.empty()) {
+			this->N		  = 0;
+			this->qFirsts = {0};
+			this->words.push_back({});
+			return;
+		} else if (fst1.qFinals.empty()) {
+			(FST<Letter> &)(*this) = std::move(fst2);
+			return;
+		} else if (fst2.qFinals.empty()) {
+			(FST<Letter> &)(*this) = std::move(fst1);
+			return;
+		}
+
+		this->N		  = fst1.N + fst2.N;
+		this->qFirsts = std::move(fst1.qFirsts);
+		for (const auto &q : fst2.qFirsts) {
+			this->qFirsts.insert(q + fst1.N);
+		}
+		this->qFinals = std::move(fst1.qFinals);
+		for (const auto &q : fst2.qFinals) {
+			this->qFinals.insert(q + fst1.N);
+		}
+
+		this->transitions = std::move(fst1.transitions);
+		for (const auto &[from, value] : fst2.transitions) {
+			const auto &[id1, id2, to] = value;
+			int new_id1				   = id1 + fst1.words.size() - 1;
+			int new_id2				   = id2 + fst1.words.size() - 1;
+			if (id1 == 0) new_id1 = 0;
+			if (id2 == 0) new_id2 = 0;
+			this->transitions.insert({from + fst1.N, {new_id1, new_id2, to + fst1.N}});
+		}
+
+		this->words = std::move(fst1.words);
+		this->words.reserve(this->words.size() + fst2.words.size());
+		for (auto it = ++fst2.words.begin(); it != fst2.words.end(); ++it) {
+			this->words.push_back(std::move(*it));
+		}
+	}
+};
+
+template <class Letter>
 void drawFSA(const FST<Letter> &fsa) {
 	ShellProcess p("dot -Tsvg > a.svg && feh ./a.svg");
 	fsa.print(p.in());

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ctime>
+#include <queue>
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
@@ -316,3 +317,78 @@ template <class Letter>
 auto realtimeFST(FST<Letter> &&fst) {
 	return trimFSA(removeUpperEpsilonFST(expandFST(removeEpsilonFST(trimFSA(std::move(fst))))));
 }
+
+template<class Letter>
+auto pseudoDeterminizeFST(TFSA<Letter>&& fst) {
+	using State = TFSA<Letter>::State;
+	using StringID = TFSA<Letter>::StringID;
+
+	using BigState = std::vector<State>;
+	using BigLetter = std::tuple<Letter, typename UniqueWordSet<Letter>::WordID>;
+
+	struct MyHash {
+		using is_transparent = void;
+		constexpr size_t operator()(const BigState &x) const {
+			return std::hash<std::string_view>()(std::string_view(reinterpret_cast<const char *>(x.data()), x.size()));
+		}
+	};
+
+	TFSA<Letter> dfa;
+	std::vector<std::reference_wrapper<const BigState>> states;
+	std::unordered_map<BigState, State, MyHash> state_map;
+	std::queue<State> queue;
+	UniqueWordSet<Letter> secondTapeWords;
+
+	auto getStateID = [&](BigState && bs) -> State {
+		std::ranges::sort(bs);
+		auto it = state_map.find(bs);
+		if (it == state_map.end()) {
+			State new_id = dfa.newState();
+			auto [it, _] = state_map.emplace(std::move(bs), new_id);
+			states.emplace_back(it->first);
+			// check if any of the states in bs is final
+			for (const auto& s : bs) {
+				if (fst.qFinals.contains(s)) {
+					dfa.qFinals.insert(new_id);
+					break;
+				}
+			}
+			return new_id;
+		} else {
+			return it->second;
+		}
+	};
+
+	State initial_state = getStateID(BigState{std::from_range, fst.qFirsts});
+	queue.push(initial_state);
+
+	while(!queue.empty()) {
+		State current = queue.front();
+		queue.pop();
+		const BigState &current_bs = states[current];
+
+		std::unordered_map<BigLetter, BigState> current_transitions;
+
+		for (const auto &q : current_bs) {
+			auto [i1, i2] = fst.transitions.equal_range(q);
+			for (const auto &[_, value] : std::ranges::subrange(i1, i2)) {
+				const auto &[u, v, to] = value;
+				BigLetter sigma = {u, secondTapeWords.addWord(fst.words.getWord(v))};
+				current_transitions[sigma].push_back(to);
+			}
+		}
+
+		for (const auto &[sigma, next_bs] : current_transitions) {
+			State next_state = getStateID(BigState(next_bs));
+			dfa.addTransition(current, sigma, 0, next_state);
+			if (state_map.size() > states.size()) { // new state added
+				queue.push(next_state);
+			}
+		}
+	}
+
+
+	return std::move(dfa);
+}
+
+

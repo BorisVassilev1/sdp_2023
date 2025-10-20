@@ -56,11 +56,13 @@ int main() {
 	tokenizeId = BS_KleeneStarFSA<Token>(std::move(tokenizeId), false);
 	tokenizeId = BS_ConcatFSA<Token>(std::move(tokenizeId), BS_WordFSA<Token>({},{Id}));
 
-	auto tokenizer = BS_UnionFSA<Token>(std::move(tokenizeIF), std::move(tokenizeFor));
-	tokenizer = BS_UnionFSA<Token>(std::move(tokenizer), std::move(tokenizeId));
-	drawFSA(tokenizer);
+	//auto tokenizer = StupidUnionFSA<Token>(std::move(tokenizeIF), std::move(tokenizeFor));
+	//tokenizer = StupidUnionFSA<Token>(std::move(tokenizer), std::move(tokenizeId));
+	//drawFSA(tokenizer);
 
-	auto realtime = realtimeFST(std::move(tokenizer));
+	auto realtime = realtimeFST(std::move(tokenizeId));
+	drawFSA(realtime);
+	realtime = pseudoDeterminizeFST(std::move(realtime));
 	drawFSA(realtime);
 
 	if(isFunctional(realtime)) {
