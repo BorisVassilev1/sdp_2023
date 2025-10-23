@@ -26,6 +26,15 @@ std::vector<Letter> toLetter(T &&t) {
 	return std::vector<Letter>(std::begin(t), std::end(t));
 }
 
+template <class Letter>
+std::vector<Letter> toLetter(const char *s) {
+	std::vector<Letter> res;
+	for (const char *c = s; *c != '\0'; ++c) {
+		res.push_back(Letter(*c));
+	}
+	return res;
+}
+
 template <class U, class V>
 auto commonPrefix(U &&a, V &&b) {
 	auto it1 = std::begin(a);

@@ -13,12 +13,12 @@ template <class Letter>
 class WordSet {
    public:
 	using WordID = unsigned int;
-
-   private:
 	struct WordData {
 		size_t start;
 		size_t length;
 	};
+
+   private:
 
 	std::vector<Letter>	  words;
 	std::vector<WordData> wordsData;
@@ -27,6 +27,11 @@ class WordSet {
 
    public:
 	WordSet() { addWord(std::span<Letter>{}); }
+
+	WordSet(std::vector<Letter> &&words_, std::vector<WordData> &&wordsData_)
+		: words(std::move(words_)), wordsData(std::move(wordsData_)), nextWordID(wordsData.size()) {}
+	WordSet(const std::vector<Letter> &words_, const std::vector<WordData> &wordsData_)
+		: words(std::move(words_)), wordsData(std::move(wordsData_)), nextWordID(wordsData.size()) {}
 
 	template <class Input>
 	WordID addWord(Input &&word) {
@@ -122,10 +127,7 @@ class UniqueWordSet {
 	};
 
    private:
-	struct WordData {
-		size_t start;
-		size_t length;
-	};
+	using WordData = WordSet<Letter>::WordData;
 
 	std::vector<WordData> wordsData;
 
@@ -136,6 +138,10 @@ class UniqueWordSet {
 				std::string_view(reinterpret_cast<const char *>(span.begin()), span.size));
 		}
 		size_t operator()(const std::span<Letter> &span) const {
+			return std::hash<std::string_view>()(
+				std::string_view(reinterpret_cast<const char *>(span.data()), span.size()));
+		}
+		size_t operator()(const std::span<const Letter> &span) const {
 			return std::hash<std::string_view>()(
 				std::string_view(reinterpret_cast<const char *>(span.data()), span.size()));
 		}
@@ -196,6 +202,11 @@ class UniqueWordSet {
 		words.clear();
 		wordsData.clear();
 		nextWordID = 0;
+	}
+
+	auto toWordSet() const {
+		WordSet<Letter> ws{words, wordsData};
+		return ws;
 	}
 };
 

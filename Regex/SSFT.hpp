@@ -46,10 +46,8 @@ class SSFT {
 		std::vector<std::reference_wrapper<const BigState>> states;		// states of the SSFST
 		std::map<BigState, State> stateMap;								// maps sets of states to index in states vector
 
-		const auto newState = []() -> State {
-			static State nextState = 0;
-			return nextState++;
-		};
+		State			  nextState = 0;
+		const auto		  newState	= [&nextState]() -> State { return nextState++; };
 		std::stack<State> queue;
 
 		if (!fsa.f_eps.empty()) {
@@ -128,12 +126,7 @@ class SSFT {
 					auto wrongDelay = temporaryWords[delay_id];
 					auto eaten		= words[outputID].size();
 
-					if (wrongDelay.size() > curr_max) {
-						curr_max = wrongDelay.size();
-						// std::cout << "\rCurrent max delay: " << curr_max;
-						// std::cout << " Current states count: " << states.size() << " Upper bound: " << MAX_DELAY
-						//		  << std::flush;
-					}
+					if (wrongDelay.size() > curr_max) { curr_max = wrongDelay.size(); }
 					if (wrongDelay.size() - eaten > MAX_DELAY) {
 						throw std::runtime_error("Delay too long, bounded variation not satisfied");
 					}
@@ -182,16 +175,15 @@ class SSFT {
 								std::cout << "conflict at state " << newIndex << " between outputs "
 										  << words[this->output[newIndex]][0] << " and " << words[output][0]
 										  << std::endl;
-								
 
 								if (bestHasFuture && currHasFuture) {
 									throw std::runtime_error(
 										"Failed to resolve non-functionality, both outputs have perspective");
-								} else if (currHasFuture) continue; // do not write
+								} else if (currHasFuture) continue;		// do not write
 							}
 						}
 						this->output[newIndex] = output;
-						bestOutToKeep		 = q;
+						bestOutToKeep		   = q;
 					}
 				}
 
@@ -211,11 +203,11 @@ class SSFT {
 				to = stateRemap[to];
 			}
 
-			sd.do_thing([&]() {
-				std::cout << "\rCurrent max delay: " << curr_max;
-				std::cout << " Current states count: " << states.size() << " Upper bound: " << MAX_DELAY;
-				std::cout << " transitions: " << transitions.size() << std::flush;
-			});
+			// sd.do_thing([&]() {
+			//	std::cout << "\rCurrent max delay: " << curr_max;
+			//	std::cout << " Current states count: " << states.size() << " Upper bound: " << MAX_DELAY;
+			//	std::cout << " transitions: " << transitions.size() << std::flush;
+			// });
 
 			// if (curr_max >= 1) {
 			//	ShellProcess p("dot -Tsvg > a.svg && feh ./a.svg");
@@ -312,7 +304,6 @@ class SSFT {
 	}
 
 	auto f(const std::vector<Letter> &input) const {
-		std::cout << "Input size: " << input.size() << std::endl;
 		std::vector<Letter> output;
 		State				current = 0;	 // initial state
 		for (const auto &letter : input) {
@@ -370,3 +361,35 @@ void drawFSA(const SSFT<Letter> &fsa) {
 	if (!out.empty()) std::cout << out << std::endl;
 	if (!err.empty()) std::cout << err << std::endl;
 }
+
+template <class Letter>
+class SSFTTraverser {
+	const SSFT<Letter> &ssft;
+	using State = typename SSFT<Letter>::State;
+
+   public:
+	State current;
+
+	SSFTTraverser(const SSFT<Letter> &ssft) : ssft(ssft), current(0) {}
+
+	auto step(const Letter &letter) {
+		std::cout << "At state " << current << " with input " << letter << std::endl;
+		auto it = ssft.transitions.find({current, letter});
+		if (it == ssft.transitions.end()) return std::make_pair(std::span<const Letter>{}, false);
+		const auto &[outputID, next] = it->second;
+		current						 = next;
+		return std::make_pair(ssft.words[outputID], true);
+	}
+
+	template<std::ranges::input_range R>
+	auto traverseOutputOnlyUntilCan(R&& input) {
+		current = 0;
+		for (const auto &letter : input) {
+			auto [out_span, ok] = step(letter);
+			if (!ok) return out_span;
+		}
+		if (ssft.qFinals.contains(current)) {
+			return ssft.words[ssft.output.at(current)];
+		} else return std::span<const Letter>{};
+	}
+};

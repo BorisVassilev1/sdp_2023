@@ -9,6 +9,7 @@
 
 #include <Regex/FST.hpp>
 #include "Regex/wordset.hpp"
+#include "util/utils.hpp"
 
 // Classical Two-Tape Finite State Automaton (TFSA)
 template <class Letter>
@@ -125,10 +126,8 @@ void drawFSA(const TFSA<Letter> &fsa) {
 	p.in().close();
 	p.wait();
 	auto out = getString(p.out()), err = getString(p.err());
-	if(!out.empty())
-		std::cout << out << std::endl;
-	if(!err.empty())
-		std::cout << err << std::endl;
+	if (!out.empty()) std::cout << out << std::endl;
+	if (!err.empty()) std::cout << err << std::endl;
 }
 
 // https://lml.bas.bg/~stoyan/finite-state-techniques.pdf#theorem.4.4.8
@@ -318,12 +317,11 @@ auto realtimeFST(FST<Letter> &&fst) {
 	return trimFSA(removeUpperEpsilonFST(expandFST(removeEpsilonFST(trimFSA(std::move(fst))))));
 }
 
-template<class Letter>
-auto pseudoDeterminizeFST(TFSA<Letter>&& fst) {
-	using State = TFSA<Letter>::State;
-	using StringID = TFSA<Letter>::StringID;
+template <class Letter>
+auto pseudoDeterminizeFST(TFSA<Letter> &&fst) {
+	using State	   = TFSA<Letter>::State;
 
-	using BigState = std::vector<State>;
+	using BigState	= std::vector<State>;
 	using BigLetter = std::tuple<Letter, typename UniqueWordSet<Letter>::WordID>;
 
 	struct MyHash {
@@ -333,39 +331,50 @@ auto pseudoDeterminizeFST(TFSA<Letter>&& fst) {
 		}
 	};
 
-	TFSA<Letter> dfa;
+	TFSA<Letter>										dfa;
 	std::vector<std::reference_wrapper<const BigState>> states;
-	std::unordered_map<BigState, State, MyHash> state_map;
-	std::queue<State> queue;
-	UniqueWordSet<Letter> secondTapeWords;
+	std::unordered_map<BigState, State, MyHash>			state_map;
+	std::queue<State>									queue;
+	UniqueWordSet<Letter>								secondTapeWords;
 
-	auto getStateID = [&](BigState && bs) -> State {
+	std::cout << "final states: ";
+	for (const auto &fs : fst.qFinals) {
+		std::cout << fs << " ";
+	}
+	std::cout << std::endl;
+
+	auto getStateID = [&](BigState &&bs) -> std::pair<State, bool> {
 		std::ranges::sort(bs);
 		auto it = state_map.find(bs);
 		if (it == state_map.end()) {
 			State new_id = dfa.newState();
-			auto [it, _] = state_map.emplace(std::move(bs), new_id);
-			states.emplace_back(it->first);
-			// check if any of the states in bs is final
-			for (const auto& s : bs) {
+			for (const auto &s : bs) {
 				if (fst.qFinals.contains(s)) {
 					dfa.qFinals.insert(new_id);
 					break;
 				}
 			}
-			return new_id;
+			auto [it, _] = state_map.emplace(std::move(bs), new_id);
+			states.emplace_back(it->first);
+			// check if any of the states in bs is final
+			return {new_id, true};
 		} else {
-			return it->second;
+			return {it->second, false};
 		}
 	};
 
-	State initial_state = getStateID(BigState{std::from_range, fst.qFirsts});
+	auto [initial_state, _] = getStateID(BigState{std::from_range, fst.qFirsts});
 	queue.push(initial_state);
 
-	while(!queue.empty()) {
+	while (!queue.empty()) {
 		State current = queue.front();
 		queue.pop();
 		const BigState &current_bs = states[current];
+		std::cout << "Processing state " << current << " with big states: ";
+		for (const auto &s : current_bs) {
+			std::cout << s << " ";
+		}
+		std::cout << std::endl;
 
 		std::unordered_map<BigLetter, BigState> current_transitions;
 
@@ -373,22 +382,24 @@ auto pseudoDeterminizeFST(TFSA<Letter>&& fst) {
 			auto [i1, i2] = fst.transitions.equal_range(q);
 			for (const auto &[_, value] : std::ranges::subrange(i1, i2)) {
 				const auto &[u, v, to] = value;
-				BigLetter sigma = {u, secondTapeWords.addWord(fst.words.getWord(v))};
+				BigLetter sigma		   = {u, secondTapeWords.addWord(fst.words.getWord(v))};
 				current_transitions[sigma].push_back(to);
 			}
 		}
 
 		for (const auto &[sigma, next_bs] : current_transitions) {
-			State next_state = getStateID(BigState(next_bs));
-			dfa.addTransition(current, sigma, 0, next_state);
-			if (state_map.size() > states.size()) { // new state added
+			auto [next_state, is_new] = getStateID(BigState(next_bs));
+			auto [sigma_letter, sigma_wordid] = sigma;
+			dfa.addTransition(current, sigma_letter, sigma_wordid, next_state);
+			if (is_new) {
 				queue.push(next_state);
 			}
 		}
 	}
 
+	dbLog(dbg::LOG_DEBUG, "TFSA Pseudo-determinized FST has ", dfa.N, " states.");
+	dfa.words = std::move(secondTapeWords.toWordSet());
+	drawFSA(dfa);
 
 	return std::move(dfa);
 }
-
-
