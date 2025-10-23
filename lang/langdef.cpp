@@ -9,6 +9,8 @@
 #include "Regex/functionality.hpp"
 #include "Regex/OutputFSA.hpp"
 
+#include <thread>
+
 int main() {
 	using namespace ll1g;
 
@@ -36,6 +38,7 @@ int main() {
 	const Token If	= Token::createToken("IF");
 	const Token For = Token::createToken("FOR");
 	const Token Id	= Token::createToken("ID");
+	const Token WS	= Token::createToken("WS");
 
 	auto tokenizeIF	 = BS_WordFSA<Token>({'i', 'f'}, {});
 	auto tokenizeFor = BS_WordFSA<Token>({'f', 'o', 'r'}, {});
@@ -47,12 +50,14 @@ int main() {
 	tokenizeId = BS_KleeneStarFSA<Token>(std::move(tokenizeId), false);
 
 	BS_FSA<Token> whitespace = BS_WordFSA<Token>({' '}, {});
+	whitespace = BS_UnionFSA<Token>(std::move(whitespace), BS_WordFSA<Token>({'\n'}, {}));
+	whitespace = BS_UnionFSA<Token>(std::move(whitespace), BS_WordFSA<Token>({'\t'}, {}));
 	whitespace				 = BS_KleeneStarFSA<Token>(std::move(whitespace), false);
 
 	auto TokenizeID	 = OutputFSA(realtimeFST(std::move(tokenizeId)), Id);
 	auto TokenizeFor = OutputFSA(realtimeFST(std::move(tokenizeFor)), For);
 	auto TokenizeIF	 = OutputFSA(realtimeFST(std::move(tokenizeIF)), If);
-	auto TokenizeWS	 = OutputFSA(realtimeFST(std::move(whitespace)), Token::eps);
+	auto TokenizeWS	 = OutputFSA(realtimeFST(std::move(whitespace)), WS);
 
 	auto Tokenizer = UnionOutputFSA<Token>(std::move(TokenizeIF), std::move(TokenizeFor), std::move(TokenizeID),
 										   std::move(TokenizeWS));
@@ -76,16 +81,23 @@ int main() {
 	auto data = std::vector<Token>{};
 	while(std::cin.peek() != EOF) {
 		char c = std::cin.get();
-		data.push_back(Token::createToken(std::string(1, c)));
+		data.emplace_back(c);
 	}
 
-	auto input = std::views::to_input(data);
+	auto input = std::views::to_input(data) | std::views::cache_latest;
 
-	while (true) {
-		result = traverser.traverseOutputOnlyUntilCan(input);
-		std::ranges::for_each(result, [](auto x) { std::cout << x << " "; });
-		//std::cout << std::endl;
+	auto it = input.begin();
+	std::size_t position = 0;
+	while (it != input.end()) {
+		auto [result, len] = traverser.traverseOutputOnlyUntilCan(it, input.end());
+		position += len;
+		if(!result.has_value()) {
+			std::cout << std::format("ERROR at positions {}-{}", position - len, position) << std::endl;
+		} else {
+			std::cout << std::format("{} at positions {}-{}", result.value(), position - len, position) << std::endl;
+		}
 	}
+
 
 	return 0;
 }

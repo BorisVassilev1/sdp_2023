@@ -373,7 +373,6 @@ class SSFTTraverser {
 	SSFTTraverser(const SSFT<Letter> &ssft) : ssft(ssft), current(0) {}
 
 	auto step(const Letter &letter) {
-		std::cout << "At state " << current << " with input " << letter << std::endl;
 		auto it = ssft.transitions.find({current, letter});
 		if (it == ssft.transitions.end()) return std::make_pair(std::span<const Letter>{}, false);
 		const auto &[outputID, next] = it->second;
@@ -381,8 +380,8 @@ class SSFTTraverser {
 		return std::make_pair(ssft.words[outputID], true);
 	}
 
-	template<std::ranges::input_range R>
-	auto traverseOutputOnlyUntilCan(R&& input) {
+	template <std::ranges::input_range R>
+	auto traverseOutputOnlyUntilCan(R &&input) {
 		current = 0;
 		for (const auto &letter : input) {
 			auto [out_span, ok] = step(letter);
@@ -391,5 +390,25 @@ class SSFTTraverser {
 		if (ssft.qFinals.contains(current)) {
 			return ssft.words[ssft.output.at(current)];
 		} else return std::span<const Letter>{};
+	}
+
+	template <class Iterator, class Sentinel>
+	std::pair<std::optional<Letter>, int> traverseOutputOnlyUntilCan(Iterator &begin, Sentinel &&end) {
+		current = 0;
+		int len = 0;
+		for (; begin != end; ++begin) {
+			auto [out_span, ok] = step(*begin);
+			if (!ok) break;
+			++len;
+		}
+		if(len == 0) {
+			++begin;
+			++len;
+		}
+		if (ssft.qFinals.contains(current)) {
+			const auto &out = ssft.words[ssft.output.at(current)];
+			assert(out.size() == 1);
+			return std::make_pair(out[0], len);
+		} else return std::make_pair(std::nullopt, len);
 	}
 };
