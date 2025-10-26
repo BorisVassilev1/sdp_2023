@@ -1,14 +1,17 @@
+#include <ios>
 #include <iostream>
 
 #include <DPDA/parser.h>
 #include <DPDA/token.h>
 #include <lang/grammar_factory.hpp>
+#include <lang/lex_traverser.hpp>
 #include "Regex/FST.hpp"
 #include "Regex/SSFT.hpp"
 #include "Regex/TFSA.hpp"
 #include "Regex/functionality.hpp"
 #include "Regex/OutputFSA.hpp"
 
+#include <ranges>
 #include <thread>
 
 int main() {
@@ -78,26 +81,18 @@ int main() {
 	std::ranges::for_each(result, [](auto x) { std::cout << x << " "; });
 	std::cout << std::endl;
 
-	auto data = std::vector<Token>{};
-	while(std::cin.peek() != EOF) {
-		char c = std::cin.get();
-		data.emplace_back(c);
-	}
 
-	auto input = std::views::to_input(data) | std::views::cache_latest;
+	std::cin >> std::noskipws;
+	auto input = std::views::istream<char>(std::cin) | std::views::cache_latest;
 
-	auto it = input.begin();
-	std::size_t position = 0;
-	while (it != input.end()) {
-		auto [result, len] = traverser.traverseOutputOnlyUntilCan(it, input.end());
-		position += len;
-		if(!result.has_value()) {
-			std::cout << std::format("ERROR at positions {}-{}", position - len, position) << std::endl;
+	LexerRange lexer(input, std::move(SSFTTokenizer));
+	for (auto [token_opt, from, to] : lexer) {
+		if (token_opt.has_value()) {
+			std::cout << std::format("Token: {} from {} to {}\n", token_opt.value(), from, to);
 		} else {
-			std::cout << std::format("{} at positions {}-{}", result.value(), position - len, position) << std::endl;
+			std::cout << std::format("Error from {} to {}\n", from, to);
 		}
 	}
-
 
 	return 0;
 }
