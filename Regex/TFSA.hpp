@@ -20,7 +20,7 @@ class TFSA {
 
 	using Map = std::unordered_multimap<State, std::tuple<Letter, StringID, State>>;
 
-	unsigned int			  N;
+	unsigned int			  N = 0;
 	std::unordered_set<State> qFirsts;
 	std::unordered_set<State> qFinals;
 	Map						  transitions;
@@ -52,7 +52,9 @@ class TFSA {
 		for (const auto &[from, value] : transitions) {
 			auto &[w1, id2, to] = value;
 			auto w2				= words.getWord(id2);
-			out << "  " << from << " -> " << to << " [label=\"<" << w1 << ",";
+			out << "  " << from << " -> " << to << " [label=\"<" ;
+			if(w1 == Letter('\"')) out << "\\";
+				out << w1 << ",";
 			for (const auto &letter : w2) {
 				if ((uint8_t(letter) < 128 && uint8_t(letter) >= 32) || size_t(letter) > 256) out << letter;
 				else out << (int)letter;
@@ -141,18 +143,21 @@ auto removeUpperEpsilonFST(TFSA<Letter> &&fsa) {
 	std::vector<std::vector<std::tuple<State, std::vector<Letter>>>> closure(fsa.N);
 
 	for (State i = 0; i < fsa.N; ++i) {
+		std::cout << "Computing epsilon-closure for state " << i << std::endl;
 		stack.push(0);
 		visited[i] = true;
 		closure[i].push_back({i, {}});	   // add the state itself with an empty word
 		while (!stack.empty()) {
+			std::cout << "  stack size: " << stack.size() << std::endl;
 			auto p					= stack.top();
 			const auto [current, u] = closure[i][p];
 			stack.pop();
 
 			auto [i1, i2] = fsa.transitions.equal_range(current);
 			for (const auto &[_, value] : std::ranges::subrange(i1, i2)) {
+				std::cout << "    checking transition from " << current << std::endl;
 				const auto &[w1, id2, to] = value;
-				if (w1 == Letter::eps) {	 // epsilon transition
+				if (w1 == Letter::eps && !visited[to]) {	 // epsilon transition
 					visited[to]	  = true;
 					auto new_word = u;
 					new_word.insert(new_word.end(), fsa.words.getWord(id2).begin(), fsa.words.getWord(id2).end());
@@ -337,14 +342,10 @@ auto pseudoDeterminizeFST(TFSA<Letter> &&fst) {
 	std::queue<State>									queue;
 	UniqueWordSet<Letter>								secondTapeWords;
 
-	std::cout << "final states: ";
-	for (const auto &fs : fst.qFinals) {
-		std::cout << fs << " ";
-	}
-	std::cout << std::endl;
-
 	auto getStateID = [&](BigState &&bs) -> std::pair<State, bool> {
 		std::ranges::sort(bs);
+		bs.erase(std::unique(bs.begin(), bs.end()), bs.end());
+
 		auto it = state_map.find(bs);
 		if (it == state_map.end()) {
 			State new_id = dfa.newState();
@@ -365,16 +366,12 @@ auto pseudoDeterminizeFST(TFSA<Letter> &&fst) {
 
 	auto [initial_state, _] = getStateID(BigState{std::from_range, fst.qFirsts});
 	queue.push(initial_state);
+	dfa.qFirsts.insert(initial_state);
 
 	while (!queue.empty()) {
 		State current = queue.front();
 		queue.pop();
 		const BigState &current_bs = states[current];
-		std::cout << "Processing state " << current << " with big states: ";
-		for (const auto &s : current_bs) {
-			std::cout << s << " ";
-		}
-		std::cout << std::endl;
 
 		std::unordered_map<BigLetter, BigState> current_transitions;
 
@@ -399,7 +396,7 @@ auto pseudoDeterminizeFST(TFSA<Letter> &&fst) {
 
 	dbLog(dbg::LOG_DEBUG, "TFSA Pseudo-determinized FST has ", dfa.N, " states.");
 	dfa.words = std::move(secondTapeWords.toWordSet());
-	drawFSA(dfa);
+	//drawFSA(dfa);
 
 	return std::move(dfa);
 }

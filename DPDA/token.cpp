@@ -32,5 +32,5 @@ std::ostream &operator<<(std::ostream &out, const Token &v) {
 
 std::size_t Token::size = 256;
 
-const Token Token::eps	= Token::createToken("ε", 0);
+const Token Token::eps	= Token::createToken("ε");
 const Token Token::eof	= Token::createToken("eof");

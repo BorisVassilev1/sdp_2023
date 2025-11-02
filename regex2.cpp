@@ -47,7 +47,7 @@ auto S1 = std::format("( ( (<'M','1'>+ <'D','1'>).<' ',''>)* . ({}) ) + ( ((<'M'
 auto S2 = std::format("( ( (<'M','1'>+ <'D','2'>).<' ',''>)* . ({}) ) + ( ((<'M','1'> + <'D', '2'>).<' ',' '>)* .  (({}) . ({})) )", N1_999, thousands,
 					 N000_999);
 
-auto K	= "(" + identity("abcde") + ")*.<'abcabcaab', ':))'>"s;
+auto K	= "(" + rgx::identity("abcde") + ")*.<'abcabcaab', ':))'>"s;
 auto R2 = std::format("({})!", N1);
 auto R3 = std::format("({})!", N2);
 

@@ -86,7 +86,7 @@ class SSFT {
 			};
 
 			// for each (q,w) in the current state
-			for (const auto [q, delay_id] : currentState) {
+			for (const auto &[q, delay_id] : currentState) {
 				auto oldDelay		  = stateDelays[delay_id];
 				const auto [it1, it2] = fsa.transitions.equal_range(q);
 				for (const auto &[_, right] : std::ranges::subrange(it1, it2)) {

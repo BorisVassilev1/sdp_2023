@@ -317,9 +317,9 @@ class Parser : public DPDA<State<Letter>, Letter> {
 			if (enable_print) { printState(current_state, offset, stack, word); }
 
 			res = transition(current_state, l, s, stack, offset);
-			if (res == delta.end() && s) { res = transition(current_state, l, '\0', stack, offset); }
-			if (res == delta.end() && l) { res = transition(current_state, '\0', s, stack, offset); }
-			if (res == delta.end() && s && l) { res = transition(current_state, '\0', '\0', stack, offset); }
+			if (res == delta.end() && s != Letter::eps) { res = transition(current_state, l, Letter::eps, stack, offset); }
+			if (res == delta.end() && l != Letter::eps) { res = transition(current_state, Letter::eps, s, stack, offset); }
+			if (res == delta.end() && s != Letter::eps && l != Letter::eps) { res = transition(current_state, Letter::eps, Letter::eps, stack, offset); }
 
 			if (res != delta.end() && std::get<0>(res->first) == std::get<0>(res->second))
 				productions.push_back(std::ref(*res));

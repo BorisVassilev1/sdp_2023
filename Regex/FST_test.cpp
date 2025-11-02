@@ -77,8 +77,8 @@ void test_bounded_variation() {
 }
 
 void test_replace() {
-	auto r = optionalReplace("<':)','😄'>+<'=D', '🍄'>", "abcd");
-	auto t = parseRegex(r);
+	auto r = rgx::optionalReplace("<':)','😄'>+<'=D', '🍄'>", "abcd");
+	auto t = rgx::parseRegex(r);
 
 	std::cout << "Optional replace: " << t << std::endl;
 

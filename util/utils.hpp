@@ -105,9 +105,13 @@ bool inline f_dbLog(std::ostream &out, Types... args) {
 
 #ifndef NDEBUG
 	#define DBG_DEBUG
-	#define DBG_LOG_LEVEL -1
+	#ifndef DBG_LOG_LEVEL
+		#define DBG_LOG_LEVEL -1
+	#endif
 #else
-	#define DBG_LOG_LEVEL 1
+	#ifndef DBG_LOG_LEVEL
+		#define DBG_LOG_LEVEL 1
+	#endif
 #endif
 
 #define dbLog(severity, ...)                                                                                       \

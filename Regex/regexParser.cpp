@@ -12,6 +12,7 @@ const Token Union_		   = Token::createToken("union'");
 const Token KleeneStar	   = Token::createToken("star");
 const Token KleeneStar_	   = Token::createToken("star'");
 const Token Braces		   = Token::createToken("braces");
+const Token Null		   = Token::createToken("null");
 
 TokenizedString tokenize(const std::string &text) {
 	std::vector<Token> res;
@@ -21,7 +22,7 @@ TokenizedString tokenize(const std::string &text) {
 			std::string name;
 			bool		escape = false;
 			++i;
-			while ((!escape && text[i] != '\'') && i < text.length()) {
+			while (i < text.length() && (escape || text[i] != '\'')) {
 				if (text[i] == '\\' && !escape) {
 					escape = true;
 				} else {
@@ -33,6 +34,9 @@ TokenizedString tokenize(const std::string &text) {
 			char *s = new char[name.size() + 1];
 			strcpy(s, name.c_str());
 			res.push_back(Token(Identifier, reinterpret_cast<uint8_t *>(s)));
+		} else if (std::string_view(text.begin() + i, text.end()).starts_with("null")) {
+			res.push_back(Null);
+			i += 3;
 		} else res.push_back(text[i]);
 	}
 	res.push_back(Token::eof);
@@ -42,7 +46,7 @@ TokenizedString tokenize(const std::string &text) {
 CFG<Token> createRegexGrammar() {
 	CFG<Token> g(Union, Token::eof);
 	g.nonTerminals = {Concatenation, Concatenation_, Union, Union_, KleeneStar, KleeneStar_, Tuple, Braces};
-	g.terminals	   = {Token::eof, Identifier, '.', '+', '*', '<', ',', '>', '(', ')', '!'};
+	g.terminals	   = {Token::eof, Identifier, '.', '+', '*', '<', ',', '>', '(', ')', '!', Null};
 
 	g.addRule(Union, {Concatenation, Union_});
 	g.addRule(Union_, {'+', Concatenation, Union_});
@@ -55,6 +59,8 @@ CFG<Token> createRegexGrammar() {
 	g.addRule(KleeneStar_, {'!'});
 	g.addRule(KleeneStar_, {});
 	g.addRule(Tuple, {'<', Identifier, ',', Identifier, '>'});
+	g.addRule(Tuple, {Identifier});
+	g.addRule(Tuple, {Null});
 	g.addRule(Braces, {'(', Union, ')'});
 	g.addRule(Braces, {Tuple});
 	return g;
@@ -97,10 +103,19 @@ std::unique_ptr<Regex> parseTreeToRegex(const ParseNode<Token> *root, TokenizedS
 		else return std::make_unique<KleeneStarRegex>(parseTreeToRegex(root->children[0].get(), owner));
 
 	} else if (root->value == Tuple) {
-		char *left	 = reinterpret_cast<char *>(root->children[0]->value.data);
-		char *right	 = reinterpret_cast<char *>(root->children[1]->value.data);
-		auto  left_s = std::string(left), right_s = std::string(right);
-		return std::make_unique<TupleRegex<char>>(std::move(left_s), std::move(right_s));
+		if (root->children.size() == 1) {
+			if(root->children[0]->value == Null) {
+				return std::make_unique<TupleRegex<char>>(std::string(1ull, '\0'), std::string());
+			} else
+			return std::make_unique<TupleRegex<char>>(
+				std::string(reinterpret_cast<char *>(root->children[0]->value.data)), std::string());
+		} else if (root->children.size() == 2) {
+			char *left	 = reinterpret_cast<char *>(root->children[0]->value.data);
+			char *right	 = reinterpret_cast<char *>(root->children[1]->value.data);
+			auto  left_s = std::string(left), right_s = std::string(right);
+			return std::make_unique<TupleRegex<char>>(std::move(left_s), std::move(right_s));
+		}
+		return nullptr;
 	}
 	return nullptr;
 }
@@ -164,13 +179,14 @@ std::string optionalReplace(const std::string &regex, const std::string &alphabe
 	auto id = identity(alphabet);
 	return std::format("({})*.(({}).({})*)*", id, regex, id);
 }
+};	   // namespace rgx
 
-std::ostream &operator<<(std::ostream &out, const Regex &regex) {
+std::ostream &operator<<(std::ostream &out, const rgx::Regex &regex) {
 	regex.print(out);
 	return out;
 }
 
-std::ostream &operator<<(std::ostream &out, std::unique_ptr<Regex> &regex) {
+std::ostream &operator<<(std::ostream &out, std::unique_ptr<rgx::Regex> &regex) {
 	if (regex) {
 		regex->print(out);
 	} else {
@@ -178,4 +194,3 @@ std::ostream &operator<<(std::ostream &out, std::unique_ptr<Regex> &regex) {
 	}
 	return out;
 }
-};	   // namespace rgx

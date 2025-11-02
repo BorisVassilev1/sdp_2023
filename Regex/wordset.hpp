@@ -268,7 +268,6 @@ class ExtendableWordSet {
 			wordsData.push_back(
 				{static_cast<unsigned int>(data.size() - 1), 0, static_cast<unsigned int>(data.back().size()), true});
 			return wordsData.size() - 1;
-			// return addWord(std::views::concat(getWord(id), extension));
 		}
 	}
 

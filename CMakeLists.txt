@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.0.0)
+cmake_minimum_required(VERSION 3.28)
 project(sdp_project)
 
 set(COMPILE_ARGS 
@@ -164,6 +164,20 @@ target_compile_options(langdef PRIVATE ${COMPILE_ARGS})
 target_link_options(langdef PRIVATE ${COMPILE_ARGS})
 target_include_directories(langdef PRIVATE .)
 set_target_properties(langdef PROPERTIES
+	RUNTIME_OUTPUT_DIRECTORY ../
+)
+
+add_library(lang STATIC
+	DPDA/utils.cpp
+	DPDA/token.cpp
+	util/utils.cpp
+	Regex/regexParser.cpp
+	Regex/ambiguity.cpp
+)
+target_compile_options(lang PRIVATE ${COMPILE_ARGS})
+target_link_options(lang PRIVATE ${COMPILE_ARGS})
+target_include_directories(lang PUBLIC .)
+set_target_properties(lang PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY ../
 )
 

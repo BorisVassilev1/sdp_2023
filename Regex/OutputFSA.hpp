@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <Regex/SSFT.hpp>
+#include "Regex/TFSA.hpp"
 
 template <class Letter>
 class OutputFSA {
@@ -18,6 +19,19 @@ class OutputFSA {
 	std::unordered_set<State>								  qFirsts;
 	unsigned int											  N = 0;
 	std::unordered_map<State, Letter>						  output;
+
+	OutputFSA(const std::string_view &regex, Letter fixedOutput) {
+		auto ast = rgx::parseRegex(std::string(regex));
+		//std::cout << "-------------" << std::endl;
+		//std::cout << ast << std::endl;
+		//std::cout << "-------------" << std::endl;
+		auto fst = (FST<Letter>)makeFSA_BerriSethi<Letter>(*ast);
+		fst		 = trimFSA<Letter>(std::move(fst));
+
+		auto realtime = realtimeFST<Letter>(std::move(fst));
+		// drawFSA(realtime);
+		*this = OutputFSA<Letter>(pseudoDeterminizeFST<Letter>(std::move(realtime)), fixedOutput);
+	}
 
 	OutputFSA(TFSA<Letter> &&tfsa, Letter fixedOutput) {
 		this->N		  = tfsa.N;
@@ -66,7 +80,8 @@ class OutputFSA {
 		}
 		for (const auto &[from, rhs] : transitions) {
 			const auto &[letter, to] = rhs;
-			out << "  " << from << " -> " << to << " [label=\"" << letter << "\"];\n";
+			out << "  " << from << " -> " << to << " [label=\"" << ((letter == '\"' || letter == '\\') ? "\\" : "")
+				<< letter << "\"];\n";
 		}
 		out << "}\n";
 	}
@@ -88,30 +103,30 @@ class OutputFSA {
 			std::ranges::sort(bs);
 			auto it = stateMap.find(bs);
 			if (it == stateMap.end()) {
-				State new_id = ssft.N++;
+				State new_id	   = ssft.N++;
 				State winningState = -1;
 				for (const auto &s : bs) {
 					if (this->qFinals.contains(s)) {
 						auto   it		  = ssft.output.find(new_id);
 						Letter out_letter = this->output.at(s);
-						if (it != ssft.output.end()) { // aka winningState is not -1
+						if (it != ssft.output.end()) {	   // aka winningState is not -1
 							Letter old_letter = ssft.words.getWord(it->second)[0];
 							if (old_letter != out_letter) {
-								std::cout << "conflict at state " << new_id << " between outputs "
-										  << old_letter << " and " << out_letter << std::endl;
+								dbLog(dbg::LOG_DEBUG, "OutputFSA::determinizeToSSFT: conflict at state ", new_id,
+									  " between outputs ", old_letter, " and ", out_letter);
 
-								if(s < winningState) {
-									std::cout << "keeping " << out_letter << std::endl;
+								if (s < winningState) {
+									dbLog(dbg::LOG_DEBUG, "OutputFSA::determinizeToSSFT: keeping ", out_letter);
 									ssft.output[new_id] = ssft.words.addWord(std::array<Letter, 1>{out_letter});
-									winningState		 = s;
+									winningState		= s;
 								} else {
-									std::cout << "keeping " << old_letter << std::endl;
+									dbLog(dbg::LOG_DEBUG, "OutputFSA::determinizeToSSFT: keeping ", old_letter);
 								}
 							}
 						} else {
 							ssft.qFinals.insert(new_id);
 							ssft.output[new_id] = ssft.words.addWord(std::array<Letter, 1>{out_letter});
-							winningState		 = s;
+							winningState		= s;
 						}
 					}
 				}

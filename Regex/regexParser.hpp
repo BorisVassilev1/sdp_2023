@@ -17,6 +17,7 @@ extern const Token Union_;
 extern const Token KleeneStar;
 extern const Token KleeneStar_;
 extern const Token Braces;
+extern const Token Null;
 
 struct TokenizedString : public std::vector<Token> {
 	TokenizedString() = default;
@@ -53,7 +54,7 @@ class RegexParser : public Parser<Token> {
 		bool is_excl	  = false;
 		for (size_t i = 0; i < product.size(); ++i) {
 			if (product[i] == word[j]) {
-				if (word[j] == Identifier || word[j] == '*' || word[j] == '!') {
+				if (word[j] == Identifier || word[j] == Null|| word[j] == '*' || word[j] == '!') {
 					children.push_back(std::make_unique<ParseNode<Token>>(word[j]));
 				}
 				++j;
@@ -64,8 +65,8 @@ class RegexParser : public Parser<Token> {
 				if (!child->children.empty()) children.push_back(std::move(child));
 			}
 		}
-		if (children.size() == 1 && !skipped_star) { return std::move(children[0]); }
 		auto t = std::get<2>(productions[old_k].get().first);
+		if (children.size() == 1 && !skipped_star && t != Tuple) { return std::move(children[0]); }
 		if (is_excl) t.data = reinterpret_cast<uint8_t *>('!');
 		return std::make_unique<ParseNode<Token>>(t, std::move(children));
 	}

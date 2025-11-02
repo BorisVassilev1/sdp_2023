@@ -21,11 +21,6 @@ std::string toString(T &&t) {
 	return std::string(t.begin(), t.end());
 }
 
-template <class Letter, class T>
-std::vector<Letter> toLetter(T &&t) {
-	return std::vector<Letter>(std::begin(t), std::end(t));
-}
-
 template <class Letter>
 std::vector<Letter> toLetter(const char *s) {
 	std::vector<Letter> res;
@@ -360,7 +355,7 @@ bool testBoundedVariation(const TFSA<Letter> &fst) {
 			auto &[_, value2] = t2;
 			auto &[_, id1, i] = value1;
 			auto &[_, id2, j] = value2;
-			auto [h_1, h_2]	  = w_noref(u, v, fst.words[id1], fst.words[id2]);
+			auto [h_1, h_2]	  = w_noref<Letter>(u, v, fst.words[id1], fst.words[id2]);
 
 			auto q2 = std::tuple(i, j);
 			// boundedVariation(i+1) :=

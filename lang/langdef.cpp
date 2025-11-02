@@ -57,10 +57,10 @@ int main() {
 	whitespace = BS_UnionFSA<Token>(std::move(whitespace), BS_WordFSA<Token>({'\t'}, {}));
 	whitespace				 = BS_KleeneStarFSA<Token>(std::move(whitespace), false);
 
-	auto TokenizeID	 = OutputFSA(realtimeFST(std::move(tokenizeId)), Id);
-	auto TokenizeFor = OutputFSA(realtimeFST(std::move(tokenizeFor)), For);
-	auto TokenizeIF	 = OutputFSA(realtimeFST(std::move(tokenizeIF)), If);
-	auto TokenizeWS	 = OutputFSA(realtimeFST(std::move(whitespace)), WS);
+	auto TokenizeID	 = OutputFSA(pseudoDeterminizeFST(realtimeFST(std::move(tokenizeId))), Id);
+	auto TokenizeFor = OutputFSA("'for'", For);
+	auto TokenizeIF	 = OutputFSA(pseudoDeterminizeFST(realtimeFST(std::move(tokenizeIF))), If);
+	auto TokenizeWS	 = OutputFSA(pseudoDeterminizeFST(realtimeFST(std::move(whitespace))), WS);
 
 	auto Tokenizer = UnionOutputFSA<Token>(std::move(TokenizeIF), std::move(TokenizeFor), std::move(TokenizeID),
 										   std::move(TokenizeWS));

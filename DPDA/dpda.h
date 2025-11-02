@@ -66,12 +66,12 @@ class DPDA {
 		auto							  res	 = delta.find(search);
 		if (res == delta.end()) { return res; }
 
-		if (top) stack.pop_back();
+		if (top != Letter::eps) stack.pop_back();
 		for (const auto &l : std::ranges::views::reverse(std::get<1>(res->second))) {
 			stack.push_back(l);
 		}
 		q = std::get<0>(res->second);
-		if (a != '\0') ++offset;
+		if (a != Letter::eps) ++offset;
 		return res;
 	}
 

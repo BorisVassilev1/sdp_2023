@@ -39,7 +39,7 @@ class EarleyParser {
 					auto &X = β1Xβ2[dotPos];
 					auto  r = rules.equal_range(X);
 					for (auto &[_X, β] : RangeFromPair(r)) {
-						C_s1.insert({X, &β, 0, i});
+						C_s1.insert(DottedRule{X, &β.rhs, 0, i});
 					}
 
 					// { (A → β1X•β2, j) | ∃ (A → β1X•β2, j) ∈ C(s) and (X → β•, i) ∈ C(s) }
@@ -85,7 +85,7 @@ class EarleyParser {
 
 		auto r = grammar.rules.equal_range(grammar.start);
 		for (auto &[S, β] : RangeFromPair(r)) {
-			Rp[0].insert({S, &β, 0, 0});
+			Rp[0].insert(DottedRule{S, &β.rhs, 0, 0});
 		}
 		if (enable_print) {
 			std::cout << "R'[0] = ";

@@ -262,7 +262,7 @@ BS_FSA<Letter> makeFSA_BerriSethi(rgx::Regex &regex) {
 	} else if (auto *r = dynamic_cast<KleeneStarRegex *>(&regex)) {
 		fsa = BS_KleeneStarFSA<Letter>(makeFSA_BerriSethi<Letter>(*r->child), true);
 	} else if (auto *r = dynamic_cast<KleenePlusRegex *>(&regex)) {
-		fsa = BS_KleeneStarFSA<Letter>(makeFSA_BerriSethi<Letter>(*r->child), true);
+		fsa = BS_KleeneStarFSA<Letter>(makeFSA_BerriSethi<Letter>(*r->child), false);
 	}
 	return fsa;
 }

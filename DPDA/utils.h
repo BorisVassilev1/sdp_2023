@@ -30,18 +30,9 @@ class Letter {
 	static const size_t size;
 };
 
-constexpr const Letter Letter::eps	= '\0';
+constexpr const Letter Letter::eps	= '\xFF';
 constexpr const Letter Letter::eof	= '#';
 constexpr const size_t Letter::size = 256;
-
-template <class Letter_t = Letter>
-inline std::vector<Letter_t> toLetter(const std::string &s) {
-	std::vector<Letter_t> res;
-	for (char c : s) {
-		res.push_back(Letter_t(c));
-	}
-	return res;
-}
 
 inline std::vector<Letter> toLetter(const char *s) {
 	std::vector<Letter> res;
@@ -50,6 +41,12 @@ inline std::vector<Letter> toLetter(const char *s) {
 	}
 	return res;
 }
+
+template <class Letter_t = Letter, std::ranges::viewable_range T>
+std::vector<Letter_t> toLetter(T &&t) {
+	return std::vector<Letter_t>(std::begin(t), std::end(t));
+}
+
 
 /**
  * @brief A simple Letter class

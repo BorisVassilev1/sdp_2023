@@ -11,9 +11,10 @@
  */
 struct Token {
 	std::size_t value;
-	uint8_t			 *data = nullptr;
+	uint8_t	   *data = nullptr;
 
 	constexpr Token(std::size_t value) : value(value) {}
+
    public:
 	Token(const Token &other)			 = default;
 	Token(Token &&other)				 = default;
@@ -38,6 +39,10 @@ struct Token {
 
 	bool				 operator==(const Token &other) const { return value == other.value; }
 	bool				 operator!=(const Token &other) const { return value != other.value; }
+	bool				 operator<(const Token &other) const { return value < other.value; }
+	bool				 operator<=(const Token &other) const { return value <= other.value; }
+	bool				 operator>(const Token &other) const { return value > other.value; }
+	bool				 operator>=(const Token &other) const { return value >= other.value; }
 	friend std::ostream &operator<<(std::ostream &out, const Token &v);
 
 	uint8_t *getData() { return data; }
