@@ -45,9 +45,9 @@ class CharInputStream : public std::ranges::view_interface<CharInputStream<Lette
 		bool operator==(const sentinel &) const { return end_reached; }
 
 		iterator &operator++() {
-			int ch = input_stream->get();
+			int ch		= input_stream->get();
 			end_reached = (current_char == Letter::eof);
-			
+
 			if (input_stream->eof()) {
 				current_char = Letter::eof;
 			} else {
@@ -61,9 +61,7 @@ class CharInputStream : public std::ranges::view_interface<CharInputStream<Lette
 			return temp;
 		}
 
-		Letter operator*() const {
-			return current_char;
-		}
+		Letter operator*() const { return current_char; }
 	};
 	struct sentinel {
 		bool operator==(const iterator &it) const { return it.end_reached; }
@@ -125,12 +123,6 @@ class LexerRange : public std::ranges::view_interface<LexerRange<Token, Range>> 
 			consumed		= current == end;
 			buffer.clear();
 			while (current != end) {
-				//if(int(*current) == 0) {
-				//	buffer.push_back(*current);
-				//	++current;
-				//	++position;
-				//	continue;
-				//}
 				auto it = ssft_ptr->transitions.find({current_state, *current});
 				dbLog(dbg::LOG_DEBUG, "At state ", current_state, ", char '", *current, "'");
 				if (it == ssft_ptr->transitions.end()) {
@@ -147,13 +139,10 @@ class LexerRange : public std::ranges::view_interface<LexerRange<Token, Range>> 
 						return *this;
 					}
 					buffer.clear();
-					do {
-						if (*current == '\n') ++line_number;
-						buffer.push_back(*current);
-						++position;
-						++current;
-						it = ssft_ptr->transitions.find({0, *current});
-					} while (it == ssft_ptr->transitions.end() && current != end);
+					if (*current == '\n') ++line_number;
+					buffer.push_back(*current);
+					++position;
+					++current;
 
 					current_state = 0;
 					return *this;

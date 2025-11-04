@@ -20,16 +20,12 @@ class OutputFSA {
 	unsigned int											  N = 0;
 	std::unordered_map<State, Letter>						  output;
 
-	OutputFSA(const std::string_view &regex, Letter fixedOutput) {
+	constexpr OutputFSA(const std::string_view &regex, Letter fixedOutput) {
 		auto ast = rgx::parseRegex(std::string(regex));
-		//std::cout << "-------------" << std::endl;
-		//std::cout << ast << std::endl;
-		//std::cout << "-------------" << std::endl;
 		auto fst = (FST<Letter>)makeFSA_BerriSethi<Letter>(*ast);
 		fst		 = trimFSA<Letter>(std::move(fst));
 
 		auto realtime = realtimeFST<Letter>(std::move(fst));
-		// drawFSA(realtime);
 		*this = OutputFSA<Letter>(pseudoDeterminizeFST<Letter>(std::move(realtime)), fixedOutput);
 	}
 

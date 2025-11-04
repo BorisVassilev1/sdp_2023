@@ -65,11 +65,13 @@ class State {
 
 template <>
 struct std::hash<Letter> {
+	constexpr hash() = default;
 	constexpr size_t operator()(const Letter &x) const { return hash<char>()(x); }
 };
 
 template <>
 struct std::hash<std::span<Letter>> {
+	constexpr hash() = default;
 	constexpr size_t operator()(const std::span<Letter> &x) const {
 		return std::hash<std::string_view>()(std::string_view(reinterpret_cast<const char *>(x.data()), x.size()));
 	}
@@ -77,6 +79,7 @@ struct std::hash<std::span<Letter>> {
 
 template <>
 struct std::hash<std::vector<Letter>> {
+	constexpr hash() = default;
 	constexpr size_t operator()(const std::vector<Letter> &x) const {
 		return std::hash<std::string_view>()(std::string_view(reinterpret_cast<const char *>(x.data()), x.size()));
 	}
@@ -84,6 +87,7 @@ struct std::hash<std::vector<Letter>> {
 
 template <class Letter>
 struct std::hash<State<Letter>> {
+	constexpr hash() = default;
 	constexpr size_t operator()(const State<Letter> &x) const { return hash<size_t>()(x); }
 };
 
@@ -99,6 +103,7 @@ std::ostream &operator<<(std::ostream &out, std::vector<T> v);
 
 template <class... Args>
 struct std::hash<std::tuple<Args...>> {
+	constexpr hash() = default;
 	constexpr std::size_t operator()(const std::tuple<Args...> &t) const {
 		return [&]<std::size_t... p>(std::index_sequence<p...>) {
 			return ((std::hash<NthTypeOf<p, Args...>>{}(std::get<p>(t))) ^ ...);

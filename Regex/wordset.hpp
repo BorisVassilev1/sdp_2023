@@ -133,15 +133,15 @@ class UniqueWordSet {
 
 	struct myHash {
 		using is_transparent = void;	 // Allows this hash to be used in unordered_map with std::span<Letter>
-		size_t operator()(const mySpan &span) const {
+		constexpr size_t operator()(const mySpan &span) const {
 			return std::hash<std::string_view>()(
 				std::string_view(reinterpret_cast<const char *>(span.begin()), span.size));
 		}
-		size_t operator()(const std::span<Letter> &span) const {
+		constexpr size_t operator()(const std::span<Letter> &span) const {
 			return std::hash<std::string_view>()(
 				std::string_view(reinterpret_cast<const char *>(span.data()), span.size()));
 		}
-		size_t operator()(const std::span<const Letter> &span) const {
+		constexpr size_t operator()(const std::span<const Letter> &span) const {
 			return std::hash<std::string_view>()(
 				std::string_view(reinterpret_cast<const char *>(span.data()), span.size()));
 		}

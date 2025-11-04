@@ -348,6 +348,71 @@ class SSFT {
 		}
 		out << "}\n";
 	}
+
+	template <std::size_t N, std::size_t Transitions>
+	struct PackedSSFTInputOnly {
+		std::array<std::tuple<uint8_t, uint16_t, uint8_t>, Transitions> transitions_list;
+		std::array<Letter, N>									  output;
+		State													  first;
+
+		constexpr PackedSSFTInputOnly() : transitions_list{}, output{'\0'}, first(0) {}
+
+		void write(std::ostream &out) const {
+			out << "#include <cstdint>\n";
+			out << "#define SSFT_INCLUDED\n";
+			out << "constexpr uint64_t packed_ssft[] = {\n";
+			const uint64_t *data = reinterpret_cast<const uint64_t *>(this);
+			for (std::size_t i = 0; i < sizeof(PackedSSFTInputOnly) / sizeof(uint64_t); ++i) {
+				out << "0x" << std::hex << data[i] << std::dec << "ULL,";
+			}
+			out << "};\n";
+		}
+	};
+
+	template <std::size_t N, std::size_t T>
+	constexpr PackedSSFTInputOnly<N, T> packInputOnly() const {
+		if( N != this->N ) {
+			dbLog(dbg::LOG_ERROR, "SSFT::packInputOnly: N mismatch: ", N, " != ", this->N);
+		}
+		if( T != this->transitions.size() ) {
+			dbLog(dbg::LOG_ERROR, "SSFT::packInputOnly: Transitions mismatch: ", T, " != ", this->transitions.size());
+		}
+		PackedSSFTInputOnly<N, T> packed;
+		packed.first	  = 0;
+		std::size_t index = 0;
+		for (const auto &[lhs, rhs] : transitions) {
+			const auto &[from, letter] = lhs;
+			const auto &[out, to]		 = rhs;
+			packed.transitions_list[index++] = {from, uint16_t(letter), to};
+		}
+		for (std::size_t s = 0; s < N; ++s) {
+			if (qFinals.contains(State(s))) {
+				packed.output[s] = words[output.at(State(s))][0];
+			} else {
+				packed.output[s] = Letter::eof;
+			}
+		}
+		return packed;
+	}
+
+	template <std::size_t N, std::size_t T>
+	static auto loadPackedInputOnly(const PackedSSFTInputOnly<N, T> &packed) {
+		SSFT<Letter> ssft;
+		ssft.N = 0;
+		for (const auto &trans : packed.transitions_list) {
+			const auto &[from, letter, to]	 = trans;
+			ssft.transitions[{from, Letter(letter)}] = {0, to};
+			if (from >= ssft.N) ssft.N = from + 1;
+			if (to >= ssft.N) ssft.N = to + 1;
+		}
+		for (std::size_t s = 0; s < N; ++s) {
+			if (packed.output[s] != Letter::eof) {
+				ssft.qFinals.insert(State(s));
+				ssft.output[State(s)] = ssft.words.addWord(std::array<Letter, 1>{packed.output[s]});
+			}
+		}
+		return ssft;
+	}
 };
 
 template <class Letter>
@@ -401,7 +466,7 @@ class SSFTTraverser {
 			if (!ok) break;
 			++len;
 		}
-		if(len == 0) {
+		if (len == 0) {
 			++begin;
 			++len;
 		}

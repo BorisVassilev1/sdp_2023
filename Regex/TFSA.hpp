@@ -143,19 +143,16 @@ auto removeUpperEpsilonFST(TFSA<Letter> &&fsa) {
 	std::vector<std::vector<std::tuple<State, std::vector<Letter>>>> closure(fsa.N);
 
 	for (State i = 0; i < fsa.N; ++i) {
-		std::cout << "Computing epsilon-closure for state " << i << std::endl;
 		stack.push(0);
 		visited[i] = true;
 		closure[i].push_back({i, {}});	   // add the state itself with an empty word
 		while (!stack.empty()) {
-			std::cout << "  stack size: " << stack.size() << std::endl;
 			auto p					= stack.top();
 			const auto [current, u] = closure[i][p];
 			stack.pop();
 
 			auto [i1, i2] = fsa.transitions.equal_range(current);
 			for (const auto &[_, value] : std::ranges::subrange(i1, i2)) {
-				std::cout << "    checking transition from " << current << std::endl;
 				const auto &[w1, id2, to] = value;
 				if (w1 == Letter::eps && !visited[to]) {	 // epsilon transition
 					visited[to]	  = true;
