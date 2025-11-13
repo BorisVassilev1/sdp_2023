@@ -46,7 +46,7 @@ template <class _Letter>
 class Optional : public LL1Grammar<_Letter> {
    public:
 	template <typename G>
-		requires(is_grammar<_Letter, G> || is_letter<_Letter, G>)
+		requires(is_grammar<_Letter, G> || is_letter<_Letter, G> || is_word<_Letter, G>)
 	Optional(const _Letter &start, G &&g) : LL1Grammar<_Letter>(start) {
 		if constexpr (is_letter<_Letter, G>) {
 			this->terminals.insert(g);
