@@ -120,6 +120,10 @@ class Parser : public DPDA<State<Letter>, Letter> {
 	using DPDA<LState, Letter>::enable_print;
 	using DPDA<LState, Letter>::printTransitions;
 
+	const auto &getFirst() const { return first; }
+	const auto &getFollow() const { return follow; }
+	const auto &getNullable() const { return nullable; }
+
 	/**
 	 * @brief Construct a Parser from an LL(1) grammar. Throws if grammar is not LL(1)
 	 *
@@ -246,7 +250,7 @@ class Parser : public DPDA<State<Letter>, Letter> {
 		while (word_position < word.size()) {
 			auto &[topNode, idx, prod_index] = parseStack.top();
 			const auto &[from, to]			 = productions[prod_index].get();
-			const auto &[_, _, A]		 = from;
+			const auto &[_, _, A]			 = from;
 			const auto &[_, product]		 = to;
 
 			if (idx == product.size()) {
@@ -254,7 +258,7 @@ class Parser : public DPDA<State<Letter>, Letter> {
 				auto [childNode, _, _] = std::move(parseStack.top());
 				parseStack.pop();
 
-				const auto &NTData = g.getNonTerminalData(A);
+				const auto &NTData				 = g.getNonTerminalData(A);
 				auto &[topNode, idx, prod_index] = parseStack.top();
 
 				// throw out the node if it is empty and we ignore empty
@@ -264,22 +268,18 @@ class Parser : public DPDA<State<Letter>, Letter> {
 				}
 				// throw out the node if it has a single child and we ignore single child
 				if (NTData.ignoreSingleChild && childNode->children.size() == 1) {
-					if (product.replaceWith != Letter::eps) {
-						topNode->value = product.replaceWith;
-					}
+					if (product.replaceWith != Letter::eps) { topNode->value = product.replaceWith; }
 
 					topNode->children.emplace_back(std::move(childNode->children[0]));
 					++idx;
 					continue;
 				}
 
-				if (NTData.upwardSpillThreshold < 0 || childNode->children.size() > size_t(NTData.upwardSpillThreshold)) {
-
-					if (product.replaceWith != Letter::eps) {
-						childNode->value = product.replaceWith;
-					}
+				if (NTData.upwardSpillThreshold < 0 ||
+					childNode->children.size() > size_t(NTData.upwardSpillThreshold)) {
+					if (product.replaceWith != Letter::eps) { childNode->value = product.replaceWith; }
 					topNode->children.emplace_back(std::move(childNode));
-				} else { // spill upwards if we have few children
+				} else {	 // spill upwards if we have few children
 					for (auto &c : childNode->children) {
 						topNode->children.emplace_back(std::move(c));
 					}
@@ -317,9 +317,15 @@ class Parser : public DPDA<State<Letter>, Letter> {
 			if (enable_print) { printState(current_state, offset, stack, word); }
 
 			res = transition(current_state, l, s, stack, offset);
-			if (res == delta.end() && s != Letter::eps) { res = transition(current_state, l, Letter::eps, stack, offset); }
-			if (res == delta.end() && l != Letter::eps) { res = transition(current_state, Letter::eps, s, stack, offset); }
-			if (res == delta.end() && s != Letter::eps && l != Letter::eps) { res = transition(current_state, Letter::eps, Letter::eps, stack, offset); }
+			if (res == delta.end() && s != Letter::eps) {
+				res = transition(current_state, l, Letter::eps, stack, offset);
+			}
+			if (res == delta.end() && l != Letter::eps) {
+				res = transition(current_state, Letter::eps, s, stack, offset);
+			}
+			if (res == delta.end() && s != Letter::eps && l != Letter::eps) {
+				res = transition(current_state, Letter::eps, Letter::eps, stack, offset);
+			}
 
 			if (res != delta.end() && std::get<0>(res->first) == std::get<0>(res->second))
 				productions.push_back(std::ref(*res));

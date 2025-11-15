@@ -9,6 +9,7 @@
 #include <iostream>
 #include <ranges>
 #include <DPDA/cfg.h>
+#include <util/utils.hpp>
 
 /// a concept for classes that can be Letter in a DPDA<State, Letter>
 template <class L>
@@ -147,8 +148,10 @@ class DPDA {
 		auto to_insert = std::make_pair(std::tuple<State, Letter, Letter>{q, a, x}, std::make_tuple(q1, w));
 		auto found	   = delta.find(to_insert.first);
 		if (found != delta.end()) {
-			throw std::runtime_error(
-				std::format("Failed to add transition: New transition {} conflicts with {}", to_insert, *found));
+			// throw std::runtime_error(
+			// 	std::format("Failed to add transition: New transition {} conflicts with {}", to_insert, *found));
+
+			dbLog(dbg::LOG_ERROR, std::format("Failed to add transition: New transition {} conflicts with {}", to_insert, *found));
 		}
 		delta.insert(to_insert);
 	}
