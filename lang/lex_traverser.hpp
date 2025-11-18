@@ -158,20 +158,28 @@ class LexerRange : public std::ranges::view_interface<LexerRange<Token, Range>> 
 			return *this;
 		}
 
-		std::tuple<Token, size_t, size_t, size_t, std::span<const Token>> operator*() const {
+		struct TokenData {
+			Token				   token;
+			std::size_t			   from;
+			std::size_t			   to;
+			std::size_t			   line;
+			std::span<const Token> str;
+		};
+
+		TokenData operator*() const {
 			consumed = true;
 			if (queued_token != Token::eps) {
 				auto t		 = queued_token;
 				queued_token = Token::eps;
-				return std::make_tuple(t, output_position, position - 1, line_number,
-									   std::span(buffer.begin(), buffer.end()));
+				return TokenData{t, output_position, position - 1, line_number,
+								 std::span(buffer.begin(), buffer.end())};
 			}
 			if (lex_ptr->ssft.qFinals.contains(current_state)) {
-				return std::make_tuple(lex_ptr->ssft.words[lex_ptr->ssft.output.at(current_state)][0], output_position,
-									   position - 1, line_number, std::span(buffer.begin(), buffer.end()));
+				return TokenData{lex_ptr->ssft.words[lex_ptr->ssft.output.at(current_state)][0], output_position,
+								 position - 1, line_number, std::span(buffer.begin(), buffer.end())};
 			} else {
-				return std::make_tuple(lex_ptr->error_token, output_position, position - 1, line_number,
-									   std::span(buffer.begin(), buffer.end()));
+				return TokenData{lex_ptr->error_token, output_position, position - 1, line_number,
+								 std::span(buffer.begin(), buffer.end())};
 			}
 		}
 	};

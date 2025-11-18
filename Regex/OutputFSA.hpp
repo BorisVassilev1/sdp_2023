@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <Regex/SSFT.hpp>
-#include "Regex/TFSA.hpp"
+#include <Regex/TFSA.hpp>
 
 template <class Letter>
 class OutputFSA {

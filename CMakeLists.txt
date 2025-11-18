@@ -174,8 +174,8 @@ add_library(lang STATIC
 	Regex/regexParser.cpp
 	Regex/ambiguity.cpp
 )
-target_compile_options(lang PRIVATE ${COMPILE_ARGS})
-target_link_options(lang PRIVATE ${COMPILE_ARGS})
+target_compile_options(lang PRIVATE ${COMPILE_ARGS} -fPIC)
+target_link_options(lang PRIVATE ${COMPILE_ARGS} -fPIC)
 target_include_directories(lang PUBLIC .)
 set_target_properties(lang PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY ../
