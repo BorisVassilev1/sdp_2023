@@ -6,18 +6,19 @@
 !Makefile-manual
 !/libs/*
 
-/build/*
+build/
 *.exe
 *.log
 
 /res/*
 imgui.ini
-/.cache/*
+.cache/
 .clangd
 compile_commands.json
-/.vscode/*
-/html/*
-/doc/*
+.vscode
+html/
+doc/
+doc/
 /latex/*
 doxygen_config.txt
 /cmake-build-debug/
