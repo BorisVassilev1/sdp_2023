@@ -124,9 +124,7 @@ class LexerRange : public std::ranges::view_interface<LexerRange<Token, Range>> 
 			buffer.clear();
 			while (current != end) {
 				auto it = ssft_ptr->transitions.find({current_state, *current});
-				dbLog(dbg::LOG_DEBUG, "At state ", current_state, ", char '", *current, "'");
 				if (it == ssft_ptr->transitions.end()) {
-					dbLog(dbg::LOG_DEBUG, "No transition found");
 					if (ssft_ptr->qFinals.contains(current_state)) {
 						Token output = ssft_ptr->words[ssft_ptr->output.at(current_state)][0];
 						auto  it	 = lex_ptr->skippers.find(output);
@@ -149,7 +147,6 @@ class LexerRange : public std::ranges::view_interface<LexerRange<Token, Range>> 
 				}
 				if (*current == '\n') ++line_number;
 				const auto &[outputID, next] = it->second;
-				dbLog(dbg::LOG_DEBUG, "Transition on '", *current, "' to state ", next);
 				current_state = next;
 				buffer.push_back(*current);
 				++current;
@@ -190,3 +187,6 @@ class LexerRange : public std::ranges::view_interface<LexerRange<Token, Range>> 
 	iterator begin() { return iterator(std::ranges::begin(*range), std::ranges::end(*range), this); }
 	auto	 end() { return std::ranges::end(*range); };
 };
+
+template <class Token, std::ranges::input_range Range>
+LexerRange(Range &, SSFT<Token> &&, Token) -> LexerRange<Token, Range>;

@@ -53,8 +53,8 @@ int main() {
 	tokenizeId = BS_KleeneStarFSA<Token>(std::move(tokenizeId), false);
 
 	BS_FSA<Token> whitespace = BS_WordFSA<Token>({' '}, {});
-	whitespace = BS_UnionFSA<Token>(std::move(whitespace), BS_WordFSA<Token>({'\n'}, {}));
-	whitespace = BS_UnionFSA<Token>(std::move(whitespace), BS_WordFSA<Token>({'\t'}, {}));
+	whitespace				 = BS_UnionFSA<Token>(std::move(whitespace), BS_WordFSA<Token>({'\n'}, {}));
+	whitespace				 = BS_UnionFSA<Token>(std::move(whitespace), BS_WordFSA<Token>({'\t'}, {}));
 	whitespace				 = BS_KleeneStarFSA<Token>(std::move(whitespace), false);
 
 	auto TokenizeID	 = OutputFSA(pseudoDeterminizeFST(realtimeFST(std::move(tokenizeId))), Id);
@@ -81,17 +81,13 @@ int main() {
 	std::ranges::for_each(result, [](auto x) { std::cout << x << " "; });
 	std::cout << std::endl;
 
-
 	std::cin >> std::noskipws;
 	auto input = std::views::istream<char>(std::cin) | std::views::cache_latest;
 
-	LexerRange lexer(input, std::move(SSFTTokenizer));
-	for (auto [token_opt, from, to] : lexer) {
-		if (token_opt.has_value()) {
-			std::cout << std::format("Token: {} from {} to {}\n", token_opt.value(), from, to);
-		} else {
-			std::cout << std::format("Error from {} to {}\n", from, to);
-		}
+	LexerRange lexer(input, std::move(SSFTTokenizer), Token::createToken("ERROR"));
+	for (auto [token, from, to, line, str] : lexer) {
+		std::cout << std::format("Token: {} from {} to {}\n", token, from, to);
+		//	std::cout << std::format("Error from {} to {}\n", from, to);
 	}
 
 	return 0;
