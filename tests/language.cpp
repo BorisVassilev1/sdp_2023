@@ -1,3 +1,4 @@
+#include "OutputFSA.hpp"
 #include <cassert>
 #include <cctype>
 #include <cstring>
@@ -99,15 +100,26 @@ CFG<Token> createCFGNew() {
 
 	current = ParamList;
 	auto paramList =
-		Optional(ParamList, RepeatChoice(NT(), Word(ParenthesisParamList, {'(', CommaSep, ')'}, {true, false, true}),
-										 Word(BracketParamList, {'[', CommaSep, ']'}, {true, false, true})));
+		RepeatChoice(NT(), Word(ParenthesisParamList, {'(', CommaSep, ')'}, {true, false, true}),
+										 Word(BracketParamList, {'[', CommaSep, ']'}, {true, false, true}));
+	paramList.getNonTerminalData(ParenthesisParamList).ignoreEmpty = false;	
+	paramList.getNonTerminalData(ParenthesisParamList).ignoreSingleChild = false;
+	paramList.getNonTerminalData(BracketParamList).ignoreEmpty = false;
+	paramList.getNonTerminalData(BracketParamList).ignoreSingleChild = false;
+	paramList.setUpwardSpillThreshold(INT_MAX);
+	
+	auto optionalParamList = Optional(ParamList, std::move(paramList));
 
 	current = CommaSep;
 	auto commaSep =
-		Optional(CommaSep, Seq(NT(), Assignment, Repeat(NT(), Word(NT(), {',', Assignment}, {true, false}), INT_MAX)));
+		Seq(NT(), Assignment, Repeat(NT(), Word(NT(), {',', Assignment}, {true, false}, true), INT_MAX));
+	commaSep.setUpwardSpillThreshold(INT_MAX);
+	
+	auto optionalCommaSep = Optional(CommaSep, std::move(commaSep));
 
 	auto g = Combine(program, expression, assignment, comparison, arithmetic, term, factor, scope, conditional,
-					 paramList, commaSep);
+					 optionalParamList, optionalCommaSep);
+
 	// g.printParseTable();
 	return g;
 }
@@ -153,6 +165,26 @@ std::vector<Token> tokenize(std::string &text) {
 	}
 	res.push_back(Token::eof);
 	return res;
+}
+
+auto createTokenizer() {
+	OutputFSA<Token> if_ = OutputFSA("'if'", If);
+	OutputFSA<Token> while_ = OutputFSA("'while'", While);
+	OutputFSA<Token> for_ = OutputFSA("'for'", For);
+
+	std::string_view digits = "('0'+'1'+'2'+'3'+'4'+'5'+'6'+'7'+'8'+'9')";
+	std::string_view _az =
+		"('a'+'b'+'c'+'d'+'e'+'f'+'g'+'h'+'i'+'j'+'k'+'l'+'m'+'n'+'o'+'p'+'q'+'r'+'s'+'t'+'u'+'v'+'w'+'x'+'y'+'z')";
+	std::string_view _AZ =
+		"('A'+'B'+'C'+'D'+'E'+'F'+'G'+'H'+'I'+'J'+'K'+'L'+'M'+'N'+'O'+'P'+'Q'+'R'+'S'+'T'+'U'+'V'+'W'+'X'+'Y'+'Z')";
+
+	std::string numberRegex = std::format("({}!)", digits);
+	OutputFSA<Token> number_ = OutputFSA(numberRegex, Number);
+	OutputFSA<Token> identifier_ = OutputFSA(std::format("({}+{}+'_')!", _az,_AZ), Identifier);
+
+	auto tokenizer = UnionOutputFSA<Token>(std::move(if_), std::move(while_), std::move(for_), std::move(number_),
+									   std::move(identifier_));
+	return tokenizer.determinizeToSSFT();
 }
 
 struct ASTNode {
@@ -206,6 +238,8 @@ int main(int argc, char **argv) {
 	} else {
 		try {
 			Parser<Token> parser(*g);
+			//auto tokenizer = createTokenizer();
+
 			// parser.enable_print = true;
 
 			// EarleyParser<Token> earleyParser(*g);
@@ -232,7 +266,7 @@ int main(int argc, char **argv) {
 
 			BENCH(parser.parse(tokens), 10, "BENCH building parse tree: ");
 			auto t = parser.parse(tokens);
-			if (tokens.size() < 1000) std::cout << t << std::endl;
+			//if (tokens.size() < 1000) std::cout << t << std::endl;
 
 			// BENCH(earleyParser.recognize(tokens), 10, "BENCH earley parse: ");
 			// assert(earleyParser.recognize(tokens));

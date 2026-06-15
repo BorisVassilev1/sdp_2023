@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 #include <type_traits>
 #include <cxxabi.h>
 #include <string>

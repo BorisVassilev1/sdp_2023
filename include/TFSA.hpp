@@ -411,7 +411,7 @@ auto trimFSA(TFSA<Letter> &&fsa) {
 				visited_back[i] = true;
 			}
 		}
-		dbLog(dbg::LOG_DEBUG, "Finished backward reachability")
+		//dbLog(dbg::LOG_DEBUG, "Finished backward reachability")
 
 			for (const auto &first : fsa.qFirsts) {
 			visited_forw[first] = true;		// mark initial states as visited
@@ -429,18 +429,18 @@ auto trimFSA(TFSA<Letter> &&fsa) {
 				}
 			}
 		}
-		dbLog(dbg::LOG_DEBUG, "Finished forward reachability")
+		//dbLog(dbg::LOG_DEBUG, "Finished forward reachability")
 	}
 	size_t			   cnt = 0;
 	std::vector<State> new_map(fsa.N, -1);
 	for (unsigned int i = 0; i < fsa.N; ++i) {
 		if (visited_back[i] && visited_forw[i]) { new_map[i] = cnt++; }
 	}
-	dbLog(dbg::LOG_DEBUG, std::format("Trimmed FSA: {} / {} states are reachable from both sides.\n",
-									  std::count(new_map.begin(), new_map.end(), -1u) ^ fsa.N, fsa.N));
+	//dbLog(dbg::LOG_DEBUG, std::format("Trimmed FSA: {} / {} states are reachable from both sides.\n",
+	//								  std::count(new_map.begin(), new_map.end(), -1u) ^ fsa.N, fsa.N));
 
 	if (cnt == fsa.N) {
-		dbLog(dbg::LOG_DEBUG, "No states were removed during trimming.");
+		//dbLog(dbg::LOG_DEBUG, "No states were removed during trimming.");
 		return std::move(fsa);
 	}
 
