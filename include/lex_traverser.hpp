@@ -84,12 +84,12 @@ class LexerRange : public std::ranges::view_interface<LexerRange<Token, Range>> 
 	using InnerIterator = decltype(std::ranges::begin(std::declval<Range &>()));
 	using InnerSentinel = decltype(std::ranges::end(std::declval<Range &>()));
 
-	Range	   *range;
-	SSFT<Token> ssft;
-	Token		error_token;
+	Range			  *range;
+	const SSFT<Token> &ssft;
+	Token			   error_token;
 
-	LexerRange(Range &range, SSFT<Token> &&ssft, Token error_token)
-		: range(&range), ssft(std::move(ssft)), error_token(error_token) {}
+	LexerRange(Range &range, const SSFT<Token> &ssft, Token error_token)
+		: range(&range), ssft(ssft), error_token(error_token) {}
 
 	class iterator {
 	   public:
@@ -190,6 +190,6 @@ class LexerRange : public std::ranges::view_interface<LexerRange<Token, Range>> 
 };
 
 template <class Token, std::ranges::input_range Range>
-LexerRange(Range &, SSFT<Token> &&, Token) -> LexerRange<Token, Range>;
+LexerRange(Range &, const SSFT<Token> &, Token) -> LexerRange<Token, Range>;
 
 }	  // namespace fl

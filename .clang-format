@@ -1,0 +1,29 @@
+BasedOnStyle: Google
+Language: Cpp
+
+ColumnLimit: 120
+UseTab: Always
+IndentWidth: 4
+TabWidth: 4
+AllowShortBlocksOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortLambdasOnASingleLine: All
+AllowShortLoopsOnASingleLine: false
+IndentPPDirectives: BeforeHash
+
+
+AlignConsecutiveDeclarations: true
+AlignTrailingComments: true
+AlwaysBreakAfterReturnType: None
+PenaltyReturnTypeOnItsOwnLine: 9999
+PointerAlignment: Right
+SortIncludes: Never
+# BreakBeforeBraces: Allman
+SpacesBeforeTrailingComments: 5
+AlignAfterOpenBracket: true
+AlignConsecutiveAssignments: true
+AlignConsecutiveMacros : true
+AllowAllConstructorInitializersOnNextLine: true
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
