@@ -13,6 +13,8 @@ concept isLetter = requires() {
 	{ L::eps } -> std::same_as<const L &>;
 	{ L::eof } -> std::same_as<const L &>;
 	{ L::size } -> std::convertible_to<const std::size_t &>;
+	{ L() } -> std::same_as<L>;
+	{ ++std::declval<L &>() } -> std::same_as<L>;
 	std::is_convertible_v<L, std::size_t>;
 	not std::is_fundamental_v<L>;
 };

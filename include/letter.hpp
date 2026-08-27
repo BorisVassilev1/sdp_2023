@@ -21,10 +21,16 @@ class Letter {
 	constexpr Letter(const Letter &other)			 = default;
 	constexpr Letter &operator=(const Letter &other) = default;
 
-	constexpr			operator char() const { return val; }
+	constexpr			operator size_t() const { return val; }
+	explicit constexpr operator char() const { return val; }
 	static const Letter eps;
 	static const Letter eof;
 	static const size_t size;
+
+	constexpr Letter operator++() {
+		++val;
+		return *this;
+	}
 };
 
 constexpr const Letter Letter::eps	= '\xFF';

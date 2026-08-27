@@ -176,6 +176,11 @@ class UniqueWordSet {
 		return nextWordID++;
 	}
 
+	template <class Input>
+	bool contains(Input &&word) const {
+		return wordMap.find(std::span{word.begin(), word.end()}) != wordMap.end();
+	}
+
 	WordID addWord(Letter *word, size_t length) {
 		if (length == 0) return addWord(std::span<Letter>{});
 		auto it = wordMap.find(std::span{word, length});

@@ -160,7 +160,7 @@ class Parser : public DPDA<State<Letter>, Letter> {
 			throw std::runtime_error("Grammar is not LL(1): intersection between terminals and nonterminals");
 		}
 
-		addTransition(0, Letter::eps, Letter::eps, 1, {grammar.start});
+		addTransition(0, Letter::eps, Letter::eps, 1, std::vector<Letter>{grammar.start});
 
 		auto f = [](const Letter l) -> LState { return Letter::size + std::size_t(l); };
 

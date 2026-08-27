@@ -79,6 +79,11 @@ struct Token {
 	bool				 operator>=(const Token &other) const { return value >= other.value; }
 	friend std::ostream &operator<<(std::ostream &out, const Token &v);
 
+	Token operator++() {
+		++value;
+		return *this;
+	}
+
 	uint8_t *getData() { return data; }
 	template <typename T>
 		requires(sizeof(T) <= sizeof(uint8_t *))

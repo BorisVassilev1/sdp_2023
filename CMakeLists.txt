@@ -27,6 +27,7 @@ set(FL_TARGETS
 	#regex2 
 	#regex3 
 	langdef
+	replace_test
 )
 
 foreach(target IN LISTS FL_TARGETS)
