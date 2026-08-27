@@ -298,7 +298,7 @@ int main(int argc, char **argv) {
 
 		BENCH(parser.parse(tokens), 10, "BENCH building parse tree: ");
 		auto t = parser.parse(tokens);
-		//if (tokens.size() < 1000) std::cout << t << std::endl;
+		// if (tokens.size() < 1000) std::cout << t << std::endl;
 
 		BENCH(earleyParser.recognize(tokens), 10, "BENCH earley parse: ");
 		assert(earleyParser.recognize(tokens));

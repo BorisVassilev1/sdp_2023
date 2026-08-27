@@ -7,6 +7,4 @@
 #include "token.h"
 #include "utils.h"
 
-namespace fl {
-
-};
+namespace fl {};

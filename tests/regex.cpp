@@ -3,7 +3,7 @@
 #include <iostream>
 #include <regexParser.hpp>
 #include <FST.hpp>
-#include <TFSA.hpp>
+#include <ExpandedFST.hpp>
 #include <letter.hpp>
 #include "SSFT.hpp"
 #include "ambiguity.hpp"
@@ -85,23 +85,23 @@ int main(int argc, char **argv) {
 	std::cout << "FSA has " << fst.N << " states and " << fst.transitions.size() << " transitions and "
 			  << fst.words.size() << " words after trimming." << std::endl;
 
-	TFSA<Letter> fsa;
-	BENCH(fsa = expandFST<Letter>(std::move(fst));, 1, "BENCH expandFST: ");
-	if (tokens.size() < 1000) drawFSA(fsa);
-	std::cout << "Expanded FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
-			  << fsa.words.size() << " words." << std::endl;
+	ExpandedFST<Letter> efst;
+	BENCH(efst = expandFST<Letter>(std::move(fst));, 1, "BENCH expandFST: ");
+	if (tokens.size() < 1000) drawFSA(efst);
+	std::cout << "Expanded FSA has " << efst.N << " states and " << efst.transitions.size() << " transitions and "
+			  << efst.words.size() << " words." << std::endl;
 
 	if (!infAmbiguity) {
-		BENCH(fsa = removeUpperEpsilonFST<Letter>(std::move(fsa));, 1, "BENCH realtimeFST: ");
-		if (tokens.size() < 1000) drawFSA(fsa);
-		std::cout << "Real-time FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
-				  << fsa.words.size() << " words." << std::endl;
+		BENCH(efst = removeUpperEpsilonFST<Letter>(std::move(efst));, 1, "BENCH realtimeFST: ");
+		if (tokens.size() < 1000) drawFSA(efst);
+		std::cout << "Real-time FSA has " << efst.N << " states and " << efst.transitions.size() << " transitions and "
+				  << efst.words.size() << " words." << std::endl;
 
-		BENCH(fsa = trimFSA<Letter>(std::move(fsa));, 1, "BENCH trimFSA again: ");
-		if (tokens.size() < 1000) drawFSA(fsa);
-		std::cout << "Trimmed FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
-				  << fsa.words.size() << " words." << std::endl;
-		bool isFunc = isFunctional(fsa);
+		BENCH(efst = trimFSA<Letter>(std::move(efst));, 1, "BENCH trimFSA again: ");
+		if (tokens.size() < 1000) drawFSA(efst);
+		std::cout << "Trimmed FSA has " << efst.N << " states and " << efst.transitions.size() << " transitions and "
+				  << efst.words.size() << " words." << std::endl;
+		bool isFunc = isFunctional(efst);
 		std::cout << "isFunctional: " << isFunc << std::endl;
 
 		if (!isFunc) {
@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
 		}
 		try {
 			std::cout << "converting to SSFT..." << std::endl;
-			auto ssfst = SSFT<Letter>(std::move(fsa));
+			auto ssfst = SSFT<Letter>(std::move(efst));
 			drawFSA(ssfst);
 
 			std::cout << "SSFT has " << ssfst.N << " states and " << ssfst.transitions.size() << " transitions."

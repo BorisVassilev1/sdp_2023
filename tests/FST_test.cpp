@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include <FST.hpp>
-#include <TFSA.hpp>
+#include <ExpandedFST.hpp>
 #include <ambiguity.hpp>
 #include <functionality.hpp>
 #include <letter.hpp>
@@ -12,12 +12,10 @@
 
 using namespace fl;
 
-auto toLetter(const char *s) {
-	return fl::toLetter<Letter>(s);
-}
+auto toLetter(const char *s) { return fl::toLetter<Letter>(s); }
 
 void test_determinization() {
-	TFSA<Letter> fsa;
+	ExpandedFST<Letter> fsa;
 	fsa.N		= 8;
 	fsa.qFirsts = {0, 1};
 	fsa.qFinals = {3, 6, 7};
@@ -51,19 +49,19 @@ void test_determinization() {
 }
 
 void test_bounded_variation() {
-	TFSA<Letter> fsa;
-	fsa.N		= 4;
-	fsa.qFirsts = {0};
-	fsa.qFinals = {0, 1, 3};
-	fsa.addTransition(0, 'a', toLetter("a"), 1);
-	fsa.addTransition(1, 'a', toLetter("a"), 1);
-	fsa.addTransition(0, 'a', toLetter(""), 2);
-	fsa.addTransition(2, 'a', toLetter(""), 2);
-	fsa.addTransition(2, 'b', toLetter("b"), 3);
+	ExpandedFST<Letter> efst;
+	efst.N		 = 4;
+	efst.qFirsts = {0};
+	efst.qFinals = {0, 1, 3};
+	efst.addTransition(0, 'a', toLetter("a"), 1);
+	efst.addTransition(1, 'a', toLetter("a"), 1);
+	efst.addTransition(0, 'a', toLetter(""), 2);
+	efst.addTransition(2, 'a', toLetter(""), 2);
+	efst.addTransition(2, 'b', toLetter("b"), 3);
 
-	drawFSA(fsa);
+	drawFSA(efst);
 
-	bool functional = isFunctional(fsa);
+	bool functional = isFunctional(efst);
 	if (!functional) {
 		std::cout << "FSA is not functional." << std::endl;
 		return;
@@ -72,7 +70,7 @@ void test_bounded_variation() {
 	}
 
 	try {
-		SSFT<Letter> ssft(std::move(fsa));
+		SSFT<Letter> ssft(std::move(efst));
 		std::cout << "SSFT has " << ssft.N << " states and " << ssft.transitions.size() << " transitions and "
 				  << ssft.words.size() << " words." << std::endl;
 
@@ -100,7 +98,7 @@ void test_replace() {
 	std::cout << "FSA has " << fst.N << " states and " << fst.transitions.size() << " transitions and "
 			  << fst.words.size() << " words." << std::endl;
 	// fsa.print(std::cout);
-	//drawFSA(fst);
+	// drawFSA(fst);
 
 	fst = removeEpsilonFST<Letter>(std::move(fst));
 	fst = trimFSA<Letter>(std::move(fst));
@@ -113,9 +111,9 @@ void test_replace() {
 	}
 
 	auto fsa = expandFST(std::move(fst));
-	//drawFSA(fsa);
+	// drawFSA(fsa);
 	fsa = removeUpperEpsilonFST(std::move(fsa));
-	//drawFSA(fsa);
+	// drawFSA(fsa);
 	fsa = trimFSA(std::move(fsa));
 	std::cout << "FSA has " << fsa.N << " states and " << fsa.transitions.size() << " transitions and "
 			  << fsa.words.size() << " words as REALTIME." << std::endl;
@@ -134,14 +132,14 @@ void test_replace() {
 			  << ssft.words.size() << " words." << std::endl;
 
 	std::cout << "draw SSFT" << std::endl;
-	//drawFSA(ssft);
+	// drawFSA(ssft);
 
 	auto input		 = toLetter("abbababb");
 	auto [output, b] = ssft.f(input);
 	std::cout << "Input: " << input << std::endl;
 	std::cout << "Output: " << output << std::endl;
 
-	input				 = toLetter("ab:)ab:)aaa:):)a=D=Dbab");
+	input				= toLetter("ab:)ab:)aaa:):)a=D=Dbab");
 	std::tie(output, b) = ssft.f(input);
 	std::cout << "Input: " << input << std::endl;
 	std::cout << "Output: " << output << std::endl;

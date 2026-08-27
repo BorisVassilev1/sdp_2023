@@ -28,8 +28,8 @@ class EarleyParser {
 	EarleyParser(const CFG<Letter> &g) : grammar(g) {}
 
 	auto C(const std::vector<fl::unordered_set<DottedRule>> &R, fl::unordered_set<DottedRule> &R_ip, int i) {
-		fl::unordered_set<DottedRule> &C_s	  = R_ip;
-		bool							added = true;
+		fl::unordered_set<DottedRule> &C_s	 = R_ip;
+		bool						   added = true;
 
 		// auto &terminals	   = grammar.terminals;
 		auto &nonTerminals = grammar.nonTerminals;

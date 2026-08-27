@@ -15,7 +15,7 @@ TEST_CASE("a^nb^n") {
 	g.addRule('S', {});
 	g.start = 'S';
 
-	auto p = EarleyParser<Letter>(g);
+	auto p		   = EarleyParser<Letter>(g);
 	p.enable_print = true;
 
 	SUBCASE("aabb") { CHECK(p.recognize({'a', 'a', 'b', 'b'})); }

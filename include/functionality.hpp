@@ -8,13 +8,12 @@
 #include <span>
 #include <cassert>
 #include <queue>
-#include "TFSA.hpp"
+#include "ExpandedFST.hpp"
 #include "debug.hpp"
 
 namespace fl {
 
 using sv = std::string_view;
-
 
 template <class U, class V>
 auto remainderSuffix(U &&w, V &&s) {
@@ -61,10 +60,10 @@ bool eq(U &&u, V &&v) {
 
 /// expects trimmed real-time FST
 template <class Letter>
-bool isFunctional(const TFSA<Letter> &fst) {
+bool isFunctional(const ExpandedFST<Letter> &fst) {
 	// create the squared putput transducer and compute Adm(q) for every state q in it;
 
-	using State = typename TFSA<Letter>::State;
+	using State = typename ExpandedFST<Letter>::State;
 
 	// check output of empty word
 	int eps_out = -1;
@@ -75,7 +74,7 @@ bool isFunctional(const TFSA<Letter> &fst) {
 	}
 
 	unordered_map<std::tuple<State, State>, std::tuple<std::vector<Letter>, std::vector<Letter>>> Adm;
-	std::queue<std::tuple<State, State>>															   queue;
+	std::queue<std::tuple<State, State>>														  queue;
 
 	std::vector<bool> coFinals(fst.N * fst.N, false);
 	{
@@ -211,7 +210,7 @@ bool isFunctional(const TFSA<Letter> &fst) {
 
 namespace cmp {
 template <class Letter>
-using State = typename TFSA<Letter>::State;
+using State = typename ExpandedFST<Letter>::State;
 template <class Letter>
 using Delay = std::tuple<std::vector<Letter>, std::vector<Letter>>;
 template <class Letter>
@@ -244,10 +243,10 @@ struct Cmp2 {
 
 /// expects trimmed real-time FST
 template <class Letter>
-bool testBoundedVariation(const TFSA<Letter> &fst) {
+bool testBoundedVariation(const ExpandedFST<Letter> &fst) {
 	// create the squared putput transducer and compute Adm(q) for every state q in it;
 
-	using State = typename TFSA<Letter>::State;
+	using State = typename ExpandedFST<Letter>::State;
 
 	// check output of empty word
 	int eps_out = -1;

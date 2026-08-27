@@ -1,11 +1,9 @@
 #pragma once
 
-#include <queue>
 #include <ranges>
 #include <map>
 
-#include "TFSA.hpp"
-#include "functionality.hpp"
+#include "ExpandedFST.hpp"
 #include "wordset.hpp"
 #include "debug.hpp"
 #include "datastructures.hpp"
@@ -27,9 +25,9 @@ class SSFT {
 
 	SSFT() = default;
 
-	// accepts a trimmed TFSA and builds a subsequential finite-state transducer
+	// accepts a trimmed ExpandedFST and builds a subsequential finite-state transducer
 	// tests for bounded variation
-	SSFT(TFSA<Letter> &&fsa, bool resolveNonFunctionality = false) {
+	SSFT(ExpandedFST<Letter> &&fsa, bool resolveNonFunctionality = false) {
 		unsigned int C = 0;
 		for (auto w : fsa.words) {
 			if (w.size() > C) C = w.size();
@@ -83,8 +81,8 @@ class SSFT {
 				  currentTransitions;	  // transitions for the current state
 			State nextState		= 0;
 			auto  localNewState = [&nextState]() {
-				 auto &ref = nextStates.emplace_back();
-				 return std::tuple(std::reference_wrapper{ref}, nextState++);
+				auto &ref = nextStates.emplace_back();
+				return std::tuple(std::reference_wrapper{ref}, nextState++);
 			};
 
 			// for each (q,w) in the current state

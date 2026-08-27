@@ -80,16 +80,16 @@ class Parser : public DPDA<State<Letter>, Letter> {
 		std::string msg;
 		Letter		currentLetter = Letter(current_state - Letter::size);
 
-		dbLog(dbg::LOG_ERROR, "-------------");
-		printState(current_state, offset, stack, word);
-		dbLog(dbg::LOG_ERROR, "-------------");
+		// dbLog(dbg::LOG_ERROR, "-------------");
+		// printState(current_state, offset, stack, word);
+		// dbLog(dbg::LOG_ERROR, "-------------");
 
 		if (current_state == 1 && !g.terminals.contains(word[offset])) {
 			msg = std::format("unexpected '{}' - not a valid terminal", word[offset]);
 		} else if (!stack.empty() && current_state > Letter::size) {
 			fl::unordered_set<Letter> expected;
-			auto					  &firsts = *this->first.find(stack.back());
-			expected						  = firsts.second;
+			auto					 &firsts = *this->first.find(stack.back());
+			expected						 = firsts.second;
 			if (this->nullable.find(stack.back())->second) {
 				auto &follows = *this->follow.find(stack.back());
 				expected.insert(follows.second.begin(), follows.second.end());

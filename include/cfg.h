@@ -73,11 +73,11 @@ class CFG {
 
 	fl::unordered_map<Letter, NonTerminalData> nonTerminalData;
 
-	fl::unordered_multimap<Letter, Production>	  rules;
-	fl::unordered_set<Letter> terminals;
-	fl::unordered_set<Letter> nonTerminals;
-	Letter										  start;
-	Letter										  eof = Letter::eof;
+	fl::unordered_multimap<Letter, Production> rules;
+	fl::unordered_set<Letter>				   terminals;
+	fl::unordered_set<Letter>				   nonTerminals;
+	Letter									   start;
+	Letter									   eof = Letter::eof;
 
    public:
 	CFG(const Letter &start, const Letter &eof) : start(start), eof(eof) {
@@ -218,7 +218,7 @@ class CFG {
 	 * @return fl::unordered_set<Letter>
 	 */
 	fl::unordered_set<Letter> first(const std::vector<Letter> &w, const fl::unordered_map<Letter, bool> &nullable,
-									 const fl::unordered_map<Letter, fl::unordered_set<Letter>> &first) const {
+									const fl::unordered_map<Letter, fl::unordered_set<Letter>> &first) const {
 		fl::unordered_set<Letter> res;
 		for (size_t i = 0; i < w.size(); ++i) {
 			const auto &firstOfLetter = first.find(w[i])->second;
@@ -238,7 +238,7 @@ class CFG {
 	 * @return fl::unordered_map<Letter, fl::unordered_set<Letter>>
 	 */
 	fl::unordered_map<Letter, fl::unordered_set<Letter>> findFollows(
-		const fl::unordered_map<Letter, bool>						 &nullable,
+		const fl::unordered_map<Letter, bool>					   &nullable,
 		const fl::unordered_map<Letter, fl::unordered_set<Letter>> &first) const {
 		fl::unordered_map<Letter, fl::unordered_set<Letter>> follow;
 

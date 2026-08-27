@@ -1,11 +1,12 @@
 #include <format>
 #include <iostream>
-#include "DPDA/utils.h"
-#include "Regex/FST.hpp"
-#include "Regex/SSFT.hpp"
-#include "Regex/TFSA.hpp"
-#include "Regex/ambiguity.hpp"
-#include "Regex/functionality.hpp"
+#include "utils.h"
+#include "FST.hpp"
+#include "SSFT.hpp"
+#include "ExpandedFST.hpp"
+#include "ambiguity.hpp"
+#include "functionality.hpp"
+#include "letter.hpp"
 
 using namespace std::string_literals;
 
@@ -54,6 +55,7 @@ auto S2 = std::format(
 	N1_9999, tthousands, N0000_9999);
 
 int main() {
+	using namespace fl;
 	std::cout << "regex: " << S << std::endl;
 
 	auto regex = rgx::parseRegex(S);
@@ -92,14 +94,14 @@ int main() {
 
 	try {
 		std::cout << "converting to SSFT..." << std::endl;
-		auto ssfst = SSFT<Letter>(std::move(realtime));
+		auto ssfst = SSFT<fl::Letter>(std::move(realtime));
 
 		std::cout << "SSFT has " << ssfst.N << " states and " << ssfst.transitions.size() << " transitions."
 				  << std::endl;
 
 		std::string input;
 		std::getline(std::cin, input);
-		auto [result, b] = ssfst.f(toLetter(input));
+		auto [result, b] = ssfst.f(toLetter<Letter>(input));
 		if (b) {
 			std::cout << "output len: " << result.size() << std::endl;
 			std::cout << "Input accepted: " << result << std::endl;

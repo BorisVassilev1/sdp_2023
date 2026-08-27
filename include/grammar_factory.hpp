@@ -27,7 +27,7 @@ concept is_letter = std::is_same_v<_Letter, std::remove_cvref_t<G>>;
 
 template <class _Letter, class G>
 concept is_word = std::is_same_v<std::vector<_Letter>, std::remove_cvref_t<G>> ||
-					  std::is_same_v<Production<_Letter>, std::remove_cvref_t<G>>;
+				  std::is_same_v<Production<_Letter>, std::remove_cvref_t<G>>;
 
 template <class _Letter>
 class Epsilon : public LL1Grammar<_Letter> {
@@ -79,8 +79,7 @@ template <class _Letter>
 class Seq : public LL1Grammar<_Letter> {
    public:
 	template <typename... Grammars>
-		requires((is_grammar<_Letter, Grammars> || is_letter<_Letter, Grammars>) &&
-				 ...)
+		requires((is_grammar<_Letter, Grammars> || is_letter<_Letter, Grammars>) && ...)
 	Seq(const _Letter &start, std::vector<bool> ignore, Grammars &&...gs) : LL1Grammar<_Letter>(start) {
 		assert(sizeof...(gs) == ignore.size() && "Ignore vector size must match number of grammars");
 		auto params = std::vector<_Letter>{[&]() {
@@ -137,8 +136,7 @@ class Repeat : public LL1Grammar<_Letter> {
    public:
 	template <typename G>
 		requires(is_grammar<_Letter, G> || is_letter<_Letter, G> || is_word<_Letter, G>)
-	Repeat(const _Letter &start, G &&g, int spillThreshold = -1)
-		: LL1Grammar<_Letter>(start) {
+	Repeat(const _Letter &start, G &&g, int spillThreshold = -1) : LL1Grammar<_Letter>(start) {
 		if constexpr (std::is_same_v<_Letter, std::remove_cvref_t<G>>) {
 			this->terminals.insert(g);
 			this->addRule(start, {_Letter(g), start});
@@ -164,8 +162,7 @@ class RepeatChoice : public LL1Grammar<_Letter> {
    public:
 	template <typename... Grammars>
 		requires((is_grammar<_Letter, Grammars> || is_letter<_Letter, Grammars> || is_word<_Letter, Grammars>) && ...)
-	RepeatChoice(const _Letter &start, int spillThreshold, Grammars &&...gs)
-		: LL1Grammar<_Letter>(start) {
+	RepeatChoice(const _Letter &start, int spillThreshold, Grammars &&...gs) : LL1Grammar<_Letter>(start) {
 		static_assert(sizeof...(gs) > 0, "RepeatChoice must have at least one grammar");
 		(
 			[&]() {
@@ -192,8 +189,7 @@ class RepeatChoice : public LL1Grammar<_Letter> {
 
 	template <typename... Grammars>
 		requires((is_grammar<_Letter, Grammars> || is_letter<_Letter, Grammars> || is_word<_Letter, Grammars>) && ...)
-	RepeatChoice(const _Letter &start, Grammars &&...gs) :
-		RepeatChoice(start, -1, std::forward<Grammars>(gs)...) {}
+	RepeatChoice(const _Letter &start, Grammars &&...gs) : RepeatChoice(start, -1, std::forward<Grammars>(gs)...) {}
 };
 
 template <class _Letter>

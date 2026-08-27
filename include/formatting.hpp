@@ -77,12 +77,12 @@ using ostream_formatter = basic_ostream_formatter<char>;
 
 }	  // namespace fl
 
-//template <fl::isLetter Letter>
-//struct std::formatter<Letter> : fl::ostream_formatter {};
+// template <fl::isLetter Letter>
+// struct std::formatter<Letter> : fl::ostream_formatter {};
 
-//template <fl::isState State>
+// template <fl::isState State>
 //	requires(not std::same_as<State, size_t> and not fl::isLetter<State>)
-//struct std::formatter<State> : fl::ostream_formatter {};
+// struct std::formatter<State> : fl::ostream_formatter {};
 
 template <>
 struct std::formatter<std::exception> : fl::ostream_formatter {};

@@ -1,11 +1,9 @@
 #include <iostream>
 #include <string>
-#include "Regex/FST.hpp"
-#include "Regex/SSFT.hpp"
-#include "Regex/TFSA.hpp"
-#include "Regex/ambiguity.hpp"
-#include "Regex/functionality.hpp"
-#include "Regex/regexParser.hpp"
+#include "ExpandedFST.hpp"
+#include "letter.hpp"
+#include "regexParser.hpp"
+#include "FST.hpp"
 
 using namespace std::string_literals;
 
@@ -37,15 +35,16 @@ auto N2 = std::format("({}) + ({}). ({}) + ({}).<'','00'>.({})", N1_999, thousan
 auto R = std::format("({})!", N);
 auto B = std::format("({}).(<' ', ''>.({}))*", N, N);
 
-auto S = std::format("( ( <'M','1'>.<' ',''>)* . ({}) ) + ( ( <'M','1'>.<' ',' '>)* .  (({}) . ({})) )", N1_999, thousands,
-					 N000_999);
+auto S = std::format("( ( <'M','1'>.<' ',''>)* . ({}) ) + ( ( <'M','1'>.<' ',' '>)* .  (({}) . ({})) )", N1_999,
+					 thousands, N000_999);
 
+auto S1 = std::format(
+	"( ( (<'M','1'>+ <'D','1'>).<' ',''>)* . ({}) ) + ( ((<'M','1'> + <'D', '1'>).<' ',' '>)* .  (({}) . ({})) )",
+	N1_999, thousands, N000_999);
 
-auto S1 = std::format("( ( (<'M','1'>+ <'D','1'>).<' ',''>)* . ({}) ) + ( ((<'M','1'> + <'D', '1'>).<' ',' '>)* .  (({}) . ({})) )", N1_999, thousands,
-					 N000_999);
-
-auto S2 = std::format("( ( (<'M','1'>+ <'D','2'>).<' ',''>)* . ({}) ) + ( ((<'M','1'> + <'D', '2'>).<' ',' '>)* .  (({}) . ({})) )", N1_999, thousands,
-					 N000_999);
+auto S2 = std::format(
+	"( ( (<'M','1'>+ <'D','2'>).<' ',''>)* . ({}) ) + ( ((<'M','1'> + <'D', '2'>).<' ',' '>)* .  (({}) . ({})) )",
+	N1_999, thousands, N000_999);
 
 auto K	= "(" + rgx::identity("abcde") + ")*.<'abcabcaab', ':))'>"s;
 auto R2 = std::format("({})!", N1);
@@ -56,6 +55,7 @@ M MC MMMI MD MM MCML MMMCMXCIX
 */
 
 int main() {
+	using namespace fl;
 	std::cout << "regex: " << N << std::endl;
 
 	auto regex = rgx::parseRegex(N);
@@ -85,16 +85,16 @@ int main() {
 		return 1;
 	}
 
-	//bool bvar = testBoundedVariation(realtime);
-	//std::cout << "bounded variation: " << bvar << std::endl;
-	//if (!bvar) {
+	// bool bvar = testBoundedVariation(realtime);
+	// std::cout << "bounded variation: " << bvar << std::endl;
+	// if (!bvar) {
 	//	std::cerr << "The FST does not satisfy bounded variation!" << std::endl;
 	//	return 1;
-	//}
+	// }
 
 	try {
 		std::cout << "converting to SSFT..." << std::endl;
-		auto ssfst = SSFT<Letter>(std::move(realtime));
+		auto ssfst = SSFT<fl::Letter>(std::move(realtime));
 		drawFSA(ssfst);
 
 		std::cout << "SSFT has " << ssfst.N << " states and " << ssfst.transitions.size() << " transitions."
@@ -102,7 +102,7 @@ int main() {
 
 		std::string input;
 		std::getline(std::cin, input);
-		auto [result, b] = ssfst.f(toLetter(input));
+		auto [result, b] = ssfst.f(toLetter<Letter>(input));
 		if (b) {
 			std::cout << "output len: " << result.size() << std::endl;
 			std::cout << "Input accepted: " << result << std::endl;

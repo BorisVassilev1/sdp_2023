@@ -1,7 +1,7 @@
 #pragma once
 
 #include <SSFT.hpp>
-#include <TFSA.hpp>
+#include <ExpandedFST.hpp>
 
 namespace fl {
 template <class Letter>
@@ -17,7 +17,7 @@ class OutputFSA {
 	unordered_set<State>								 qFinals;
 	unordered_set<State>								 qFirsts;
 	unsigned int										 N = 0;
-	unordered_map<State, Letter>					 output;
+	unordered_map<State, Letter>						 output;
 
 	constexpr OutputFSA(const std::string_view &regex, Letter fixedOutput) {
 		auto ast = rgx::parseRegex(std::string(regex));
@@ -28,7 +28,7 @@ class OutputFSA {
 		*this		  = OutputFSA<Letter>(pseudoDeterminizeFST<Letter>(std::move(realtime)), fixedOutput);
 	}
 
-	OutputFSA(TFSA<Letter> &&tfsa, Letter fixedOutput) {
+	OutputFSA(ExpandedFST<Letter> &&tfsa, Letter fixedOutput) {
 		this->N		  = tfsa.N;
 		this->qFinals = std::move(tfsa.qFinals);
 		this->qFirsts = std::move(tfsa.qFirsts);

@@ -106,11 +106,11 @@ std::unique_ptr<Regex> parseTreeToRegex(const ParseNode<Token> *root, TokenizedS
 
 	} else if (root->value == Tuple) {
 		if (root->children.size() == 1) {
-			if(root->children[0]->value == Null) {
+			if (root->children[0]->value == Null) {
 				return std::make_unique<TupleRegex<char>>(std::string(1ull, '\0'), std::string());
 			} else
-			return std::make_unique<TupleRegex<char>>(
-				std::string(reinterpret_cast<char *>(root->children[0]->value.data)), std::string());
+				return std::make_unique<TupleRegex<char>>(
+					std::string(reinterpret_cast<char *>(root->children[0]->value.data)), std::string());
 		} else if (root->children.size() == 2) {
 			char *left	 = reinterpret_cast<char *>(root->children[0]->value.data);
 			char *right	 = reinterpret_cast<char *>(root->children[1]->value.data);

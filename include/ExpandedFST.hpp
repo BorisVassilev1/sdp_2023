@@ -14,9 +14,10 @@
 
 namespace fl {
 
-// Classical Two-Tape Finite State Automaton (TFSA)
+/// Expanded FST
+///		(FST with only single letter or epsilon on the input tape)
 template <class Letter>
-class TFSA {
+class ExpandedFST {
    public:
 	using State	   = unsigned int;
 	using StringID = typename WordSet<Letter>::WordID;
@@ -93,7 +94,7 @@ class TFSA {
 		nextStateDelays->addWord(std::span<DelayID>{});
 
 		for (const auto &q : qFirsts) {
-			currentState->push_back({q, 0});		// all have epsilon delay
+			currentState->push_back({q, 0});	 // all have epsilon delay
 		}
 		std::sort(currentState->begin(), currentState->end());
 
@@ -231,9 +232,9 @@ class TFSA {
 
 template <class Letter>
 auto expandFST(FST<Letter> &&fst) {
-	TFSA<Letter> expanded;
-	using State		 = TFSA<Letter>::State;
-	using StringID	 = TFSA<Letter>::StringID;
+	ExpandedFST<Letter> expanded;
+	using State		 = ExpandedFST<Letter>::State;
+	using StringID	 = ExpandedFST<Letter>::StringID;
 	expanded.N		 = fst.N;
 	expanded.qFirsts = std::move(fst.qFirsts);
 	expanded.qFinals = std::move(fst.qFinals);
@@ -283,7 +284,7 @@ auto expandFST(FST<Letter> &&fst) {
 }
 
 template <class Letter>
-void drawFSA(const TFSA<Letter> &fsa) {
+void drawFSA(const ExpandedFST<Letter> &fsa) {
 	ShellProcess p("dot -Tsvg > a.svg && feh ./a.svg");
 	fsa.print(p.in());
 	p.in() << std::endl;
@@ -296,9 +297,9 @@ void drawFSA(const TFSA<Letter> &fsa) {
 
 // https://lml.bas.bg/~stoyan/finite-state-techniques.pdf#theorem.4.4.8
 template <class Letter>
-auto removeUpperEpsilonFST(TFSA<Letter> &&fsa) {
-	using State	   = TFSA<Letter>::State;
-	using StringID = TFSA<Letter>::StringID;
+auto removeUpperEpsilonFST(ExpandedFST<Letter> &&fsa) {
+	using State	   = ExpandedFST<Letter>::State;
+	using StringID = ExpandedFST<Letter>::StringID;
 
 	std::stack<int>													 stack;
 	std::vector<bool>												 visited(fsa.N, false);
@@ -344,7 +345,7 @@ auto removeUpperEpsilonFST(TFSA<Letter> &&fsa) {
 		return w1 == Letter::eps;	  // remove epsilon transitions
 	});
 
-	typename TFSA<Letter>::Map new_transitions;
+	typename ExpandedFST<Letter>::Map new_transitions;
 	for (State q1 = 0; q1 < fsa.N; ++q1) {
 		for (const auto &[q_, u] : closure[q1]) {
 			auto [i1, i2] = fsa.transitions.equal_range(q_);
@@ -367,7 +368,7 @@ auto removeUpperEpsilonFST(TFSA<Letter> &&fsa) {
 }
 
 template <class Letter>
-auto trimFSA(TFSA<Letter> &&fsa) {
+auto trimFSA(ExpandedFST<Letter> &&fsa) {
 	if (fsa.qFinals.empty()) {
 		fsa.N		= 0;
 		fsa.qFirsts = {0};
@@ -411,9 +412,9 @@ auto trimFSA(TFSA<Letter> &&fsa) {
 				visited_back[i] = true;
 			}
 		}
-		//dbLog(dbg::LOG_DEBUG, "Finished backward reachability")
+		// dbLog(dbg::LOG_DEBUG, "Finished backward reachability")
 
-			for (const auto &first : fsa.qFirsts) {
+		for (const auto &first : fsa.qFirsts) {
 			visited_forw[first] = true;		// mark initial states as visited
 			stack.push_back(first);
 		}
@@ -429,22 +430,22 @@ auto trimFSA(TFSA<Letter> &&fsa) {
 				}
 			}
 		}
-		//dbLog(dbg::LOG_DEBUG, "Finished forward reachability")
+		// dbLog(dbg::LOG_DEBUG, "Finished forward reachability")
 	}
 	size_t			   cnt = 0;
 	std::vector<State> new_map(fsa.N, -1);
 	for (unsigned int i = 0; i < fsa.N; ++i) {
 		if (visited_back[i] && visited_forw[i]) { new_map[i] = cnt++; }
 	}
-	//dbLog(dbg::LOG_DEBUG, std::format("Trimmed FSA: {} / {} states are reachable from both sides.\n",
+	// dbLog(dbg::LOG_DEBUG, std::format("Trimmed FSA: {} / {} states are reachable from both sides.\n",
 	//								  std::count(new_map.begin(), new_map.end(), -1u) ^ fsa.N, fsa.N));
 
 	if (cnt == fsa.N) {
-		//dbLog(dbg::LOG_DEBUG, "No states were removed during trimming.");
+		// dbLog(dbg::LOG_DEBUG, "No states were removed during trimming.");
 		return std::move(fsa);
 	}
 
-	TFSA<Letter> new_fsa;
+	ExpandedFST<Letter> new_fsa;
 	new_fsa.N = cnt;
 	new_fsa.qFirsts.reserve(fsa.qFirsts.size());
 	for (const auto &q : fsa.qFirsts) {
@@ -498,8 +499,8 @@ auto realtimeFST(FST<Letter> &&fst) {
 }
 
 template <class Letter>
-auto pseudoDeterminizeFST(TFSA<Letter> &&fst) {
-	using State = TFSA<Letter>::State;
+auto pseudoDeterminizeFST(ExpandedFST<Letter> &&fst) {
+	using State = ExpandedFST<Letter>::State;
 
 	using BigState	= std::vector<State>;
 	using BigLetter = std::tuple<Letter, typename UniqueWordSet<Letter>::WordID>;
@@ -511,7 +512,7 @@ auto pseudoDeterminizeFST(TFSA<Letter> &&fst) {
 		}
 	};
 
-	TFSA<Letter>										dfa;
+	ExpandedFST<Letter>									dfa;
 	std::vector<std::reference_wrapper<const BigState>> states;
 	unordered_map<BigState, State, MyHash>				state_map;
 	std::queue<State>									queue;

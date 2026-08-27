@@ -37,7 +37,7 @@ class PipeBuffer : public std::streambuf {
 		setg(buffer, buffer, buffer);
 		setp(output_buffer, output_buffer + BUFFER_SIZE);
 	}
-	
+
 	PipeBuffer(const PipeBuffer &)			  = delete;
 	PipeBuffer &operator=(const PipeBuffer &) = delete;
 
@@ -68,9 +68,7 @@ class PipeBuffer : public std::streambuf {
 
 	int_type overflow(int_type c = traits_type::eof()) override {
 		if (c != traits_type::eof()) {
-			if (pptr() == epptr()) {
-				sync();
-			}
+			if (pptr() == epptr()) { sync(); }
 			*pptr() = traits_type::to_char_type(c);
 			pbump(1);
 		}
@@ -90,7 +88,7 @@ class PipeBuffer : public std::streambuf {
 				dbLog(dbg::LOG_WARNING, "Failed to write to pipe: ", strerror(errno));
 				return -1;
 			}
-			
+
 			// Reset the put pointer
 			setp(output_buffer, output_buffer + BUFFER_SIZE);
 		}
@@ -128,7 +126,6 @@ class Pipe {
 	void waitREAD(int timeout = -1) const { ::waitREAD(this->pipe, timeout); }
 	void waitWRITE(int timeout = -1) const { ::waitWRITE(this->pipe, timeout); }
 
-
    private:
 	int pipe = 0;
 };
@@ -150,11 +147,10 @@ class PipeStream : public std::iostream {
 	}
 
 	const Pipe &getpipe() { return *pipe; }
-	void close() {
+	void		close() {
 		this->flush();
 		buffer.close();
 	}
-
 
    private:
 	PipeBuffer	buffer;		// Our custom stream buffer
@@ -175,7 +171,7 @@ class Process {
 		return *this;
 	}
 
-	template<typename... Args>
+	template <typename... Args>
 	Process(const char *path, const Args... args) : pid(-1) {
 		int in_pipe[2], out_pipe[2], err_pipe[2];
 		if (pipe(in_pipe) == -1) { throw std::runtime_error("pipe failed"); }
@@ -206,14 +202,12 @@ class Process {
 		close(out_pipe[1]);
 		close(err_pipe[1]);
 
-		in_stream	= (in_pipe[1]);
+		in_stream  = (in_pipe[1]);
 		out_stream = (out_pipe[0]);
 		err_stream = (err_pipe[0]);
 	}
 	~Process() {
-		if (pid != -1) {
-			std::terminate();
-		}
+		if (pid != -1) { std::terminate(); }
 	}
 
 	int wait() {
@@ -228,12 +222,11 @@ class Process {
 	PipeStream &err() { return err_stream; }
 
    private:
-	pid_t pid;
+	pid_t	   pid;
 	PipeStream in_stream, out_stream, err_stream;
 };
 
 class ShellProcess : public Process {
-public:
+   public:
 	ShellProcess(const char *cmd) : Process("/bin/sh", "-c", cmd) {}
 };
-
