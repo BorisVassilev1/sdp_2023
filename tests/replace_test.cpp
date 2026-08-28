@@ -21,10 +21,21 @@ class MyLetter {
 	constexpr static size_t size = 5;
 	const static MyLetter	eps;
 	const static MyLetter	eof;
-	friend std::ostream &operator<<(std::ostream &out, const MyLetter &l) {
+	friend std::ostream	   &operator<<(std::ostream &out, const MyLetter &l) {
 		static const char *names[] = {"a", "b", "c", "d", "_", "ε", "eof"};
 		if (l.value >= 0 && l.value < 7) return out << names[(int)l.value];
 		else return out << "Unknown(" << (int)l.value << ")";
+	}
+
+	static MyLetter fromChar(char ch) {
+		switch (ch) {
+			case 'a': return a;
+			case 'b': return b;
+			case 'c': return c;
+			case 'd': return d;
+			case '_': return _;
+			default: throw std::invalid_argument("Invalid character for MyLetter");
+		}
 	}
 
 	const static MyLetter a;
@@ -33,8 +44,6 @@ class MyLetter {
 	const static MyLetter d;
 	const static MyLetter _;
 };
-
-
 
 constexpr inline MyLetter MyLetter::eps = {5};
 constexpr inline MyLetter MyLetter::eof = {6};
@@ -47,11 +56,45 @@ constexpr inline MyLetter MyLetter::_ = 4;
 
 static_assert(fl::isLetter<MyLetter>);
 
+std::vector<MyLetter> toMyLetter(std::string_view input) {
+	std::vector<MyLetter> output;
+	output.reserve(input.size());
+	for (const auto &c : input) {
+		output.push_back(MyLetter::fromChar(c));
+	}
+	return output;
+}
+
 int main() {
 	using ml = MyLetter;
 	// fl::ReplaceWithMarkerSSFT<MyLetter> ssft({{{'a'}, {'b'}}, {{'b'}, {'c'}}, {{'a'}, {'c'}}, {{'d'}, {'c'}}}, '_');
 	fl::ReplaceWithMarkerSSFT<MyLetter> ssft(
-		{{{ml::a}, {ml::b}}, {{ml::b}, {ml::c}}, {{ml::a}, {ml::c}}, {{ml::d}, {ml::c}}}, ml::_);
+		{
+			//
+			{{ml::a}, {ml::b, ml::b}},
+			//{{ml::b}, {ml::c}},
+			//{{ml::a}, {ml::c}},
+			//{{ml::d}, {ml::c}},
+			//{{ml::b, ml::b}, {ml::d}}
+			//
+		},
+		ml::_);
 
+	fl::statFSA(ssft);
 	fl::drawFSA(ssft);
+
+	std::cout << "Input: ";
+	std::vector<ml> input = toMyLetter("_a_bb_d_c_b_c_bb_d_a_c_");
+	for (const auto &l : input) {
+		std::cout << l;
+	}
+	std::cout << std::endl;
+	std::vector<ml> output = ssft.f(input);
+	std::cout << "Output: ";
+	for (const auto &l : output) {
+		std::cout << l;
+	}
+	std::cout << std::endl;
+
+	return 0;
 }

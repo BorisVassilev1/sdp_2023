@@ -1,6 +1,5 @@
-#pragma once
-
 #include <cassert>
+#include <queue>
 
 #include "pipes.hpp"
 #include "utils.h"
@@ -30,46 +29,63 @@ class ReplaceWithMarkerSSFT {
 	Map transitions;
 	/// the Ψ-function, output[state] = outputID
 	std::vector<WordID> output;
+	const Letter		marker;
 
-	unsigned int newState() {
+	using DelayStorage = std::vector<std::vector<Letter>>;
+
+	unsigned int newState(DelayStorage &delays) {
 		if (transitions.size() <= N) {
 			transitions.push_back({});
 			for (auto &t : transitions.back())
 				t = {0, -1u};
 			output.push_back(0);	 // epsilon
+			delays.push_back({});
 			assert(transitions.size() == output.size() && transitions.size() == N + 1);
+			assert(delays.size() == N + 1);
 		}
 		return N++;
 	}
 
-	State insertIntoTrie(const std::vector<Letter> &word, State state) {
+	State insertIntoTrie(std::span<const Letter> word, State state, DelayStorage &delays) {
 		assert(word.size() >= 1);
 		for (const auto &letter : word) {
 			auto &[outputID, next] = transitions[state][size_t(letter)];
 			if (next == -1u) {
-				auto   new_state		   = newState();
-				Letter output[]			   = {letter};
-				transitions[state][size_t(letter)] = {words.addWord(std::span{output, output+1}), new_state};
-				state					   = new_state;
+				auto new_state					   = newState(delays);
+				transitions[state][size_t(letter)] = {words.addWord(std::span{&letter, 1}), new_state};
+				state							   = new_state;
 			} else state = next;
 		}
 		return state;
 	}
 
-	State insertChain(const std::vector<Letter> &word, State start = -1u) {
+	State insertIntoTrieRight(std::span<const Letter> word, State state, DelayStorage &delays) {
 		assert(word.size() >= 1);
-		State state	 = start == -1u ? newState() : start;
-		State result = state;
-		words.addWord(word);
 		for (const auto &letter : word) {
 			auto &[outputID, next] = transitions[state][size_t(letter)];
 			if (next == -1u) {
-				auto new_state			   = newState();
-				transitions[state][size_t(letter)] = {0, new_state};
-				state					   = new_state;
+				auto new_state					   = newState(delays);
+				transitions[state][size_t(letter)] = {0, new_state};	 // no output for right part
+				delays[new_state].insert(delays[new_state].end(), delays[state].begin(), delays[state].end());
+				delays[new_state].push_back(letter);
+
+				if (letter == marker) { output[new_state] = words.addWord(delays[new_state]); }
+
+				state = new_state;
 			} else state = next;
 		}
-		return result;
+		return state;
+	}
+
+	void printDebugConstruction(std::ostream &out, DelayStorage &delays) const {
+		out << "Debug construction:\n";
+		for (State s = 0; s < N; ++s) {
+			out << "State " << s << ": ";
+			for (const auto &letter : delays[s]) {
+				out << letter;
+			}
+			out << "\n";
+		}
 	}
 
    public:
@@ -79,35 +95,70 @@ class ReplaceWithMarkerSSFT {
 		std::vector<Letter> right;
 	};
 
-	ReplaceWithMarkerSSFT(const std::vector<Rule> &rules, const Letter &marker) {
+
+	ReplaceWithMarkerSSFT(std::vector<Rule> &&rules, const Letter &marker) : marker(marker) {
 		// build a trie of the left parts of the rules
 
 		std::unordered_map<WordID, State> rightChainStarts;
+		DelayStorage delays;	 //  will be used to make the fail transitions
 
-		State initial = newState();
-		State trieStart = newState();
-		Letter markerArray[] = {marker};
-		transitions[initial][size_t(marker)] = {words.addWord(std::span{markerArray, markerArray+1}), trieStart};
+		State initial						 = newState(delays);
+		State trieStart						 = newState(delays);
+		transitions[initial][size_t(marker)] = {words.addWord(std::span{&marker, 1}), trieStart};
 		for (const auto &[left, right] : rules) {
-			State last = insertIntoTrie(left, trieStart);
+			State leftEnd = insertIntoTrie(left, trieStart, delays);
 
-			const auto &[markerOut, markerNext] = transitions[last][size_t(marker)];
-			if (markerNext != -1u) {
-				// if there is already a left half that ends in 'last', then build the right half chain
-				// starting from the next state
-				insertChain(right, markerNext);
-				continue;
-			}
-			if (words.contains(right)) {
-				// if the right half is already in the words set, use it.
-				auto rightID			  = words.addWord(right);
-				transitions[last][size_t(marker)] = {0, rightChainStarts[rightID]};
-			} else {
-				// otherwise, build the right half chain starting from a new state
-				auto rightStart			  = insertChain(right);
-				auto rightID			  = words.addWord(right);
-				rightChainStarts[rightID] = rightStart;
-				transitions[last][size_t(marker)] = {0, rightStart};
+			std::vector<Letter> rightWithMarker = right;
+			rightWithMarker.push_back(marker);
+			auto				rightID				= words.addWord(rightWithMarker);
+			std::vector<Letter> rightWithMarkerLeft = {marker};
+			rightWithMarkerLeft.insert(rightWithMarkerLeft.end(), right.begin(), right.end());
+
+			State rightEnd = insertIntoTrieRight(rightWithMarkerLeft, leftEnd, delays);
+
+			// std::cout << "Adding transition from state " << rightEnd << " with marker to state " << trieStart
+			//		  << " with outputID " << rightID << std::endl;
+			transitions[rightEnd][size_t(marker)] = {rightID, trieStart};
+		}
+		// printDebugConstruction(std::cout, delays);
+
+		for (Letter l = 0; l < Letter::size; ++l) {
+			if (l == marker) continue;
+			transitions[initial][size_t(l)] = {words.addWord(std::span{&l, 1}),
+											   initial};	 // self-loop for all letters except marker
+		}
+		std::vector<State> fail(N, -1u);
+		fail[initial]	= initial;
+		fail[trieStart] = initial;
+		std::queue<State> bfsQueue;
+		std::vector<bool> visited(N, false);
+		bfsQueue.push(initial);
+		while (!bfsQueue.empty()) {
+			State state = bfsQueue.front();
+			bfsQueue.pop();
+			if (visited[state]) continue;
+			visited[state] = true;
+			assert(fail[state] != -1u);
+			for (Letter l = 0; l < Letter::size; ++l) {
+				const auto &[outputID, next] = transitions[state][size_t(l)];
+				if (next != -1u) {
+					bfsQueue.push(next);
+					if (fail[next] == -1u) {
+						State f	   = fail[state];
+						fail[next] = std::get<1>(transitions[f][size_t(l)]);
+					}
+				} else {
+					State to								   = std::get<1>(transitions[fail[state]][size_t(l)]);
+					std::get<1>(transitions[state][size_t(l)]) = to;
+					std::vector<Letter> failOutput;
+					// assert delays[fail[state]].size() is a suffix of delays[state].size()
+
+					int cutoff = delays[to].size();
+					failOutput.insert(failOutput.end(), delays[state].begin(),
+									  delays[state].end() - std::max(0, cutoff - 1));
+					if (cutoff <= 0) failOutput.push_back(l);
+					std::get<0>(transitions[state][size_t(l)]) = words.addWord(failOutput);
+				}
 			}
 		}
 	}
@@ -129,7 +180,7 @@ class ReplaceWithMarkerSSFT {
 
 			for (Letter l = 0; l < Letter::size; ++l) {
 				const auto &[outputID, next] = transitions[s][size_t(l)];
-				if (next != -1u ) { 
+				if (next != -1u) {
 					out << "  " << s << " -> " << next << " [label=\"<" << l << ", ";
 					for (const auto &letter : words[outputID]) {
 						out << letter;
@@ -140,6 +191,35 @@ class ReplaceWithMarkerSSFT {
 		}
 		out << "}\n";
 	}
+
+	std::vector<Letter> f(std::span<const Letter> input) const {
+		State				state = 0;
+		std::vector<Letter> outputWord;
+		for (const auto &letter : input) {
+			const auto &[outputID, next] = transitions[state][size_t(letter)];
+			state						 = next;
+			//std::cout << "see " << letter << ", output ";
+			for (const auto &outLetter : words[outputID]) {
+				outputWord.push_back(outLetter);
+			//	std::cout << outLetter;
+			}
+			//std::cout << ", go to state " << state << " with delay ";
+			//for (const auto &delayLetter : delays[state]) {
+			//	std::cout << delayLetter;
+			//}
+			//std::cout << std::endl;
+		}
+		//std::cout << "final state " << state << ", output ";
+		for (const auto &outLetter : words[output[state]]) {
+			outputWord.push_back(outLetter);
+			//std::cout << outLetter;
+		}
+		//std::cout << std::endl;
+		return outputWord;
+	}
+
+	size_t cacheSize() const { return words.size(); }
+	size_t size() const { return N; }
 };
 
 template <class Letter, size_t alphabetSize>
@@ -154,4 +234,9 @@ void drawFSA(const ReplaceWithMarkerSSFT<Letter, alphabetSize> &fsa) {
 	if (!err.empty()) std::cout << err << std::endl;
 }
 
+template <class Letter, size_t alphabetSize>
+void statFSA(const ReplaceWithMarkerSSFT<Letter, alphabetSize> &fsa) {
+	std::cout << "Subsequential Transtuder : |Q| = " << fsa.size() << ", |Σ| = " << alphabetSize
+			  << ", |Δ| = " << fsa.size() * alphabetSize << ", |cache| = " << fsa.cacheSize() << std::endl;
+}
 }	  // namespace fl

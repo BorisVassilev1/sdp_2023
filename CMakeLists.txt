@@ -28,6 +28,7 @@ set(FL_TARGETS
 	#regex3 
 	langdef
 	replace_test
+	replace_dict
 )
 
 foreach(target IN LISTS FL_TARGETS)
