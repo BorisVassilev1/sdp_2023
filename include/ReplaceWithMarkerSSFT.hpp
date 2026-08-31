@@ -95,12 +95,11 @@ class ReplaceWithMarkerSSFT {
 		std::vector<Letter> right;
 	};
 
-
 	ReplaceWithMarkerSSFT(std::vector<Rule> &&rules, const Letter &marker) : marker(marker) {
 		// build a trie of the left parts of the rules
 
 		std::unordered_map<WordID, State> rightChainStarts;
-		DelayStorage delays;	 //  will be used to make the fail transitions
+		DelayStorage					  delays;	  //  will be used to make the fail transitions
 
 		State initial						 = newState(delays);
 		State trieStart						 = newState(delays);
@@ -163,7 +162,7 @@ class ReplaceWithMarkerSSFT {
 		}
 	}
 
-	void print(std::ostream &out) const {
+	const ReplaceWithMarkerSSFT &print(std::ostream &out) const {
 		out << "digraph ReplaceWithMarkerSSFT {\n";
 		out << "  rankdir=LR;\n";
 		out << "  node [shape=circle];\n";
@@ -190,6 +189,48 @@ class ReplaceWithMarkerSSFT {
 			}
 		}
 		out << "}\n";
+		return *this;
+	}
+
+	const ReplaceWithMarkerSSFT &serialize(std::ostream &out) const {
+		out.write(reinterpret_cast<const char *>(&N), sizeof(N));
+		for (const auto &word : words) {
+			size_t size = word.size();
+			out.write(reinterpret_cast<const char *>(&size), sizeof(size));
+			out.write(reinterpret_cast<const char *>(word.data()), size * sizeof(Letter));
+		}
+		for (const auto &t : transitions) {
+			for (const auto &[outputID, next] : t) {
+				out.write(reinterpret_cast<const char *>(&outputID), sizeof(outputID));
+				out.write(reinterpret_cast<const char *>(&next), sizeof(next));
+			}
+		}
+		for (const auto &o : output) {
+			out.write(reinterpret_cast<const char *>(&o), sizeof(o));
+		}
+		return *this;
+	}
+	
+	ReplaceWithMarkerSSFT(std::istream &in) {
+		in.read(reinterpret_cast<char *>(&N), sizeof(N));
+		for (size_t i = 0; i < N; ++i) {
+			size_t size;
+			in.read(reinterpret_cast<char *>(&size), sizeof(size));
+			std::vector<Letter> word(size);
+			in.read(reinterpret_cast<char *>(word.data()), size * sizeof(Letter));
+			words.addWord(word);
+		}
+		transitions.resize(N);
+		for (auto &t : transitions) {
+			for (auto &[outputID, next] : t) {
+				in.read(reinterpret_cast<char *>(&outputID), sizeof(outputID));
+				in.read(reinterpret_cast<char *>(&next), sizeof(next));
+			}
+		}
+		output.resize(N);
+		for (auto &o : output) {
+			in.read(reinterpret_cast<char *>(&o), sizeof(o));
+		}
 	}
 
 	std::vector<Letter> f(std::span<const Letter> input) const {
@@ -198,23 +239,11 @@ class ReplaceWithMarkerSSFT {
 		for (const auto &letter : input) {
 			const auto &[outputID, next] = transitions[state][size_t(letter)];
 			state						 = next;
-			//std::cout << "see " << letter << ", output ";
-			for (const auto &outLetter : words[outputID]) {
+			for (const auto &outLetter : words[outputID])
 				outputWord.push_back(outLetter);
-			//	std::cout << outLetter;
-			}
-			//std::cout << ", go to state " << state << " with delay ";
-			//for (const auto &delayLetter : delays[state]) {
-			//	std::cout << delayLetter;
-			//}
-			//std::cout << std::endl;
 		}
-		//std::cout << "final state " << state << ", output ";
-		for (const auto &outLetter : words[output[state]]) {
+		for (const auto &outLetter : words[output[state]])
 			outputWord.push_back(outLetter);
-			//std::cout << outLetter;
-		}
-		//std::cout << std::endl;
 		return outputWord;
 	}
 

@@ -86,7 +86,7 @@ std::vector<QwenToken> toQwenToken(std::string_view input) {
 }
 
 int main(int argc, char **argv) {
-	// usage: ./replace_dict <batches_file>
+	// usage: ./replace_dict <batches_file> <output_dir>
 	using Rule	= fl::ReplaceWithMarkerSSFT<QwenToken>::Rule;
 	using RSSFT = fl::ReplaceWithMarkerSSFT<QwenToken>;
 	std::vector<std::vector<Rule>> batches;
@@ -144,15 +144,20 @@ int main(int argc, char **argv) {
 	//			   {toQwenToken("bc"), toQwenToken("d")},
 	//		   }};
 
+	std::string outputDir = argv[2];
 	std::vector<RSSFT> ssfts;
 	for (size_t i = 0; i < batches.size(); ++i) {
 		std::cout << "\rBuilding SSFT for batch " << i + 1 << "/" << batches.size() << "...           " << std::flush;
 		ssfts.emplace_back(std::move(batches[i]), QwenToken::marker);
 		statFSA(ssfts.back());
+		{
+			std::ofstream out(outputDir + "/ssft_" + std::to_string(i) + ".bin", std::ios::binary);
+			ssfts.back().serialize(out);
+		}
 	}
 	batches.clear();
 
-	//ssfts.back().print(std::cout);
+	// ssfts.back().print(std::cout);
 
 	while (std::cin) {
 		std::vector<QwenToken> test;

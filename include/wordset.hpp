@@ -214,6 +214,28 @@ class UniqueWordSet {
 		WordSet<Letter> ws{words, wordsData};
 		return ws;
 	}
+	
+	class Iterator {
+	   private:
+		const UniqueWordSet &wordSet;
+		WordID				 currentID;
+
+	   public:
+		Iterator(const UniqueWordSet &ws, WordID id) : wordSet(ws), currentID(id) {}
+
+		bool operator!=(const Iterator &other) const { return currentID != other.currentID; }
+
+		auto operator*() const { return wordSet.getWord(currentID); }
+
+		Iterator &operator++() {
+			if (currentID < wordSet.nextWordID) { ++currentID; }
+			return *this;
+		}
+	};
+	
+	auto begin() const { return Iterator(*this, 0); }
+	auto end() const { return Iterator(*this, nextWordID); }
+
 };
 
 template <class Letter>
