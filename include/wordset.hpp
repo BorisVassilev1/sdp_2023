@@ -214,28 +214,56 @@ class UniqueWordSet {
 		WordSet<Letter> ws{words, wordsData};
 		return ws;
 	}
-	
-	class Iterator {
+
+	class iterator {
 	   private:
 		const UniqueWordSet &wordSet;
 		WordID				 currentID;
 
 	   public:
-		Iterator(const UniqueWordSet &ws, WordID id) : wordSet(ws), currentID(id) {}
+		iterator(const UniqueWordSet &ws, WordID id) : wordSet(ws), currentID(id) {}
 
-		bool operator!=(const Iterator &other) const { return currentID != other.currentID; }
+		bool operator!=(const iterator &other) const { return currentID != other.currentID; }
 
 		auto operator*() const { return wordSet.getWord(currentID); }
 
-		Iterator &operator++() {
+		iterator &operator++() {
 			if (currentID < wordSet.nextWordID) { ++currentID; }
 			return *this;
 		}
 	};
-	
-	auto begin() const { return Iterator(*this, 0); }
-	auto end() const { return Iterator(*this, nextWordID); }
 
+	auto begin() const { return iterator(*this, 0); }
+	auto end() const { return iterator(*this, nextWordID); }
+
+	const UniqueWordSet &serialize(std::ostream &out) const {
+		out.write(reinterpret_cast<const char *>(&nextWordID), sizeof(nextWordID));
+		for (const auto &[start, length] : wordsData) {
+			out.write(reinterpret_cast<const char *>(&start), sizeof(start));
+			out.write(reinterpret_cast<const char *>(&length), sizeof(length));
+		}
+		out.write(reinterpret_cast<const char *>(words.data()), words.size() * sizeof(Letter));
+		return *this;
+	}
+
+	UniqueWordSet(std::istream &in) {
+		in.read(reinterpret_cast<char *>(&nextWordID), sizeof(nextWordID));
+		wordsData.resize(nextWordID);
+		for (auto &[start, length] : wordsData) {
+			in.read(reinterpret_cast<char *>(&start), sizeof(start));
+			in.read(reinterpret_cast<char *>(&length), sizeof(length));
+		}
+		size_t totalLength = 0;
+		for (const auto &[start, length] : wordsData) {
+			totalLength = std::max(totalLength, start + length);
+		}
+		words.resize(totalLength);
+		in.read(reinterpret_cast<char *>(words.data()), totalLength * sizeof(Letter));
+		for (WordID id = 0; id < nextWordID; ++id) {
+			const auto &[start, length] = wordsData[id];
+			wordMap.emplace(mySpan{words, start, length}, id);
+		}
+	}
 };
 
 template <class Letter>

@@ -1,3 +1,4 @@
+#pragma once
 #include <cassert>
 #include <queue>
 
@@ -194,48 +195,41 @@ class ReplaceWithMarkerSSFT {
 
 	const ReplaceWithMarkerSSFT &serialize(std::ostream &out) const {
 		out.write(reinterpret_cast<const char *>(&N), sizeof(N));
-		for (const auto &word : words) {
-			size_t size = word.size();
-			out.write(reinterpret_cast<const char *>(&size), sizeof(size));
-			out.write(reinterpret_cast<const char *>(word.data()), size * sizeof(Letter));
-		}
-		for (const auto &t : transitions) {
-			for (const auto &[outputID, next] : t) {
+		words.serialize(out);
+		for (State s = 0; s < N; ++s) {
+			for (Letter l = 0; l < Letter::size; ++l) {
+				const auto &[outputID, next] = transitions[s][size_t(l)];
 				out.write(reinterpret_cast<const char *>(&outputID), sizeof(outputID));
 				out.write(reinterpret_cast<const char *>(&next), sizeof(next));
 			}
 		}
-		for (const auto &o : output) {
-			out.write(reinterpret_cast<const char *>(&o), sizeof(o));
+		for (State s = 0; s < N; ++s) {
+			const auto &outputID = output[s];
+			out.write(reinterpret_cast<const char *>(&outputID), sizeof(outputID));
 		}
 		return *this;
 	}
-	
-	ReplaceWithMarkerSSFT(std::istream &in) {
+
+	ReplaceWithMarkerSSFT(std::istream &in, const Letter &marker) : marker(marker) {
 		in.read(reinterpret_cast<char *>(&N), sizeof(N));
-		for (size_t i = 0; i < N; ++i) {
-			size_t size;
-			in.read(reinterpret_cast<char *>(&size), sizeof(size));
-			std::vector<Letter> word(size);
-			in.read(reinterpret_cast<char *>(word.data()), size * sizeof(Letter));
-			words.addWord(word);
-		}
+		words = UniqueWordSet<Letter>(in);
 		transitions.resize(N);
-		for (auto &t : transitions) {
-			for (auto &[outputID, next] : t) {
+		for (State s = 0; s < N; ++s) {
+			for (Letter l = 0; l < Letter::size; ++l) {
+				auto &[outputID, next] = transitions[s][size_t(l)];
 				in.read(reinterpret_cast<char *>(&outputID), sizeof(outputID));
 				in.read(reinterpret_cast<char *>(&next), sizeof(next));
 			}
 		}
 		output.resize(N);
-		for (auto &o : output) {
-			in.read(reinterpret_cast<char *>(&o), sizeof(o));
+		for (State s = 0; s < N; ++s) {
+			auto &outputID = output[s];
+			in.read(reinterpret_cast<char *>(&outputID), sizeof(outputID));
 		}
 	}
 
-	std::vector<Letter> f(std::span<const Letter> input) const {
-		State				state = 0;
-		std::vector<Letter> outputWord;
+	void f(std::span<const Letter> input, std::vector<Letter> &outputWord) const {
+		State state = 0;
 		for (const auto &letter : input) {
 			const auto &[outputID, next] = transitions[state][size_t(letter)];
 			state						 = next;
@@ -244,10 +238,16 @@ class ReplaceWithMarkerSSFT {
 		}
 		for (const auto &outLetter : words[output[state]])
 			outputWord.push_back(outLetter);
+	}
+
+	std::vector<Letter> f(std::span<const Letter> input) const {
+		std::vector<Letter> outputWord;
+		f(input, outputWord);
 		return outputWord;
 	}
 
-	size_t cacheSize() const { return words.size(); }
+	size_t cacheCount() const { return words.size(); }
+	size_t cacheSize() const { return words.totalLength(); }
 	size_t size() const { return N; }
 };
 
@@ -266,6 +266,7 @@ void drawFSA(const ReplaceWithMarkerSSFT<Letter, alphabetSize> &fsa) {
 template <class Letter, size_t alphabetSize>
 void statFSA(const ReplaceWithMarkerSSFT<Letter, alphabetSize> &fsa) {
 	std::cout << "Subsequential Transtuder : |Q| = " << fsa.size() << ", |Σ| = " << alphabetSize
-			  << ", |Δ| = " << fsa.size() * alphabetSize << ", |cache| = " << fsa.cacheSize() << std::endl;
+			  << ", |Δ| = " << fsa.size() * alphabetSize << ", |strings| = " << fsa.cacheCount()
+			  << ", total = " << fsa.cacheSize() << std::endl;
 }
 }	  // namespace fl

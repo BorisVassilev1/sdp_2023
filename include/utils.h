@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <functional>
+#include <iostream>
 #include <string>
 
 namespace fl {
@@ -104,6 +105,35 @@ class SlowDown3 {
 			last = now;
 		}
 	}
+};
+
+class Timer {
+	std::chrono::high_resolution_clock::time_point start;
+	std::ostream								  *out;
+
+   public:
+	Timer(std::ostream &out = std::cerr) : start(std::chrono::high_resolution_clock::now()), out(&out) {}
+	Timer(std::nullptr_t) : start(std::chrono::high_resolution_clock::now()), out(nullptr) {}
+
+	~Timer() {
+		auto end  = std::chrono::high_resolution_clock::now();
+		auto diff = end - start;
+		if (out)
+			(*out) << "Time taken: " << std::chrono::duration_cast<std::chrono::milliseconds>(diff).count() << " ms"
+				   << std::endl;
+	}
+
+	std::chrono::high_resolution_clock::duration elapsed() const {
+		auto end  = std::chrono::high_resolution_clock::now();
+		auto diff = end - start;
+		return diff;
+	}
+
+	auto elapsed_min() const { return std::chrono::duration_cast<std::chrono::minutes>(elapsed()).count(); }
+	auto elapsed_s() const { return std::chrono::duration_cast<std::chrono::seconds>(elapsed()).count(); }
+	auto elapsed_ms() const { return std::chrono::duration_cast<std::chrono::milliseconds>(elapsed()).count(); }
+	auto elapsed_us() const { return std::chrono::duration_cast<std::chrono::microseconds>(elapsed()).count(); }
+	auto elapsed_ns() const { return std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed()).count(); }
 };
 
 }	  // namespace fl
