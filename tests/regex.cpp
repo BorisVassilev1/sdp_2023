@@ -113,8 +113,7 @@ int main(int argc, char **argv) {
 			auto ssfst = SSFT<Letter>(std::move(efst));
 			drawFSA(ssfst);
 
-			std::cout << "SSFT has " << ssfst.N << " states and " << ssfst.transitions.size() << " transitions."
-					  << std::endl;
+			statFSA(ssfst);
 
 			std::string input;
 			std::cin >> input;

@@ -105,27 +105,6 @@ class UniqueWordSet {
 
    public:
 	using WordID = unsigned int;
-	class mySpan {
-	   public:
-		size_t				 start;
-		size_t				 size;
-		std::vector<Letter> &words;
-
-		auto begin() const { return words.data() + start; }
-		auto end() const { return words.data() + start + size; }
-
-		mySpan(const std::vector<Letter> &words, size_t start, size_t size)
-			: start(start), size(size), words(const_cast<std::vector<Letter> &>(words)) {}
-
-		bool operator==(const mySpan &other) const {
-			return this->size == other.size && std::equal(this->begin(), this->end(), other.begin());
-		}
-		bool operator==(const std::span<Letter> &other) const {
-			return this->size == other.size() && std::equal(this->begin(), this->end(), other.begin());
-		}
-		bool operator!=(const mySpan &other) const { return !(*this == other); }
-		bool operator!=(const std::span<Letter> &other) const { return !(*this == other); }
-	};
 
    private:
 	using WordData = WordSet<Letter>::WordData;
@@ -134,22 +113,40 @@ class UniqueWordSet {
 
 	struct myHash {
 		using is_transparent = void;	 // Allows this hash to be used in unordered_map with std::span<Letter>
-		constexpr size_t operator()(const mySpan &span) const {
-			return std::hash<std::string_view>()(
-				std::string_view(reinterpret_cast<const char *>(span.begin()), span.size));
-		}
+		const UniqueWordSet *owner;
+		constexpr myHash(const UniqueWordSet &owner) : owner(&owner) {}
+
+		constexpr size_t operator()(WordID id) const { return (*this)(owner->getWord(id)); }
 		constexpr size_t operator()(const std::span<Letter> &span) const {
 			return std::hash<std::string_view>()(
-				std::string_view(reinterpret_cast<const char *>(span.data()), span.size()));
+				std::string_view(reinterpret_cast<const char *>(span.data()), span.size() * sizeof(Letter)));
 		}
 		constexpr size_t operator()(const std::span<const Letter> &span) const {
 			return std::hash<std::string_view>()(
-				std::string_view(reinterpret_cast<const char *>(span.data()), span.size()));
+				std::string_view(reinterpret_cast<const char *>(span.data()), span.size() * sizeof(Letter)));
 		}
 	};
 
 	struct myEqual {
 		using is_transparent = void;	 // Allows this equal to be used in unordered_map with std::span<Letter>
+		const UniqueWordSet *owner;
+		constexpr myEqual(const UniqueWordSet &owner) : owner(&owner) {}
+
+		bool operator()(WordID a, WordID b) const {
+			auto &&A = owner->getWord(a);
+			auto &&B = owner->getWord(b);
+			return std::equal(A.begin(), A.end(), B.begin(), B.end());
+		}
+		template <class V>
+		bool operator()(WordID id, const V &b) const {
+			auto &&A = owner->getWord(id);
+			return std::equal(A.begin(), A.end(), b.begin(), b.end());
+		}
+		template <class U>
+		bool operator()(const U &a, WordID id) const {
+			auto &&B = owner->getWord(id);
+			return std::equal(a.begin(), a.end(), B.begin(), B.end());
+		}
 		template <class U, class V>
 		bool operator()(const U &a, const V &b) const {
 			return std::distance(a.begin(), a.end()) == std::distance(b.begin(), b.end()) &&
@@ -157,12 +154,12 @@ class UniqueWordSet {
 		}
 	};
 
-	std::unordered_map<mySpan, WordID, myHash, myEqual> wordMap;
+	std::unordered_map<WordID, WordID, myHash, myEqual> wordMap;
 
 	WordID nextWordID = 0;
 
    public:
-	UniqueWordSet() { addWord(std::span<Letter>{}); }
+	UniqueWordSet() : wordMap(0, myHash(*this), myEqual(*this)) { addWord(std::span<Letter>{}); }
 
 	template <class Input>
 	WordID addWord(Input &&word) {
@@ -172,8 +169,9 @@ class UniqueWordSet {
 		}
 		wordsData.emplace_back(words.size(), word.size());
 		words.insert(words.end(), word.begin(), word.end());
-		wordMap.emplace(mySpan{words, wordsData.back().start, word.size()}, nextWordID);
-		return nextWordID++;
+		WordID id = nextWordID++; // increment before inserting because hash and equal do bounds checks
+		wordMap.emplace(id, id);
+		return id;
 	}
 
 	template <class Input>
@@ -189,12 +187,13 @@ class UniqueWordSet {
 		}
 		wordsData.emplace_back(words.size(), length);
 		words.insert(words.end(), word, word + length);
-		wordMap.emplace(mySpan{words, wordsData.back().start, length}, nextWordID);
-		return nextWordID++;
+		WordID id = nextWordID++; // increment before inserting because hash and equal do bounds checks
+		wordMap.emplace(id, id);
+		return id;
 	}
 
 	auto getWord(WordID id) const {
-		if (id >= nextWordID) { throw std::out_of_range("Invalid WordID"); }
+		if (id >= nextWordID) { throw std::out_of_range(std::format("Invalid WordID: {}, size: {}", id, nextWordID)); }
 		const auto &[start, length] = wordsData[id];
 		return std::span{words.data() + start, length};
 	}
@@ -238,30 +237,24 @@ class UniqueWordSet {
 
 	const UniqueWordSet &serialize(std::ostream &out) const {
 		out.write(reinterpret_cast<const char *>(&nextWordID), sizeof(nextWordID));
-		for (const auto &[start, length] : wordsData) {
-			out.write(reinterpret_cast<const char *>(&start), sizeof(start));
-			out.write(reinterpret_cast<const char *>(&length), sizeof(length));
-		}
+		out.write(reinterpret_cast<const char *>(wordsData.data()), wordsData.size() * sizeof(WordData));
 		out.write(reinterpret_cast<const char *>(words.data()), words.size() * sizeof(Letter));
 		return *this;
 	}
 
-	UniqueWordSet(std::istream &in) {
+	UniqueWordSet(std::istream &in) : UniqueWordSet() {
 		in.read(reinterpret_cast<char *>(&nextWordID), sizeof(nextWordID));
 		wordsData.resize(nextWordID);
-		for (auto &[start, length] : wordsData) {
-			in.read(reinterpret_cast<char *>(&start), sizeof(start));
-			in.read(reinterpret_cast<char *>(&length), sizeof(length));
-		}
+		in.read(reinterpret_cast<char *>(wordsData.data()), wordsData.size() * sizeof(WordData));
 		size_t totalLength = 0;
 		for (const auto &[start, length] : wordsData) {
 			totalLength = std::max(totalLength, start + length);
 		}
 		words.resize(totalLength);
 		in.read(reinterpret_cast<char *>(words.data()), totalLength * sizeof(Letter));
+		wordMap.reserve(nextWordID);
 		for (WordID id = 0; id < nextWordID; ++id) {
-			const auto &[start, length] = wordsData[id];
-			wordMap.emplace(mySpan{words, start, length}, id);
+			wordMap.insert({id, id});
 		}
 	}
 };

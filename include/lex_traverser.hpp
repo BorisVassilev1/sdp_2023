@@ -124,10 +124,10 @@ class LexerRange : public std::ranges::view_interface<LexerRange<Token, Range>> 
 			consumed		= current == end;
 			buffer.clear();
 			while (current != end) {
-				auto it = ssft_ptr->transitions.find({current_state, *current});
-				if (it == ssft_ptr->transitions.end()) {
-					if (ssft_ptr->qFinals.contains(current_state)) {
-						Token output = ssft_ptr->words[ssft_ptr->output.at(current_state)][0];
+				auto [output, success] = ssft_ptr->step(current_state, *current);
+				if (!success) {
+					if (ssft_ptr->isFinal(current_state)) {
+						Token output = ssft_ptr->psi(current_state)[0];
 						auto  it	 = lex_ptr->skippers.find(output);
 						if (it != lex_ptr->skippers.end()) {
 							auto skipper  = it->second;
@@ -143,12 +143,10 @@ class LexerRange : public std::ranges::view_interface<LexerRange<Token, Range>> 
 					++position;
 					++current;
 
-					current_state = 0;
+					current_state = ssft_ptr->initial();
 					return *this;
 				}
 				if (*current == '\n') ++line_number;
-				const auto &[outputID, next] = it->second;
-				current_state				 = next;
 				buffer.push_back(*current);
 				++current;
 				++position;
@@ -172,8 +170,8 @@ class LexerRange : public std::ranges::view_interface<LexerRange<Token, Range>> 
 				return TokenData{t, output_position, position - 1, line_number,
 								 std::span(buffer.begin(), buffer.end())};
 			}
-			if (lex_ptr->ssft.qFinals.contains(current_state)) {
-				return TokenData{lex_ptr->ssft.words[lex_ptr->ssft.output.at(current_state)][0], output_position,
+			if (lex_ptr->ssft.isFinal(current_state)) {
+				return TokenData{lex_ptr->ssft.psi(current_state)[0], output_position,
 								 position - 1, line_number, std::span(buffer.begin(), buffer.end())};
 			} else {
 				return TokenData{lex_ptr->error_token, output_position, position - 1, line_number,

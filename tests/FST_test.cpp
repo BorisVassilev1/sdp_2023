@@ -41,8 +41,7 @@ void test_determinization() {
 	}
 
 	SSFT<Letter> ssft(std::move(fsa));
-	std::cout << "SSFT has " << ssft.N << " states and " << ssft.transitions.size() << " transitions and "
-			  << ssft.words.size() << " words." << std::endl;
+	statFSA(ssft);
 
 	std::cout << "draw SSFT" << std::endl;
 	drawFSA(ssft);
@@ -71,8 +70,7 @@ void test_bounded_variation() {
 
 	try {
 		SSFT<Letter> ssft(std::move(efst));
-		std::cout << "SSFT has " << ssft.N << " states and " << ssft.transitions.size() << " transitions and "
-				  << ssft.words.size() << " words." << std::endl;
+		statFSA(ssft);
 
 		std::cout << "draw SSFT" << std::endl;
 		drawFSA(ssft);
@@ -128,8 +126,7 @@ void test_replace() {
 	}
 
 	SSFT<Letter> ssft(std::move(fsa));
-	std::cout << "SSFT has " << ssft.N << " states and " << ssft.transitions.size() << " transitions and "
-			  << ssft.words.size() << " words." << std::endl;
+	statFSA(ssft);
 
 	std::cout << "draw SSFT" << std::endl;
 	// drawFSA(ssft);

@@ -110,16 +110,18 @@ class SlowDown3 {
 class Timer {
 	std::chrono::high_resolution_clock::time_point start;
 	std::ostream								  *out;
+	std::string									   name;
 
    public:
-	Timer(std::ostream &out = std::cerr) : start(std::chrono::high_resolution_clock::now()), out(&out) {}
+	Timer(const std::string_view &name, std::ostream &out = std::cerr)
+		: start(std::chrono::high_resolution_clock::now()), out(&out), name(name) {}
 	Timer(std::nullptr_t) : start(std::chrono::high_resolution_clock::now()), out(nullptr) {}
 
 	~Timer() {
 		auto end  = std::chrono::high_resolution_clock::now();
 		auto diff = end - start;
 		if (out)
-			(*out) << "Time taken: " << std::chrono::duration_cast<std::chrono::milliseconds>(diff).count() << " ms"
+			(*out) << name << " : " << std::chrono::duration_cast<std::chrono::milliseconds>(diff).count() << " ms"
 				   << std::endl;
 	}
 

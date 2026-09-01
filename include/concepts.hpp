@@ -1,5 +1,6 @@
 #pragma once
 #include <concepts>
+#include <span>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
@@ -40,5 +41,20 @@ template <isLetter Letter>
 std::vector<Letter> toLetter(const char *s) {
 	return toLetter<Letter>(std::string_view(s));
 }
+
+template <class T>
+concept isSubSeqTransducer =			  //
+	isLetter<typename T::Letter_t> &&	  //
+	isState<typename T::State> &&		  //
+	requires(T t, typename T::Letter_t l, T::State s) {
+		{
+			&T::step
+		} -> std::same_as<std::pair<std::span<const typename T::Letter_t>, bool> (T::*)(typename T::State &,
+																						typename T::Letter_t) const>;
+		{ &T::psi } -> std::same_as<std::span<const typename T::Letter_t> (T::*)(typename T::State) const>;
+		{ &T::isFinal } -> std::same_as<bool (T::*)(typename T::State) const>;
+		{ &T::initial } -> std::same_as<typename T::State (T::*)() const>;
+		{ &T::size } -> std::same_as<std::size_t (T::*)() const>;
+	};
 
 }	  // namespace fl

@@ -4,11 +4,15 @@
 #include <map>
 
 #include "ExpandedFST.hpp"
+#include "concepts.hpp"
 #include "wordset.hpp"
 #include "debug.hpp"
 #include "datastructures.hpp"
 
 namespace fl {
+template <isLetter Letter>
+class OutputFSA;
+
 // Subsequential Finite-State Transducer (SSFST)
 template <class Letter>
 class SSFT {
@@ -16,13 +20,16 @@ class SSFT {
 	using State	   = unsigned int;
 	using StringID = WordSet<Letter>::WordID;
 	using Map	   = fl::unordered_map<std::tuple<State, Letter>, std::pair<StringID, State>>;
+	using Letter_t = Letter;
 
+   private:
 	WordSet<Letter>					   words;
 	Map								   transitions;
 	fl::unordered_set<State>		   qFinals;
 	unsigned int					   N = 0;
 	fl::unordered_map<State, StringID> output;
 
+   public:
 	SSFT() = default;
 
 	// accepts a trimmed ExpandedFST and builds a subsequential finite-state transducer
@@ -307,6 +314,21 @@ class SSFT {
 		std::cout << std::endl;
 	}
 
+	[[clang::always_inline]] inline std::size_t size() const { return N; }
+	[[clang::always_inline]] inline State		initial() const { return 0; }
+	[[clang::always_inline]] inline bool		isFinal(State s) const { return qFinals.contains(s); }
+	[[clang::always_inline]] inline std::pair<std::span<const Letter>, bool> step(State &s, Letter l) const {
+		auto it = transitions.find({s, l});
+		if (it == transitions.end()) return std::pair{std::span<const Letter>{}, false};
+		const auto &[outputID, next] = it->second;
+		s							 = next;
+		return std::pair{std::span<const Letter>(words[outputID]), true};
+	}
+	[[clang::always_inline]] inline std::span<const Letter> psi(State s) const {
+		if (!qFinals.contains(s)) return std::span<const Letter>{};
+		return std::span<const Letter>(words[output.at(s)]);
+	}
+
 	auto f(const std::vector<Letter> &input) const {
 		std::vector<Letter> output;
 		State				current = 0;	 // initial state
@@ -425,7 +447,11 @@ class SSFT {
 			transitionCount[to]++;
 		}
 		out << std::format("Number of final states: {}\n", qFinals.size());
+		out << std::format("Words stored: {}\n", words.size());
+		out << std::format("Words cache size: {}\n", words.totalLength());
 	}
+
+	friend class OutputFSA<Letter>;
 };
 
 template <class Letter>
@@ -441,32 +467,40 @@ void drawFSA(const SSFT<Letter> &fsa) {
 }
 
 template <class Letter>
+void statFSA(const SSFT<Letter> &fsa) {
+	fsa.printInfo(std::cout);
+}
+
+}	  // namespace fl
+
+#include "letter.hpp"
+static_assert(fl::isSubSeqTransducer<fl::SSFT<fl::Letter>>,
+			  "SSFT does not satisfy the subsequential transducer concept");
+
+namespace fl {
+
+template <class Transducer>
+	requires isSubSeqTransducer<Transducer>
 class SSFTTraverser {
-	const SSFT<Letter> &ssft;
-	using State = typename SSFT<Letter>::State;
+	using Letter = typename Transducer::Letter_t;
+	using State	 = typename Transducer::State;
+
+	const Transducer &ssft;
 
    public:
 	State current;
 
-	SSFTTraverser(const SSFT<Letter> &ssft) : ssft(ssft), current(0) {}
-
-	auto step(const Letter &letter) {
-		auto it = ssft.transitions.find({current, letter});
-		if (it == ssft.transitions.end()) return std::make_pair(std::span<const Letter>{}, false);
-		const auto &[outputID, next] = it->second;
-		current						 = next;
-		return std::make_pair(ssft.words[outputID], true);
-	}
+	SSFTTraverser(const Transducer &ssft) : ssft(ssft), current(0) {}
 
 	template <std::ranges::input_range R>
 	auto traverseOutputOnlyUntilCan(R &&input) {
-		current = 0;
+		current = ssft.initial();
 		for (const auto &letter : input) {
-			auto [out_span, ok] = step(letter);
+			auto [out_span, ok] = ssft.step(current, letter);
 			if (!ok) return out_span;
 		}
-		if (ssft.qFinals.contains(current)) {
-			return ssft.words[ssft.output.at(current)];
+		if (ssft.isFinal(current)) {
+			return ssft.psi(current);
 		} else return std::span<const Letter>{};
 	}
 
@@ -480,14 +514,17 @@ class SSFTTraverser {
 			++len;
 		}
 		if (len == 0) {
+			// this function should move at least one step, otherwise the caller would need to do checks
+			// to avoid infinite loops.
 			++begin;
 			++len;
 		}
-		if (ssft.qFinals.contains(current)) {
-			const auto &out = ssft.words[ssft.output.at(current)];
+		if (ssft.isFinal(current)) {
+			const auto &out = ssft.psi(current);
 			assert(out.size() == 1);
 			return std::make_pair(out[0], len);
 		} else return std::make_pair(std::nullopt, len);
 	}
 };
+
 }	  // namespace fl

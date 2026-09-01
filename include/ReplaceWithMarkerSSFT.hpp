@@ -2,9 +2,11 @@
 #include <cassert>
 #include <queue>
 
+#include "concepts.hpp"
 #include "pipes.hpp"
 #include "utils.h"
 #include "wordset.hpp"
+#include "TotalSSFT.hpp"
 
 namespace fl {
 
@@ -15,24 +17,22 @@ namespace fl {
 // contexts.
 //
 // the transducer is total, so every state has transitions with each letter.
-template <class Letter, size_t alphabetSize = Letter::size>
-class ReplaceWithMarkerSSFT {
+template <fl::isLetter Letter, size_t alphabetSize = Letter::size>
+class ReplaceWithMarkerSSFT : public TotalSSFT<Letter, alphabetSize> {
    public:
 	using State	 = unsigned int;
 	using WordID = UniqueWordSet<Letter>::WordID;
 	using Map	 = std::vector<std::array<std::tuple<WordID, State>, alphabetSize>>;
 
    private:
-	unsigned int		  N = 0;
-	UniqueWordSet<Letter> words;
-
-	/// transitions[from][letter] = (outputID, to)
-	Map transitions;
-	/// the Ψ-function, output[state] = outputID
-	std::vector<WordID> output;
-	const Letter		marker;
+	const Letter marker;
 
 	using DelayStorage = std::vector<std::vector<Letter>>;
+
+	using TotalSSFT<Letter, alphabetSize>::N;
+	using TotalSSFT<Letter, alphabetSize>::transitions;
+	using TotalSSFT<Letter, alphabetSize>::output;
+	using TotalSSFT<Letter, alphabetSize>::words;
 
 	unsigned int newState(DelayStorage &delays) {
 		if (transitions.size() <= N) {
@@ -145,11 +145,11 @@ class ReplaceWithMarkerSSFT {
 					bfsQueue.push(next);
 					if (fail[next] == -1u) {
 						State f	   = fail[state];
-						fail[next] = std::get<1>(transitions[f][size_t(l)]);
+						fail[next] = transitions[f][size_t(l)].next;
 					}
 				} else {
-					State to								   = std::get<1>(transitions[fail[state]][size_t(l)]);
-					std::get<1>(transitions[state][size_t(l)]) = to;
+					State to						   = transitions[fail[state]][size_t(l)].next;
+					transitions[state][size_t(l)].next = to;
 					std::vector<Letter> failOutput;
 					// assert delays[fail[state]].size() is a suffix of delays[state].size()
 
@@ -157,7 +157,7 @@ class ReplaceWithMarkerSSFT {
 					failOutput.insert(failOutput.end(), delays[state].begin(),
 									  delays[state].end() - std::max(0, cutoff - 1));
 					if (cutoff <= 0) failOutput.push_back(l);
-					std::get<0>(transitions[state][size_t(l)]) = words.addWord(failOutput);
+					transitions[state][size_t(l)].outputID = words.addWord(failOutput);
 				}
 			}
 		}
@@ -193,40 +193,8 @@ class ReplaceWithMarkerSSFT {
 		return *this;
 	}
 
-	const ReplaceWithMarkerSSFT &serialize(std::ostream &out) const {
-		out.write(reinterpret_cast<const char *>(&N), sizeof(N));
-		words.serialize(out);
-		for (State s = 0; s < N; ++s) {
-			for (Letter l = 0; l < Letter::size; ++l) {
-				const auto &[outputID, next] = transitions[s][size_t(l)];
-				out.write(reinterpret_cast<const char *>(&outputID), sizeof(outputID));
-				out.write(reinterpret_cast<const char *>(&next), sizeof(next));
-			}
-		}
-		for (State s = 0; s < N; ++s) {
-			const auto &outputID = output[s];
-			out.write(reinterpret_cast<const char *>(&outputID), sizeof(outputID));
-		}
-		return *this;
-	}
-
-	ReplaceWithMarkerSSFT(std::istream &in, const Letter &marker) : marker(marker) {
-		in.read(reinterpret_cast<char *>(&N), sizeof(N));
-		words = UniqueWordSet<Letter>(in);
-		transitions.resize(N);
-		for (State s = 0; s < N; ++s) {
-			for (Letter l = 0; l < Letter::size; ++l) {
-				auto &[outputID, next] = transitions[s][size_t(l)];
-				in.read(reinterpret_cast<char *>(&outputID), sizeof(outputID));
-				in.read(reinterpret_cast<char *>(&next), sizeof(next));
-			}
-		}
-		output.resize(N);
-		for (State s = 0; s < N; ++s) {
-			auto &outputID = output[s];
-			in.read(reinterpret_cast<char *>(&outputID), sizeof(outputID));
-		}
-	}
+	ReplaceWithMarkerSSFT(std::istream &in, const Letter &marker)
+		: fl::TotalSSFT<Letter, alphabetSize>(in), marker(marker) {}
 
 	void f(std::span<const Letter> input, std::vector<Letter> &outputWord) const {
 		State state = 0;
@@ -245,10 +213,6 @@ class ReplaceWithMarkerSSFT {
 		f(input, outputWord);
 		return outputWord;
 	}
-
-	size_t cacheCount() const { return words.size(); }
-	size_t cacheSize() const { return words.totalLength(); }
-	size_t size() const { return N; }
 };
 
 template <class Letter, size_t alphabetSize>

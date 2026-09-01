@@ -43,3 +43,5 @@ std::ostream &operator<<(std::ostream &out, Letter l);
 
 template <>
 struct std::formatter<fl::Letter> : fl::ostream_formatter {};
+
+static_assert(fl::isLetter<fl::Letter>, "fl::Letter does not satisfy isLetter concept");

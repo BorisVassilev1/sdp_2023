@@ -4,7 +4,7 @@
 #include <ExpandedFST.hpp>
 
 namespace fl {
-template <class Letter>
+template <isLetter Letter>
 class OutputFSA {
    protected:
 	OutputFSA() = default;
