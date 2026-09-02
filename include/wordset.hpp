@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <iterator>
+#include <memory>
 #include <ostream>
 #include <span>
 #include <stdexcept>
@@ -101,22 +102,32 @@ class WordSet {
 
 template <class Letter>
 class UniqueWordSet {
-	std::vector<Letter> words;
-
    public:
 	using WordID = unsigned int;
 
    private:
 	using WordData = WordSet<Letter>::WordData;
 
-	std::vector<WordData> wordsData;
+	struct Storage {
+		std::vector<Letter>	  words;
+		std::vector<WordData> wordsData;
+
+		std::span<const Letter> get(WordID id) const noexcept {
+			const auto &[start, length] = wordsData[id];
+			return {words.data() + start, length};
+		}
+		auto insert(std::span<const Letter> word) {
+			wordsData.emplace_back(words.size(), word.size());
+			words.insert(words.end(), word.begin(), word.end());
+		}
+	};
 
 	struct myHash {
 		using is_transparent = void;	 // Allows this hash to be used in unordered_map with std::span<Letter>
-		const UniqueWordSet *owner;
-		constexpr myHash(const UniqueWordSet &owner) : owner(&owner) {}
+		const Storage *owner;
+		constexpr myHash(const Storage *owner) : owner(owner) {}
 
-		constexpr size_t operator()(WordID id) const { return (*this)(owner->getWord(id)); }
+		constexpr size_t operator()(WordID id) const { return (*this)(owner->get(id)); }
 		constexpr size_t operator()(const std::span<Letter> &span) const {
 			return std::hash<std::string_view>()(
 				std::string_view(reinterpret_cast<const char *>(span.data()), span.size() * sizeof(Letter)));
@@ -129,22 +140,22 @@ class UniqueWordSet {
 
 	struct myEqual {
 		using is_transparent = void;	 // Allows this equal to be used in unordered_map with std::span<Letter>
-		const UniqueWordSet *owner;
-		constexpr myEqual(const UniqueWordSet &owner) : owner(&owner) {}
+		const Storage *owner;
+		constexpr myEqual(const Storage *owner) : owner(owner) {}
 
 		bool operator()(WordID a, WordID b) const {
-			auto &&A = owner->getWord(a);
-			auto &&B = owner->getWord(b);
+			auto &&A = owner->get(a);
+			auto &&B = owner->get(b);
 			return std::equal(A.begin(), A.end(), B.begin(), B.end());
 		}
 		template <class V>
 		bool operator()(WordID id, const V &b) const {
-			auto &&A = owner->getWord(id);
+			auto &&A = owner->get(id);
 			return std::equal(A.begin(), A.end(), b.begin(), b.end());
 		}
 		template <class U>
 		bool operator()(const U &a, WordID id) const {
-			auto &&B = owner->getWord(id);
+			auto &&B = owner->get(id);
 			return std::equal(a.begin(), a.end(), B.begin(), B.end());
 		}
 		template <class U, class V>
@@ -154,12 +165,29 @@ class UniqueWordSet {
 		}
 	};
 
+	std::unique_ptr<Storage>							storage = std::make_unique<Storage>();
 	std::unordered_map<WordID, WordID, myHash, myEqual> wordMap;
 
 	WordID nextWordID = 0;
 
    public:
-	UniqueWordSet() : wordMap(0, myHash(*this), myEqual(*this)) { addWord(std::span<Letter>{}); }
+	UniqueWordSet() : storage(std::make_unique<Storage>()), wordMap(0, myHash(storage.get()), myEqual(storage.get())) {
+		addWord(std::span<Letter>{});
+	}
+
+	UniqueWordSet(const UniqueWordSet &) = delete;
+	UniqueWordSet(UniqueWordSet &&other) noexcept : wordMap(0, myHash(other.storage.get()), myEqual(other.storage.get())) {
+		storage	   = std::move(other.storage);
+		wordMap	   = std::move(other.wordMap);
+		nextWordID = std::exchange(other.nextWordID, 0);
+	}
+	UniqueWordSet &operator=(const UniqueWordSet &) = delete;
+	UniqueWordSet &operator=(UniqueWordSet &&other) noexcept {
+		storage	   = std::move(other.storage);
+		wordMap	   = std::move(other.wordMap);
+		nextWordID = std::exchange(other.nextWordID, 0);
+		return *this;
+	}
 
 	template <class Input>
 	WordID addWord(Input &&word) {
@@ -167,9 +195,8 @@ class UniqueWordSet {
 		if (it != wordMap.end()) {
 			return it->second;	   // Word already exists, return its ID
 		}
-		wordsData.emplace_back(words.size(), word.size());
-		words.insert(words.end(), word.begin(), word.end());
-		WordID id = nextWordID++; // increment before inserting because hash and equal do bounds checks
+		storage->insert(std::span{word.begin(), word.end()});
+		WordID id = nextWordID++;	  // increment before inserting because hash and equal do bounds checks
 		wordMap.emplace(id, id);
 		return id;
 	}
@@ -185,32 +212,31 @@ class UniqueWordSet {
 		if (it != wordMap.end()) {
 			return it->second;	   // Word already exists, return its ID
 		}
-		wordsData.emplace_back(words.size(), length);
-		words.insert(words.end(), word, word + length);
-		WordID id = nextWordID++; // increment before inserting because hash and equal do bounds checks
+		storage->insert(std::span{word, length});
+		WordID id = nextWordID++;	  // increment before inserting because hash and equal do bounds checks
 		wordMap.emplace(id, id);
 		return id;
 	}
 
 	auto getWord(WordID id) const {
 		if (id >= nextWordID) { throw std::out_of_range(std::format("Invalid WordID: {}, size: {}", id, nextWordID)); }
-		const auto &[start, length] = wordsData[id];
-		return std::span{words.data() + start, length};
+		return storage->get(id);
 	}
 
 	auto operator[](WordID id) const { return getWord(id); }
 
-	size_t totalLength() const { return words.size(); }
+	size_t totalLength() const { return storage->words.size(); }
 	size_t size() const { return nextWordID; }
 
 	void clear() {
-		words.clear();
-		wordsData.clear();
+		storage->words.clear();
+		storage->wordsData.clear();
+		wordMap.clear();
 		nextWordID = 0;
 	}
 
 	auto toWordSet() const {
-		WordSet<Letter> ws{words, wordsData};
+		WordSet<Letter> ws{storage->words, storage->wordsData};
 		return ws;
 	}
 
@@ -237,21 +263,22 @@ class UniqueWordSet {
 
 	const UniqueWordSet &serialize(std::ostream &out) const {
 		out.write(reinterpret_cast<const char *>(&nextWordID), sizeof(nextWordID));
-		out.write(reinterpret_cast<const char *>(wordsData.data()), wordsData.size() * sizeof(WordData));
-		out.write(reinterpret_cast<const char *>(words.data()), words.size() * sizeof(Letter));
+		out.write(reinterpret_cast<const char *>(storage->wordsData.data()),
+				  storage->wordsData.size() * sizeof(WordData));
+		out.write(reinterpret_cast<const char *>(storage->words.data()), storage->words.size() * sizeof(Letter));
 		return *this;
 	}
 
 	UniqueWordSet(std::istream &in) : UniqueWordSet() {
 		in.read(reinterpret_cast<char *>(&nextWordID), sizeof(nextWordID));
-		wordsData.resize(nextWordID);
-		in.read(reinterpret_cast<char *>(wordsData.data()), wordsData.size() * sizeof(WordData));
+		storage->wordsData.resize(nextWordID);
+		in.read(reinterpret_cast<char *>(storage->wordsData.data()), storage->wordsData.size() * sizeof(WordData));
 		size_t totalLength = 0;
-		for (const auto &[start, length] : wordsData) {
+		for (const auto &[start, length] : storage->wordsData) {
 			totalLength = std::max(totalLength, start + length);
 		}
-		words.resize(totalLength);
-		in.read(reinterpret_cast<char *>(words.data()), totalLength * sizeof(Letter));
+		storage->words.resize(totalLength);
+		in.read(reinterpret_cast<char *>(storage->words.data()), totalLength * sizeof(Letter));
 		wordMap.reserve(nextWordID);
 		for (WordID id = 0; id < nextWordID; ++id) {
 			wordMap.insert({id, id});

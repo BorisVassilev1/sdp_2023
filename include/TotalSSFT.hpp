@@ -1,6 +1,8 @@
 #pragma once
 
 #include "concepts.hpp"
+#include "pipes.hpp"
+#include "utils.h"
 #include "wordset.hpp"
 
 namespace fl {
@@ -8,8 +10,8 @@ namespace fl {
 template <isLetter Letter, std::size_t alphabetSize = Letter::size>
 class TotalSSFT {
    public:
-	using State	   = unsigned int;
-	using WordID   = UniqueWordSet<Letter>::WordID;
+	using State	 = unsigned int;
+	using WordID = UniqueWordSet<Letter>::WordID;
 	struct Transition {
 		WordID outputID;
 		State  next;
@@ -45,8 +47,9 @@ class TotalSSFT {
 		state = next;
 		return std::make_pair(words[outputID], true);
 	}
-	
-	[[clang::always_inline]] inline bool step(State &state, std::span<const Letter> input, std::vector<Letter> &output) const {
+
+	[[clang::always_inline]] inline bool steps(State &state, std::span<const Letter> input,
+											   std::vector<Letter> &output) const {
 		for (Letter letter : input) {
 			auto [out, ok] = step(state, letter);
 			if (!ok) return false;
@@ -62,11 +65,27 @@ class TotalSSFT {
 
 	[[clang::always_inline]] inline bool isFinal(State) const { return true; }
 
+	void f(std::span<const Letter> input, std::vector<Letter> &outputWord) const {
+		State state = 0;
+		for (const auto &letter : input) {
+			const auto &[outputID, next] = transitions[state][size_t(letter)];
+			state						 = next;
+			for (const auto &outLetter : words[outputID])
+				outputWord.push_back(outLetter);
+		}
+		for (const auto &outLetter : words[output[state]])
+			outputWord.push_back(outLetter);
+	}
+	std::vector<Letter> f(std::span<const Letter> input) const {
+		std::vector<Letter> outputWord;
+		f(input, outputWord);
+		return outputWord;
+	}
 
 	const TotalSSFT &serialize(std::ostream &out) const {
 		out.write(reinterpret_cast<const char *>(&N), sizeof(N));
 		words.serialize(out);
-		out.write(reinterpret_cast<const char *>(transitions.data()), transitions.size() * sizeof(transitions[0]));	
+		out.write(reinterpret_cast<const char *>(transitions.data()), transitions.size() * sizeof(transitions[0]));
 		out.write(reinterpret_cast<const char *>(output.data()), output.size() * sizeof(output[0]));
 		return *this;
 	}
@@ -79,7 +98,56 @@ class TotalSSFT {
 		in.read(reinterpret_cast<char *>(transitions.data()), transitions.size() * sizeof(transitions[0]));
 		in.read(reinterpret_cast<char *>(output.data()), output.size() * sizeof(output[0]));
 	}
+
+	const TotalSSFT &print(std::ostream &out) const {
+		out << "digraph ReplaceWithMarkerSSFT {\n";
+		out << "  rankdir=LR;\n";
+		out << "  node [shape=circle];\n";
+		out << "  init [label=\"N=" << N << "\", shape=square];\n";
+		out << "  init -> 0;\n";	 // initial state
+		for (State s = 0; s < N; ++s) {
+			if (output[s] != 0) {
+				out << "  " << s << " [shape=doublecircle, label=\"";
+				for (const auto &letter : words[output[s]]) {
+					out << letter;
+				}
+				out << "\"];\n";								 // final States with output
+			} else out << "  " << s << " [shape=circle];\n";	 // final States
+
+			for (Letter l = 0; l < Letter::size; ++l) {
+				const auto &[outputID, next] = transitions[s][size_t(l)];
+				if (next != -1u) {
+					out << "  " << s << " -> " << next << " [label=\"<" << l << ", ";
+					for (const auto &letter : words[outputID]) {
+						out << letter;
+					}
+					out << ">\"];\n";
+				}
+			}
+		}
+		out << "}\n";
+		return *this;
+	}
 };
+
+template <class Letter, size_t alphabetSize>
+void drawFSA(const TotalSSFT<Letter, alphabetSize> &fsa) {
+	ShellProcess p("dot -Tsvg > a.svg && feh ./a.svg");
+	fsa.print(p.in());
+	p.in() << std::endl;
+	p.in().close();
+	p.wait();
+	auto out = getString(p.out()), err = getString(p.err());
+	if (!out.empty()) std::cout << out << std::endl;
+	if (!err.empty()) std::cout << err << std::endl;
+}
+
+template <class Letter, size_t alphabetSize>
+void statFSA(const TotalSSFT<Letter, alphabetSize> &fsa) {
+	std::cout << "Subsequential Transtuder : |Q| = " << fsa.size() << ", |Σ| = " << alphabetSize
+			  << ", |Δ| = " << fsa.size() * alphabetSize << ", |strings| = " << fsa.cacheCount()
+			  << ", total = " << fsa.cacheSize() << std::endl;
+}
 
 }	  // namespace fl
 
