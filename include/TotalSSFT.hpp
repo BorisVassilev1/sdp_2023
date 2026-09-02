@@ -45,6 +45,16 @@ class TotalSSFT {
 		state = next;
 		return std::make_pair(words[outputID], true);
 	}
+	
+	[[clang::always_inline]] inline bool step(State &state, std::span<const Letter> input, std::vector<Letter> &output) const {
+		for (Letter letter : input) {
+			auto [out, ok] = step(state, letter);
+			if (!ok) return false;
+			output.insert(output.end(), out.begin(), out.end());
+		}
+		return true;
+	}
+
 	[[clang::always_inline]] inline std::span<const Letter> psi(State state) const {
 		return std::span<const Letter>(words[output[state]]);
 	}
