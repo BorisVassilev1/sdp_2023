@@ -28,6 +28,14 @@ struct hash<std::span<Letter>> {
 	}
 };
 
+template <class A, size_t N>
+struct hash<std::array<A, N>> {
+	constexpr hash() = default;
+	constexpr size_t operator()(const std::array<A, N> &x) const {
+		return std::hash<std::string_view>()(std::string_view(reinterpret_cast<const char *>(x.data()), x.size()));
+	}
+};
+
 template <isLetter Letter>
 struct hash<std::vector<Letter>> {
 	constexpr hash() = default;

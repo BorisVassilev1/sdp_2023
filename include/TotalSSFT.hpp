@@ -15,6 +15,9 @@ class TotalSSFT {
 	struct Transition {
 		WordID outputID;
 		State  next;
+		bool operator==(const Transition &other) const = default;
+		bool operator!=(const Transition &other) const = default;
+		bool operator<=>(const Transition &other) const = default;
 	};
 	using Map	   = std::vector<std::array<Transition, alphabetSize>>;
 	using Letter_t = Letter;

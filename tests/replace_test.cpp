@@ -18,6 +18,9 @@ class MyLetter {
 		return *this;
 	}
 
+	constexpr auto operator<=>(std::size_t other) const { return (size_t)value <=> other; }
+	constexpr auto operator<=>(const MyLetter &other) const = default;
+
 	constexpr static size_t size = 5;
 	const static MyLetter	eps;
 	const static MyLetter	eof;
@@ -71,11 +74,14 @@ int main() {
 	fl::ReplaceWithMarkerSSFT<MyLetter> ssft(
 		{
 			//
-			{{ml::a}, {ml::b, ml::b}},
-			//{{ml::b}, {ml::c}},
-			//{{ml::a}, {ml::c}},
-			//{{ml::d}, {ml::c}},
-			//{{ml::b, ml::b}, {ml::d}}
+			//{{ml::a}, {ml::b, ml::b}},
+
+			{toMyLetter("abd"), toMyLetter("cc")},
+			{toMyLetter("abd"), toMyLetter("cb")},
+			{toMyLetter("abc"), toMyLetter("c")},
+			{toMyLetter("abdd"), toMyLetter("ab")},
+			{toMyLetter("abdd"), toMyLetter("cb")},
+			{toMyLetter("abc"), toMyLetter("ab")},
 			//
 		},
 		ml::_);
