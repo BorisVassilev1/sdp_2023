@@ -176,7 +176,8 @@ class UniqueWordSet {
 	}
 
 	UniqueWordSet(const UniqueWordSet &) = delete;
-	UniqueWordSet(UniqueWordSet &&other) noexcept : wordMap(0, myHash(other.storage.get()), myEqual(other.storage.get())) {
+	UniqueWordSet(UniqueWordSet &&other) noexcept
+		: wordMap(0, myHash(other.storage.get()), myEqual(other.storage.get())) {
 		storage	   = std::move(other.storage);
 		wordMap	   = std::move(other.wordMap);
 		nextWordID = std::exchange(other.nextWordID, 0);
@@ -216,6 +217,21 @@ class UniqueWordSet {
 		WordID id = nextWordID++;	  // increment before inserting because hash and equal do bounds checks
 		wordMap.emplace(id, id);
 		return id;
+	}
+
+	WordID addSubWord(WordID id, size_t offset, size_t length) {
+		if (id >= nextWordID) { throw std::out_of_range(std::format("Invalid WordID: {}, size: {}", id, nextWordID)); }
+		const auto &[start, wordLength] = storage->wordsData[id];
+		if (offset + length > wordLength) { throw std::out_of_range("Substring exceeds word length"); }
+		std::span<const Letter> subWord{storage->words.data() + start + offset, length};
+		auto					it = wordMap.find(subWord);
+		if (it != wordMap.end()) {
+			return it->second;	   // Subword already exists, return its ID
+		}
+		storage->wordsData.emplace_back(start + offset, length);
+		WordID newID = nextWordID++;
+		wordMap.emplace(newID, newID);
+		return newID;
 	}
 
 	auto getWord(WordID id) const {

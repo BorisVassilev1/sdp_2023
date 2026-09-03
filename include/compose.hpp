@@ -35,21 +35,20 @@ class ComposeTotalSSFT : public TotalSSFT<Letter> {
 			return newID;
 		};
 
-		auto createTransition = [&](const BigState &state, State state_id, Letter letter) -> std::pair<BigState, State> {
+		std::vector<Letter> scratchOutput;
+		auto				createTransition = [&](const BigState &state, State state_id,
+												   Letter letter) -> std::pair<BigState, State> {
 			const auto &[s1, s2] = state;
 			State next_s1 = s1, next_s2 = s2;
 			auto [o1, succ1] = first.step(next_s1, letter);
 			assert(succ1);
-			// if (!succ1) return {-1u, -1u};	   // maybe wrong
-			static std::vector<Letter> output;
-			bool					   succ2 = second.steps(next_s2, o1, output);
+			scratchOutput.clear();
+			bool succ2 = second.steps(next_s2, o1, scratchOutput);
 			assert(succ2);
-			// if (!succ2) return {-1u, -1u};	   // maybe wrong
 
 			BigState next_state{next_s1, next_s2};
-			State	 next_id							   = stateID(next_state);
-			this->transitions[state_id][(size_t)letter] = {this->words.addWord(output), next_id};
-			output.clear();
+			State	 next_id							= stateID(next_state);
+			this->transitions[state_id][(size_t)letter] = {this->words.addWord(scratchOutput), next_id};
 			return {next_state, next_id};
 		};
 
@@ -82,7 +81,7 @@ class ComposeTotalSSFT : public TotalSSFT<Letter> {
 			this->output[currentID] = this->words.addWord(output);
 
 			for (Letter letter = 0; letter < Letter::size; ++letter) {
-				auto [next, nextID]			 = createTransition(current, currentID, letter);
+				auto [next, nextID] = createTransition(current, currentID, letter);
 				if (!visited[nextID]) { q.push(next); }
 			}
 		}

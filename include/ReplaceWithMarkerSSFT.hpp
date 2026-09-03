@@ -27,7 +27,22 @@ class ReplaceWithMarkerSSFT : public TotalSSFT<Letter, alphabetSize> {
    private:
 	const Letter marker;
 
-	using DelayStorage = std::vector<std::vector<Letter>>;
+	// using DelayStorage = std::vector<std::vector<Letter>>;
+	class DelayStorage {
+		UniqueWordSet<Letter> delaysWords;
+		std::vector<WordID>	  delays;
+
+	   public:
+		DelayStorage() = default;
+		std::span<const Letter> operator[](State s) { return delaysWords[delays[s]]; }
+		WordID				   &operator()(State s) { return delays[s]; }
+		auto				   &push_back(std::span<Letter> &&delay) {
+			delays.push_back(delaysWords.addWord(delay));
+			return delays.back();
+		}
+		auto  size() const { return delays.size(); }
+		auto &words() { return delaysWords; }
+	};
 
 	using TotalSSFT<Letter, alphabetSize>::N;
 	using TotalSSFT<Letter, alphabetSize>::transitions;
@@ -40,7 +55,7 @@ class ReplaceWithMarkerSSFT : public TotalSSFT<Letter, alphabetSize> {
 			for (auto &t : transitions.back())
 				t = {0, -1u};
 			output.push_back(0);	 // epsilon
-			delays.push_back({});
+			delays.push_back(std::span<Letter>{});
 			assert(transitions.size() == output.size() && transitions.size() == N + 1);
 			assert(delays.size() == N + 1);
 		}
@@ -62,18 +77,23 @@ class ReplaceWithMarkerSSFT : public TotalSSFT<Letter, alphabetSize> {
 
 	State insertIntoTrieRight(std::span<const Letter> word, State state, DelayStorage &delays) {
 		assert(word.size() >= 1);
+		WordID		 wholeWordID = delays.words().addWord(word);	 // then will be the output of the last state
+		unsigned int i			 = 0;
 		for (const auto &letter : word) {
 			auto &[outputID, next] = transitions[state][size_t(letter)];
 			if (next == -1u) {
 				auto new_state					   = newState(delays);
 				transitions[state][size_t(letter)] = {0, new_state};	 // no output for right part
-				delays[new_state].insert(delays[new_state].end(), delays[state].begin(), delays[state].end());
-				delays[new_state].push_back(letter);
+
+				// store the prefix of the right part
+				delays(new_state) = delays.words().addSubWord(wholeWordID, 0, i + 1);
 
 				if (letter == marker) { output[new_state] = words.addWord(delays[new_state]); }
 
 				state = new_state;
 			} else state = next;
+			++i;
+			assert(i <= word.size());
 		}
 		return state;
 	}
@@ -166,10 +186,10 @@ class ReplaceWithMarkerSSFT : public TotalSSFT<Letter, alphabetSize> {
 	ReplaceWithMarkerSSFT(std::istream &in, const Letter &marker)
 		: fl::TotalSSFT<Letter, alphabetSize>(in), marker(marker) {}
 
-	ReplaceWithMarkerSSFT(const ReplaceWithMarkerSSFT &) = default;
-	ReplaceWithMarkerSSFT(ReplaceWithMarkerSSFT &&) = default;
+	ReplaceWithMarkerSSFT(const ReplaceWithMarkerSSFT &)			= default;
+	ReplaceWithMarkerSSFT(ReplaceWithMarkerSSFT &&)					= default;
 	ReplaceWithMarkerSSFT &operator=(const ReplaceWithMarkerSSFT &) = default;
-	ReplaceWithMarkerSSFT &operator=(ReplaceWithMarkerSSFT &&) = default;
+	ReplaceWithMarkerSSFT &operator=(ReplaceWithMarkerSSFT &&)		= default;
 };
 
 }	  // namespace fl
