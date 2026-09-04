@@ -15,9 +15,9 @@ class TotalSSFT {
 	struct Transition {
 		WordID outputID;
 		State  next;
-		bool operator==(const Transition &other) const = default;
-		bool operator!=(const Transition &other) const = default;
-		bool operator<=>(const Transition &other) const = default;
+		bool   operator==(const Transition &other) const  = default;
+		bool   operator!=(const Transition &other) const  = default;
+		bool   operator<=>(const Transition &other) const = default;
 	};
 	using Map	   = std::vector<std::array<Transition, alphabetSize>>;
 	using Letter_t = Letter;
@@ -30,6 +30,7 @@ class TotalSSFT {
 	Map transitions;
 	/// the Ψ-function, output[state] = outputID
 	std::vector<WordID> output;
+	WordID				initialOut = 0;
 
    public:
 	TotalSSFT() = default;
@@ -66,7 +67,8 @@ class TotalSSFT {
 	}
 	[[clang::always_inline]] inline State initial() const { return 0; }
 
-	[[clang::always_inline]] inline bool isFinal(State) const { return true; }
+	[[clang::always_inline]] inline std::span<const Letter> initialOutput() const { return words[initialOut]; }
+	[[clang::always_inline]] inline bool					isFinal(State) const { return true; }
 
 	void f(std::span<const Letter> input, std::vector<Letter> &outputWord) const {
 		State state = 0;

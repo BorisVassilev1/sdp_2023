@@ -55,6 +55,7 @@ concept isSubSeqTransducer =			  //
 		{ &T::isFinal } -> std::same_as<bool (T::*)(typename T::State) const>;
 		{ &T::initial } -> std::same_as<typename T::State (T::*)() const>;
 		{ &T::size } -> std::same_as<std::size_t (T::*)() const>;
+		{ &T::initialOutput } -> std::same_as<std::span<const typename T::Letter_t> (T::*)() const>;
 	};
 
 }	  // namespace fl

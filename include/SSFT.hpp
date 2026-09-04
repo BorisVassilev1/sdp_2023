@@ -314,9 +314,10 @@ class SSFT {
 		std::cout << std::endl;
 	}
 
-	[[clang::always_inline]] inline std::size_t size() const { return N; }
-	[[clang::always_inline]] inline State		initial() const { return 0; }
-	[[clang::always_inline]] inline bool		isFinal(State s) const { return qFinals.contains(s); }
+	[[clang::always_inline]] inline std::size_t				size() const { return N; }
+	[[clang::always_inline]] inline State					initial() const { return 0; }
+	[[clang::always_inline]] inline std::span<const Letter> initialOutput() const { return words[0]; }
+	[[clang::always_inline]] inline bool					isFinal(State s) const { return qFinals.contains(s); }
 	[[clang::always_inline]] inline std::pair<std::span<const Letter>, bool> step(State &s, Letter l) const {
 		auto it = transitions.find({s, l});
 		if (it == transitions.end()) return std::pair{std::span<const Letter>{}, false};

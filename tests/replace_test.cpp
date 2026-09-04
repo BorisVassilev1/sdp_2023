@@ -74,9 +74,10 @@ int main() {
 	fl::ReplaceWithMarkerSSFT<MyLetter> ssft(
 		{
 			//
-			//{{ml::a}, {ml::b, ml::b}},
+			{{ml::a}, {ml::b, ml::b}},
 
 			{toMyLetter("abd"), toMyLetter("cc")},
+			{toMyLetter("abd"), toMyLetter("c")},
 			{toMyLetter("abd"), toMyLetter("cb")},
 			{toMyLetter("abc"), toMyLetter("c")},
 			{toMyLetter("abdd"), toMyLetter("ab")},
@@ -84,13 +85,13 @@ int main() {
 			{toMyLetter("abc"), toMyLetter("ab")},
 			//
 		},
-		ml::_);
+		ml::_, true);
 
 	fl::statFSA(ssft);
 	fl::drawFSA(ssft);
 
 	std::cout << "Input: ";
-	std::vector<ml> input = toMyLetter("_a_bb_d_c_b_c_bb_d_a_c_");
+	std::vector<ml> input = toMyLetter("_abd_cc_abc_aa_abd_c_abd_abdd_abdd_ab_c_a_bb_a_");
 	for (const auto &l : input) {
 		std::cout << l;
 	}

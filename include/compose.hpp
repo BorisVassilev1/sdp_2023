@@ -57,7 +57,14 @@ class ComposeTotalSSFT : public TotalSSFT<Letter> {
 
 		// bfs generation
 		std::queue<BigState> q;
-		q.push({first.initial(), second.initial()});
+		{
+			State s2	= second.initial();
+			auto  succ2 = second.steps(s2, first.initialOutput(), scratchOutput);
+			assert(succ2);
+			this->initialOut = this->words.addWord(scratchOutput);
+			scratchOutput.clear();
+			q.push({first.initial(), s2});
+		}
 		while (!q.empty()) {
 			BigState current = q.front();
 			q.pop();
@@ -71,14 +78,14 @@ class ComposeTotalSSFT : public TotalSSFT<Letter> {
 			});
 
 			// calculate the psi-function for the current state
-			auto [s1, s2]		   = current;
-			auto				o1 = first.psi(s1);
-			std::vector<Letter> output;
-			bool				succ2 = second.steps(s2, o1, output);	  // s2 is now modified
+			auto [s1, s2] = current;
+			auto o1		  = first.psi(s1);
+			bool succ2	  = second.steps(s2, o1, scratchOutput);
 			assert(succ2);
 			auto o2 = second.psi(s2);
-			output.insert(output.end(), o2.begin(), o2.end());
-			this->output[currentID] = this->words.addWord(output);
+			scratchOutput.insert(scratchOutput.end(), o2.begin(), o2.end());
+			this->output[currentID] = this->words.addWord(scratchOutput);
+			scratchOutput.clear();
 
 			for (Letter letter = 0; letter < Letter::size; ++letter) {
 				auto [next, nextID] = createTransition(current, currentID, letter);
