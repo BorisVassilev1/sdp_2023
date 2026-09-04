@@ -72,6 +72,8 @@ class TotalSSFT {
 
 	void f(std::span<const Letter> input, std::vector<Letter> &outputWord) const {
 		State state = 0;
+		outputWord.clear();
+		outputWord.insert(outputWord.end(), words[initialOut].begin(), words[initialOut].end());
 		for (const auto &letter : input) {
 			const auto &[outputID, next] = transitions[state][size_t(letter)];
 			state						 = next;
@@ -152,6 +154,37 @@ void statFSA(const TotalSSFT<Letter, alphabetSize> &fsa) {
 	std::cout << "Subsequential Transtuder : |Q| = " << fsa.size() << ", |Σ| = " << alphabetSize
 			  << ", |Δ| = " << fsa.size() * alphabetSize << ", |strings| = " << fsa.cacheCount()
 			  << ", total = " << fsa.cacheSize() << std::endl;
+}
+
+/// tests if the subsequential transducer is canonical
+template <isSubSeqTransducer Transducer>
+bool isCanonical(const Transducer &t) {
+	using State = typename Transducer::State;
+	using Letter = typename Transducer::Letter_t;
+
+	for (State s = 0; s < t.size(); ++s) {
+		std::span<const Letter> gcp;
+		bool					haveCandidate = t.isFinal(s);
+		if (haveCandidate) gcp = t.psi(s);
+
+		for (Letter l = 0; l < Letter::size; ++l) {
+			if (haveCandidate && gcp.empty()) break;
+			State next			= s;
+			auto [out, ok] = t.step(next, l);
+			if (!ok) continue;
+			if (!haveCandidate) {
+				gcp			  = out;
+				haveCandidate = true;
+				continue;
+			}
+			size_t k = 0;
+			while (k < gcp.size() && k < out.size() && size_t(gcp[k]) == size_t(out[k])) ++k;
+			gcp = gcp.subspan(0, k);
+		}
+
+		if (haveCandidate && !gcp.empty()) return false;
+	}
+	return true;
 }
 
 }	  // namespace fl

@@ -43,7 +43,7 @@ std::vector<Letter> toLetter(const char *s) {
 }
 
 template <class T>
-concept isSubSeqTransducer =			  //
+concept isSSFST =						  //
 	isLetter<typename T::Letter_t> &&	  //
 	isState<typename T::State> &&		  //
 	requires(T t, typename T::Letter_t l, T::State s) {
@@ -55,7 +55,11 @@ concept isSubSeqTransducer =			  //
 		{ &T::isFinal } -> std::same_as<bool (T::*)(typename T::State) const>;
 		{ &T::initial } -> std::same_as<typename T::State (T::*)() const>;
 		{ &T::size } -> std::same_as<std::size_t (T::*)() const>;
-		{ &T::initialOutput } -> std::same_as<std::span<const typename T::Letter_t> (T::*)() const>;
 	};
+
+template <class T>
+concept isSSFSTI = isSSFST<T> && requires(T t) {
+	{ &T::initialOutput } -> std::same_as<std::span<const typename T::Letter_t> (T::*)() const>;
+};
 
 }	  // namespace fl

@@ -37,7 +37,7 @@ struct hash<std::array<A, N>> {
 	}
 };
 
-template <isLetter Letter>
+template <class Letter>
 struct hash<std::vector<Letter>> {
 	constexpr hash() = default;
 	constexpr size_t operator()(const std::vector<Letter> &x) const {

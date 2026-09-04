@@ -16,6 +16,7 @@ namespace fl {
 
 /// Expanded FST
 ///		(FST with only single letter or epsilon on the input tape)
+///	If the input tape is never epsilon, then this is a realtime FST (non-deterministic)
 template <class Letter>
 class ExpandedFST {
    public:
@@ -493,28 +494,22 @@ auto trimFSA(ExpandedFST<Letter> &&fsa) {
 	return std::move(new_fsa);
 }
 
-template <class Letter>
+template <isLetter Letter>
 auto realtimeFST(FST<Letter> &&fst) {
 	return trimFSA(removeUpperEpsilonFST(expandFST(removeEpsilonFST(trimFSA(std::move(fst))))));
 }
 
-template <class Letter>
+/// Pseudo-determinization of an Expanded FST that has to be real-time
+template <isLetter Letter>
 auto pseudoDeterminizeFST(ExpandedFST<Letter> &&fst) {
 	using State = ExpandedFST<Letter>::State;
 
 	using BigState	= std::vector<State>;
 	using BigLetter = std::tuple<Letter, typename UniqueWordSet<Letter>::WordID>;
 
-	struct MyHash {
-		using is_transparent = void;
-		constexpr size_t operator()(const BigState &x) const {
-			return std::hash<std::string_view>()(std::string_view(reinterpret_cast<const char *>(x.data()), x.size()));
-		}
-	};
-
 	ExpandedFST<Letter>									dfa;
 	std::vector<std::reference_wrapper<const BigState>> states;
-	unordered_map<BigState, State, MyHash>				state_map;
+	unordered_map<BigState, State>						state_map;
 	std::queue<State>									queue;
 	UniqueWordSet<Letter>								secondTapeWords;
 
@@ -544,12 +539,14 @@ auto pseudoDeterminizeFST(ExpandedFST<Letter> &&fst) {
 	queue.push(initial_state);
 	dfa.qFirsts.insert(initial_state);
 
+	unordered_map<BigLetter, BigState> current_transitions;
+
 	while (!queue.empty()) {
 		State current = queue.front();
 		queue.pop();
 		const BigState &current_bs = states[current];
 
-		unordered_map<BigLetter, BigState> current_transitions;
+		current_transitions.clear();
 
 		for (const auto &q : current_bs) {
 			auto [i1, i2] = fst.transitions.equal_range(q);

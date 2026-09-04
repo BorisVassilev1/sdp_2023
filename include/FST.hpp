@@ -587,6 +587,7 @@ auto trimFSA(FST<Letter> &&fsa) {
 	return std::move(new_fsa);
 }
 
+/// gets rid of (epsilon, epsilon) transitions preserving the language of the FST.
 template <class Letter>
 auto removeEpsilonFST(FST<Letter> &&fsa) {
 	using State = typename FST<Letter>::State;
